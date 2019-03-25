@@ -12,10 +12,29 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define HEADER_LENGTH 50
+#define HEADER_LENGTH 70
 #define DISCONNECT_CODE -69
 #define MAX_NUM_CLIENTS 200
 #define MINUTE 60000
+
+//linked list of partial messages
+struct PartialNode{
+    int bytesRead;
+    char header[70];
+    char *body;
+    int sockfd;
+    unsigned int lastUpdated;
+
+};
+
+
+struct __attribute__((__packed__)) header {
+    unsigned short msgType;
+    char user[20];
+    char pwd[20];
+    char fname[20];
+    unsigned long len;
+};
 
 void error(const char *msg)
 {
@@ -23,11 +42,52 @@ void error(const char *msg)
     exit(1);
 } 
 
+//reads in a request
+//in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
+int handleRequest(int sockfd, struct PartialNode * head){
+    //TODO: Handle partial messages
 
+    /*if partial message 
+        if need to read more
+            read
+            return 0
+        elif complete
+            continue to switch
+    else:
+        do a read, return
+        return 0
+    */
+    char buffer[HEADER_LENGTH];
+    int n = read(sockfd, buffer, HEADER_LENGTH);
+    struct header* msgHeader = buffer;
+
+    switch(msgHeader->msgType){
+        case 1:
+            //add to SQL database, possibly verify should exist from router
+            break;
+        case 2:
+            //verify creds from SQL database, read, write file to Disk, send ACK
+            break;
+        case 3:
+            //verify creds, verify file exists, send back file
+            break
+        case 4:
+            //verify creds, verify file exists, overwrite file, send ACK
+            break;
+        case 5:
+            //Verify creds, verify they have permission to do this, update permission via SQL, return ACK
+            break;
+        case 6:
+            //Verify creds, verify they have permission to do this, update permission via SQL, return ACK
+            break;
+
+    }
+
+
+}
 
 int main(int argc, char *argv[])
 {
-   // int headerLength = (sizeof(int) * 2) + 42;
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -36,14 +96,11 @@ int main(int argc, char *argv[])
 
     int lSock = intializeLSock(atoi(argv[1]));
 
-
-    
-
-
     struct sockaddr_in cli_addr;
     socklen_t clilen;
     clilen = sizeof(cli_addr);
 
+    /* TODO: Talk with the router to say that you've come online */
 
     int maxSock, rv, newSock = -1;
     struct timeval tv;
@@ -55,8 +112,7 @@ int main(int argc, char *argv[])
     FD_SET(lSock, &masterFDSet);
 
     maxSock = lSock;
-    struct ClientList *cList = ClientListConstructor();
-    struct partialMessage **partialList = calloc(MAX_NUM_CLIENTS, sizeof(struct partialMessage *));
+    struct PartialNode *head = NULL;
 
     while (1){
         FD_ZERO(&copyFDSet);
@@ -66,6 +122,7 @@ int main(int argc, char *argv[])
         if (rv == -1)
             perror("Select");
         else if (rv ==0)
+            //do a timeoutSearch
             ;
         else{
             for (int sockfd = 0; sockfd < maxSock + 1; sockfd++){
@@ -81,14 +138,14 @@ int main(int argc, char *argv[])
                         
                     }
                     else{
-                        int status = readMessage(sockfd, cList, partialList);
+                        int status = handleRequest(sockfd, head);
 
                         if (status == DISCONNECT_CODE){
+
                             close(sockfd);
-                            //write a disconnect function
                             FD_CLR(sockfd, &masterFDSet);
                             
-                            
+   
                         }
 
                     }
