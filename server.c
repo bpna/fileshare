@@ -42,8 +42,31 @@ void error(const char *msg)
     exit(1);
 } 
 
+
+//sets up the server sockets and binds it to the port
+int intializeLSock(int portno){
+
+    int sockfd;
+    
+    
+    struct sockaddr_in serv_addr;
+    int n;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+       error("ERROR opening socket");
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portno);
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
+             error("ERROR on binding");
+    listen(sockfd,5);
+    return sockfd;
+
+}
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
+
 int handleRequest(int sockfd, struct PartialNode * head){
     //TODO: Handle partial messages
 
@@ -59,7 +82,7 @@ int handleRequest(int sockfd, struct PartialNode * head){
     */
     char buffer[HEADER_LENGTH];
     int n = read(sockfd, buffer, HEADER_LENGTH);
-    struct header* msgHeader = buffer;
+    struct header* msgHeader = (void *)buffer;
 
     switch(msgHeader->msgType){
         case 1:
@@ -70,7 +93,7 @@ int handleRequest(int sockfd, struct PartialNode * head){
             break;
         case 3:
             //verify creds, verify file exists, send back file
-            break
+            break;
         case 4:
             //verify creds, verify file exists, overwrite file, send ACK
             break;
