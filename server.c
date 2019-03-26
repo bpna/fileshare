@@ -24,6 +24,7 @@ struct PartialNode{
     char *body;
     int sockfd;
     unsigned int lastUpdated;
+    struct PartialNode *next;
 
 };
 
@@ -81,7 +82,24 @@ int handleRequest(int sockfd, struct PartialNode * head){
         return 0
     */
     char buffer[HEADER_LENGTH];
-    int n = read(sockfd, buffer, HEADER_LENGTH);
+    bzero(buffer, HEADER_LENGTH);
+    struct PartialNode *node = findPartial(sockfd);
+    if (node == NULL){
+        
+        int n = read(sockfd, buffer, HEADER_LENGTH);
+        createPartial(sockfd, head, buffer, n);
+        return 0;
+    }
+    else if (node->bytesRead < HEADER_LENGTH){
+
+        int n = read(sockfd, buffer, HEADER_LENGTH - node->bytesRead);
+        memcpy(&node->bytesRead[bytesRead], buffer, n);        
+        node->bytesRead += n;
+        return 0;
+    }
+
+    /* TODO: Deal with endianess */
+    
     struct header* msgHeader = (void *)buffer;
 
     switch(msgHeader->msgType){
@@ -145,9 +163,10 @@ int main(int argc, char *argv[])
         if (rv == -1)
             perror("Select");
         else if (rv ==0)
-            //do a timeoutSearch
+            //TODO: do a timeoutSearch
             ;
         else{
+            //TODO: do a timeoutSearch
             for (int sockfd = 0; sockfd < maxSock + 1; sockfd++){
                 //if there is any connection or new data to be read
                 if ( FD_ISSET (sockfd, &copyFDSet) ) {
@@ -156,7 +175,6 @@ int main(int argc, char *argv[])
                         if (newSock > 0){
                             FD_SET(newSock, &masterFDSet);
                             maxSock = (newSock > maxSock) ? newSock: maxSock;
-                            //add to sockArray
                         }
                         
                     }
