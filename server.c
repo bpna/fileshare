@@ -65,27 +65,51 @@ int intializeLSock(int portno){
     return sockfd;
 
 }
+
+//creates a parital message node, and attaches it to head of linked list
+void createPartial(int sockfd, struct PartialNode ** head, char *buffer, int n){
+
+    struct partialNode *newHead = malloc(sizeof(struct partialNode));
+    newHead->sockfd = sockfd;
+    newHead->bytesRead = n;
+    newHead->lastUpdated = time(NULL);
+    newHead->body = NULL;
+    bzero(newHead->header, HEADER_LENGTH);
+    memcpy(newHead->header, buffer, n);
+    newHead->next = *head;
+
+    //sets the head pointer to now point to new head
+    *head = newHead;
+
+}
+
+//given a sockfd to search by, searches the linked list of partial messages
+//returns the Node is found, returns NULL if node does not exist
+
+struct PartialNode *findPartial(int sockfd, struct PartialNode * head){
+
+    struct PartialNode * temp = head;
+    while (temp != NULL){
+        if (temp->sockfd == sockfd){
+            return temp;
+        }
+        temp = temp->next;
+    }
+    return NULL;
+
+
+}
+
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
 
-int handleRequest(int sockfd, struct PartialNode * head){
-    //TODO: Handle partial messages
+int handleRequest(int sockfd, struct PartialNode ** head){
 
-    /*if partial message 
-        if need to read more
-            read
-            return 0
-        elif complete
-            continue to switch
-    else:
-        do a read, return
-        return 0
-    */
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
-    struct PartialNode *node = findPartial(sockfd);
+    struct PartialNode *node = findPartial(sockfd, *head);
     if (node == NULL){
-        
+
         int n = read(sockfd, buffer, HEADER_LENGTH);
         createPartial(sockfd, head, buffer, n);
         return 0;
@@ -179,7 +203,7 @@ int main(int argc, char *argv[])
                         
                     }
                     else{
-                        int status = handleRequest(sockfd, head);
+                        int status = handleRequest(sockfd, &head);
 
                         if (status == DISCONNECT_CODE){
 
