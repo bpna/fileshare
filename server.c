@@ -16,12 +16,23 @@
 #define DISCONNECT_CODE -69
 #define MAX_NUM_CLIENTS 200
 #define MINUTE 60000
+#define UPLOAD_FILE_CODE 256
+#define UPLOAD_ACK_CODE 257
+#define ERROR_FILE_EXISTS_CODE 258
+#define ERROR_UPLOAD_FAILURE_CODE 259
+#define REQUEST_FILE_CODE 260
+#define RETURN_FILE_CODE 261
+#define UPDATE_FILE_CODE 262
+#define UPDATE_ACK_CODE 263
+#define ERROR_FILE_DOES_NOT_EXIST_CODE 264
 
+
+//TODO: if you eliminate a timed-out partial for upload, make sure to delete file that was being written 
 //linked list of partial messages
 struct PartialNode{
     int bytesRead;
     char header[70];
-    char *body;
+    char body[256];
     int sockfd;
     unsigned int lastUpdated;
     struct PartialNode *next;
@@ -67,19 +78,20 @@ int intializeLSock(int portno){
 }
 
 //creates a parital message node, and attaches it to head of linked list
-void createPartial(int sockfd, struct PartialNode ** head, char *buffer, int n){
+struct PartialNode * createPartial(int sockfd, struct PartialNode ** head, char *buffer, int n){
 
-    struct partialNode *newHead = malloc(sizeof(struct partialNode));
+    struct PartialNode *newHead = malloc(sizeof(struct PartialNode));
     newHead->sockfd = sockfd;
     newHead->bytesRead = n;
     newHead->lastUpdated = time(NULL);
-    newHead->body = NULL;
+    bzero(newHead->body, 256);
     bzero(newHead->header, HEADER_LENGTH);
     memcpy(newHead->header, buffer, n);
     newHead->next = *head;
 
     //sets the head pointer to now point to new head
     *head = newHead;
+    return newHead;
 
 }
 
@@ -108,49 +120,60 @@ int handleRequest(int sockfd, struct PartialNode ** head){
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
     struct PartialNode *node = findPartial(sockfd, *head);
+    char did_read = 0;
     if (node == NULL){
-
+        did_read = 1;
         int n = read(sockfd, buffer, HEADER_LENGTH);
-        createPartial(sockfd, head, buffer, n);
-        return 0;
+        node = createPartial(sockfd, head, buffer, n);
     }
     else if (node->bytesRead < HEADER_LENGTH){
-
+        did_read = 1;
         int n = read(sockfd, buffer, HEADER_LENGTH - node->bytesRead);
-        memcpy(&node->bytesRead[bytesRead], buffer, n);        
+        memcpy(&node->header[node->bytesRead], buffer, n);        
+        node->lastUpdated = time(NULL);
         node->bytesRead += n;
+
+    }
+
+    if (node->bytesRead < 50){
         return 0;
     }
+    struct header* msgHeader = (void *) node->header;
 
     /* TODO: Deal with endianess */
     
-    struct header* msgHeader = (void *)buffer;
 
     switch(msgHeader->msgType){
-        case 1:
-            //add to SQL database, possibly verify should exist from router
+        case UPLOAD_FILE_CODE:
+            if (did_read != 1){
+                //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
+            }
+            
             break;
-        case 2:
-            //verify creds from SQL database, read, write file to Disk, send ACK
-            break;
-        case 3:
+        case REQUEST_FILE_CODE:
             //verify creds, verify file exists, send back file
             break;
-        case 4:
-            //verify creds, verify file exists, overwrite file, send ACK
-            break;
-        case 5:
-            //Verify creds, verify they have permission to do this, update permission via SQL, return ACK
-            break;
-        case 6:
-            //Verify creds, verify they have permission to do this, update permission via SQL, return ACK
-            break;
+        case UPDATE_FILE_CODE:
+            if (did_read != 1){
 
+             //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
+            }
+            break;
+            //TODO in future: add in permision cases
     }
+
+
 
 
 }
 
+
+//ARGV arguments
+//      port number to run on 
+//      name of server
+//      FQDN of router
+//      port number of router
+//      
 int main(int argc, char *argv[])
 {
 
