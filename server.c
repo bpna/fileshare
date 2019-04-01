@@ -13,38 +13,35 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define HEADER_LENGTH 66
+#define HEADER_LENGTH 65
 #define DISCONNECT_CODE -69
 #define MINUTE 60000
 #define NEW_SERVER_CODE 66
 #define NEW_SERVER_ACK_CODE 67
 #define ERROR_SERVER_EXISTS_CODE 68
-#define UPLOAD_FILE_CODE 256
-#define UPLOAD_ACK_CODE 257
-#define ERROR_FILE_EXISTS_CODE 258
-#define ERROR_UPLOAD_FAILURE_CODE 259
-#define REQUEST_FILE_CODE 260
-#define RETURN_FILE_CODE 261
-#define UPDATE_FILE_CODE 262
-#define UPDATE_ACK_CODE 263
-#define ERROR_FILE_DOES_NOT_EXIST_CODE 264
+#define UPLOAD_FILE_CODE 128
+#define UPLOAD_ACK_CODE 129
+#define ERROR_FILE_EXISTS_CODE 130
+#define ERROR_UPLOAD_FAILURE_CODE 131
+#define REQUEST_FILE_CODE 132
+#define RETURN_FILE_CODE 133
+#define UPDATE_FILE_CODE 134
+#define UPDATE_ACK_CODE 135
+#define ERROR_FILE_DOES_NOT_EXIST_CODE 136
+
+//functions to write
+
+//reads in a message from the router, adds a client, sends ack, creates folder for that 
+//does partial message handling
 
 //TODO: set timeout value on read
 
 //TODO: if you eliminate a timed-out partial for upload, make sure to delete file that was being written 
 //linked list of partial messages
-struct PartialNode{
-    int bytesRead;
-    char header[HEADER_LENGTH];
-    int sockfd;
-    unsigned int lastUpdated;
-    struct PartialNode *next;
-
-};
 
 
 struct __attribute__((__packed__)) header {
-    unsigned short msgType;
+    unsigned char msgType;
     char user[20];
     char pwd[20];
     char fname[20];
@@ -90,66 +87,51 @@ int intializeLSock(int portno){
 
 }
 
-//creates a parital message node, and attaches it to head of linked list
-struct PartialNode * createPartial(int sockfd, struct PartialNode ** head, char *buffer, int n){
-
-    struct PartialNode *newHead = malloc(sizeof(struct PartialNode));
-    newHead->sockfd = sockfd;
-    newHead->bytesRead = n;
-    newHead->lastUpdated = time(NULL);
-    bzero(newHead->header, HEADER_LENGTH);
-    memcpy(newHead->header, buffer, n);
-    newHead->next = *head;
-
-    //sets the head pointer to now point to new head
-    *head = newHead;
-    return newHead;
-
-}
-
-//given a sockfd to search by, searches the linked list of partial messages
-//returns the Node is found, returns NULL if node does not exist
-
-struct PartialNode *findPartial(int sockfd, struct PartialNode * head){
-
-    struct PartialNode * temp = head;
-    while (temp != NULL){
-        if (temp->sockfd == sockfd){
-            return temp;
-        }
-        temp = temp->next;
-    }
-    return NULL;
-
-
-}
 
 //reads in file
 //writes ack to file
 //writes ack if successfull, error if not
 //returns DISCONNECT_CODE on succesfull read OR Error, returns 0 on partial read
-char uploadFile(int sockfd, struct PartialNode * node, struct PartialNode ** head){
+//PROBLEMS:
+//      how do you know when its returned to you the "final" chunk of cod
+//          how do you know how many bytes that is? critical to know if your'e writing to disk
+//      Scenario: you have a 13k bytes file. You do an initial read of 7000 bytes, then a real of 6000 bytes. WHen the partialMessage does the second read, it only returns 10k/13k bytes. When/how do the remainig 3k bytes get returned. If it gets returned as one 13k byte chunk, then how will it fit in the buffer
+//      need a function for deletePartial
+//      need a function for 
+char uploadFile(int sockfd, struct *header msgHeader){
     //TODO: if file exists, send ERROR message return DISCONNECT CODE
-    struct header *msgHeader = (void *)node->header;
+    
     //TODO: verify filename has no special characteres except "."
-    char buffer[256];
-    int n;
-    long length = msgHeader->len;
+    int bytesToRead = 10000
+    char buffer[bytesRead];
+    int bytesRead = getBytesRead(sockfd);
+
+    if(msgHeader->len  - bytesRead < bytesToRead){
+        bytesToRead = msgHeader->len  - bytesRead
+    }
+
+    //TODO: prepend the file with a special character so we know it isn't "ready"
     FILE *fp = fopen(msgHeader->fname, "a");
 
-    //Read Loop
-    while(length > 0){
-        bzero(buffer, 256);
-        n = read(sockfd, buffer, 256);
-        if (n < 0){
+    int n = read(sockfd, buffer, bytesToRead);
 
-            //TODO: prepend the file with a special character so we know it isn't "ready"
-            return 0;
-        }
-        fwrite(buffer, 1, n, fp);
-        length -= n;
+    if (n == 0){
+        //TODO:delete partial, right here
+        return DISCONNECT_CODE;
     }
-    fclose(fp);
+
+
+    buffer = addPartial(buffer, sockfd, n);
+    if (n + bytesRead == msgHeader->len){
+        fwrite(buffer)
+    }
+    if (n != 0){
+        fwrite(buffer, 1, n, fp);
+    }
+    if (n == 10000){
+        return 0;
+    }
+
     return DISCONNECT_CODE;
 
 
@@ -158,51 +140,70 @@ char uploadFile(int sockfd, struct PartialNode * node, struct PartialNode ** hea
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
 
-int handleRequest(int sockfd, struct PartialNode ** head){
-
+int handleRequest(int sockfd){
+    int n, headerBytesRead;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
-    struct PartialNode *node = findPartial(sockfd, *head);
-    char did_read = 0;
-    if (node == NULL){
-        did_read = 1;
-        int n = read(sockfd, buffer, HEADER_LENGTH);
-        node = createPartial(sockfd, head, buffer, n);
-    }
-    else if (node->bytesRead < HEADER_LENGTH){
-        did_read = 1;
-        int n = read(sockfd, buffer, HEADER_LENGTH - node->bytesRead);
-        memcpy(&node->header[node->bytesRead], buffer, n);        
-        node->lastUpdated = time(NULL);
-        node->bytesRead += n;
+    struct header *msgHeader;
+    char did_read;
+    headerBytesRead = getPartialHeader(msgHeader, sockfd);
+
+    //TODO: put functions inside of these, this is paralell code
+    if (headerBytesRead == 0){
+        n = read(sockfd, buffer, HEADER_LENGTH);
+        if (n < HEADER_LENGTH){
+            addPartial(buffer, sockfd, n);
+            return 0;
+        }
+        else{
+            memcpy(msgHeader, buffer, HEADER_LENGTH);
+            if (msgHeader->len > 0){
+                addPartial(buffer, sockfd, n);
+                return 0;
+            }
+        }
 
     }
-
-    if (node->bytesRead < 50){
-        return 0;
+    else if (headerBytesRead < HEADER_LENGTH){
+        n = read(sockfd, buffer, HEADER_LENGTH - headerBytesRead);
+        if (n < HEADER_LENGTH - headerBytesRead){
+            addPartial(buffer, sockfd, n);
+            return 0;
+        }
+        else{
+            memcpy(&msgHeader[headerBytesRead], buffer, HEADER_LENGTH - headerBytesRead);
+            if (msgHeader->len > 0){
+                addPartial(buffer, sockfd, n);
+                return 0;
+            }
+        }
     }
-    struct header* msgHeader = (void *) node->header;
+
+
+    fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->msgType);
+    fprintf(stderr, "the username incoming is %s\n", msgHeader->user);
+    fprintf(stderr, "the password incoming is %s\n", msgHeader->pwd);
+    fprintf(stderr, "the fname incoming is %s\n", msgHeader->fname);
+    fprintf(stderr, "the length incoming is %d\n", msgHeader->len);
+
 
     /* TODO: Deal with endianess */
     
 
     switch(msgHeader->msgType){
         case UPLOAD_FILE_CODE:
-            if (did_read != 1){
+            return uploadFile(sockfd, msgHeader);
               //  return uploadFile(sockfd, node, head);
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
-            }
             
             break;
         case REQUEST_FILE_CODE:
             //verify creds, verify file exists, send back file
             break;
         case UPDATE_FILE_CODE:
-            if (did_read != 1){
 
              //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
-            }
             break;
             //TODO in future: add in permision cases
             //TODO: Delete file
@@ -211,6 +212,7 @@ int handleRequest(int sockfd, struct PartialNode ** head){
     return DISCONNECT_CODE;
 
 }
+
 
 //connects to router, recieves ack, and returns socked number of connection with router
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
@@ -277,7 +279,7 @@ int main(int argc, char *argv[])
 {
 
     if (argc < 5) {
-        fprintf(stderr,"ERROR, no port provided\n");
+        fprintf(stderr,"ERROR, not enough arguments\n");
         exit(1);
     }
 
@@ -300,7 +302,6 @@ int main(int argc, char *argv[])
     FD_SET(lSock, &masterFDSet);
 
     maxSock = lSock;
-    struct PartialNode *head = NULL;
 
     while (1){
         FD_ZERO(&copyFDSet);
@@ -318,6 +319,7 @@ int main(int argc, char *argv[])
                 //if there is any connection or new data to be read
                 if ( FD_ISSET (sockfd, &copyFDSet) ) {
                     if (sockfd == lSock){
+                        fprintf(stderr, "there's a new connection in town\n");
                         newSock = accept(sockfd, (struct sockaddr *) &cli_addr,  &clilen);
                         if (newSock > 0){
                             FD_SET(newSock, &masterFDSet);
@@ -326,16 +328,15 @@ int main(int argc, char *argv[])
                         
                     }
                     else{
+                        fprintf(stderr, "new info incoming\n" );
                         //if sockfd = routerSock
                             // addClient
                         int status = handleRequest(sockfd, &head);
 
                         if (status == DISCONNECT_CODE){
-
+                            fprintf(stderr, "disconnecting client\n" );
                             close(sockfd);
                             FD_CLR(sockfd, &masterFDSet);
-                            
-   
                         }
 
                     }
