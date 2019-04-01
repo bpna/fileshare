@@ -12,6 +12,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "parital_message_handler.h"
 
 #define HEADER_LENGTH 65
 #define DISCONNECT_CODE -69
@@ -98,20 +99,20 @@ int intializeLSock(int portno){
 //      Scenario: you have a 13k bytes file. You do an initial read of 7000 bytes, then a real of 6000 bytes. WHen the partialMessage does the second read, it only returns 10k/13k bytes. When/how do the remainig 3k bytes get returned. If it gets returned as one 13k byte chunk, then how will it fit in the buffer
 //      need a function for deletePartial
 //      need a function for 
-char uploadFile(int sockfd, struct *header msgHeader){
+char uploadFile(int sockfd, struct header *msgHeader, struct PartialMessageHandler* handler){
     //TODO: if file exists, send ERROR message return DISCONNECT CODE
     
     //TODO: verify filename has no special characteres except "."
-    int bytesToRead = 10000
-    char buffer[bytesRead];
-    int bytesRead = getBytesRead(sockfd);
+    int bytesToRead = 10000;
+    char buffer[bytesToRead];
+    int bytesRead = getBytesRead(handler, sockfd);
 
     if(msgHeader->len  - bytesRead < bytesToRead){
-        bytesToRead = msgHeader->len  - bytesRead
+        bytesToRead = msgHeader->len  - bytesRead;
     }
 
     //TODO: prepend the file with a special character so we know it isn't "ready"
-    FILE *fp = fopen(msgHeader->fname, "a");
+    
 
     int n = read(sockfd, buffer, bytesToRead);
 
@@ -120,19 +121,20 @@ char uploadFile(int sockfd, struct *header msgHeader){
         return DISCONNECT_CODE;
     }
 
-
-    buffer = addPartial(buffer, sockfd, n);
+    n = addPartial(handler, msgHeader, buffer, sockfd, n);
+    FILE *fp = fopen(msgHeader->fname, "a");
+    
+    fwrite(buffer, 1, n, fp);
+    fclose(fp);
     if (n + bytesRead == msgHeader->len){
-        fwrite(buffer)
-    }
-    if (n != 0){
-        fwrite(buffer, 1, n, fp);
-    }
-    if (n == 10000){
-        return 0;
-    }
 
-    return DISCONNECT_CODE;
+        msgHeader = makeHeader(UPLOAD_ACK_CODE, msgHeader->user, msgHeader->pwd, msgHeader->fname, 0);
+        n = write(sockfd, (void *) msgHeader, HEADER_LENGTH);
+        free(msgHeader);
+        return DISCONNECT_CODE;
+    }
+    
+    return 0;
 
 
 }
@@ -140,25 +142,25 @@ char uploadFile(int sockfd, struct *header msgHeader){
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
 
-int handleRequest(int sockfd){
+int handleRequest(int sockfd, struct PartialMessageHandler *handler){
     int n, headerBytesRead;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
     struct header *msgHeader;
     char did_read;
-    headerBytesRead = getPartialHeader(msgHeader, sockfd);
+    headerBytesRead = getPartialHeader(handler, msgHeader, sockfd);
 
     //TODO: put functions inside of these, this is paralell code
     if (headerBytesRead == 0){
         n = read(sockfd, buffer, HEADER_LENGTH);
         if (n < HEADER_LENGTH){
-            addPartial(buffer, sockfd, n);
+            addPartial(handler, buffer, sockfd, n);
             return 0;
         }
         else{
             memcpy(msgHeader, buffer, HEADER_LENGTH);
             if (msgHeader->len > 0){
-                addPartial(buffer, sockfd, n);
+                addPartial(handler, buffer, sockfd, n);
                 return 0;
             }
         }
@@ -167,13 +169,13 @@ int handleRequest(int sockfd){
     else if (headerBytesRead < HEADER_LENGTH){
         n = read(sockfd, buffer, HEADER_LENGTH - headerBytesRead);
         if (n < HEADER_LENGTH - headerBytesRead){
-            addPartial(buffer, sockfd, n);
+            addPartial(handler, buffer, sockfd, n);
             return 0;
         }
         else{
             memcpy(&msgHeader[headerBytesRead], buffer, HEADER_LENGTH - headerBytesRead);
             if (msgHeader->len > 0){
-                addPartial(buffer, sockfd, n);
+                addPartial(handler, buffer, sockfd, n);
                 return 0;
             }
         }
@@ -193,8 +195,7 @@ int handleRequest(int sockfd){
 
     switch(msgHeader->msgType){
         case UPLOAD_FILE_CODE:
-            return uploadFile(sockfd, msgHeader);
-              //  return uploadFile(sockfd, node, head);
+            return uploadFile(sockfd, msgHeader, handler);
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             
             break;
@@ -301,6 +302,8 @@ int main(int argc, char *argv[])
     FD_ZERO(&copyFDSet);
     FD_SET(lSock, &masterFDSet);
 
+    struct PartialMessageHandler *handler = init_partials();
+
     maxSock = lSock;
 
     while (1){
@@ -331,7 +334,7 @@ int main(int argc, char *argv[])
                         fprintf(stderr, "new info incoming\n" );
                         //if sockfd = routerSock
                             // addClient
-                        int status = handleRequest(sockfd, &head);
+                        int status = handleRequest(sockfd, handler);
 
                         if (status == DISCONNECT_CODE){
                             fprintf(stderr, "disconnecting client\n" );
