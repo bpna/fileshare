@@ -12,7 +12,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "parital_message_handler.h"
+#include "partial_message_handler.h"
 
 #define HEADER_LENGTH 65
 #define DISCONNECT_CODE -69
@@ -121,7 +121,7 @@ char uploadFile(int sockfd, struct header *msgHeader, struct PartialMessageHandl
         return DISCONNECT_CODE;
     }
 
-    n = addPartial(handler, msgHeader, buffer, sockfd, n);
+    n = add_partial(handler, buffer, sockfd, n);
     FILE *fp = fopen(msgHeader->fname, "a");
     
     fwrite(buffer, 1, n, fp);
@@ -148,19 +148,19 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
     bzero(buffer, HEADER_LENGTH);
     struct header *msgHeader;
     char did_read;
-    headerBytesRead = getPartialHeader(handler, msgHeader, sockfd);
+    headerBytesRead = getPartialHeader(handler, sockfd, (void *) msgHeader);
 
     //TODO: put functions inside of these, this is paralell code
     if (headerBytesRead == 0){
         n = read(sockfd, buffer, HEADER_LENGTH);
         if (n < HEADER_LENGTH){
-            addPartial(handler, buffer, sockfd, n);
+            add_partial(handler, buffer, sockfd, n);
             return 0;
         }
         else{
             memcpy(msgHeader, buffer, HEADER_LENGTH);
             if (msgHeader->len > 0){
-                addPartial(handler, buffer, sockfd, n);
+                add_partial(handler, buffer, sockfd, n);
                 return 0;
             }
         }
@@ -169,13 +169,13 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
     else if (headerBytesRead < HEADER_LENGTH){
         n = read(sockfd, buffer, HEADER_LENGTH - headerBytesRead);
         if (n < HEADER_LENGTH - headerBytesRead){
-            addPartial(handler, buffer, sockfd, n);
+            add_partial(handler, buffer, sockfd, n);
             return 0;
         }
         else{
             memcpy(&msgHeader[headerBytesRead], buffer, HEADER_LENGTH - headerBytesRead);
             if (msgHeader->len > 0){
-                addPartial(handler, buffer, sockfd, n);
+                add_partial(handler, buffer, sockfd, n);
                 return 0;
             }
         }
