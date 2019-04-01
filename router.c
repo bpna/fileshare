@@ -18,27 +18,11 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include "db.h"
+#include "messages.h"
 #include "partial_message_handler.h"
 
 #define DISCONNECTED 0
-#define SOURCE_LENGTH 20
-#define PASSWORD_LENGTH 20
-#define FILENAME_LENGTH 20
-#define LENGTH_FIELD_LENGTH 4
 #define MAX_MSG_READ 450
-
-enum client_message {NEW_CLIENT = 1, NEW_CLIENT_ACK, ERROR_CLIENT_EXISTS, \
-                     REQUEST_USER};
-enum server_message {CREATE_CLIENT = 64, CREATE_CLIENT_ACK, NEW_SERVER, \
-                     NEW_SERVER_ACK, ERROR_SERVER_EXISTS};
-
-struct __attribute__((__packed__)) Header {
-    unsigned char id;
-    char source[SOURCE_LENGTH];
-    char password[PASSWORD_LENGTH];
-    char filename[FILENAME_LENGTH];
-    uint32_t length;
-};
 
 void error(const char *msg)
 {

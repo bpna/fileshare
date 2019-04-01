@@ -14,6 +14,7 @@
  * to other functions in the interface. It is a checked runtime error to pass
  * a NULL PartialMessageHandler * to any function in the interface.
  */
+#include "messages.h"
 
 #define INIT_BUFFER_LENGTH 20000
 #define RW_LENGTH 10000
