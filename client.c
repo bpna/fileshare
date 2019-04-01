@@ -51,7 +51,7 @@ int write_message(int sockfd, struct Header *h, char *data);
 int main(int argc, char **argv)
 {
     int sockfd, portno, n;
-    char message[400];
+    char message[450];
     enum message_type message_id;
     struct Header message_header;
 
@@ -67,7 +67,8 @@ int main(int argc, char **argv)
             strcpy(message_header.password, argv[5]);
             printf("argv[6] = %s\n", argv[6]);
             strcpy(message_header.filename, argv[6]);
-            write_message(sockfd, &message_header, NULL);
+            write_message(sockfd, ((char *) message_header), HEADER_LENGTH);
+            write_file(sockfd, message_header.filename);
             break;
 
         default:
@@ -136,20 +137,41 @@ int connect_to_server(char *fqdn, int portno)
     return sockfd;
 }
 
-int write_message(int csock, struct Header *h, char *data)
+int write_file(int csock, char *filename)
 {
-    int n, length, bytes_to_write;
-    char message[MAX_MSG_SIZE];
+    FILE *fp = fopen(filename, "rb");
+    char bytes[10000];
+    long filelen;
+    int to_write, bytes_written = 0;
 
-    bytes_to_write = HEADER_LENGTH + h->length;
+    fseek(fp, 0, SEEK_END);
+    filelen = ftell(fp);
+    rewind(fileptr);
 
-    memcpy(message, h, HEADER_LENGTH);
-    // memcpy(&message[HEADER_LENGTH], data, length);
+    while (bytes_written < filelen) {
+        if (filelen - bytes_written < 10000) {
+            to_write = filelen - bytes_written;
+        } else {
+            to_write = 10000;
+        }
 
-    n = 0;
-    while (n < bytes_to_write) {
-        n += write(csock, &message[n], bytes_to_write - n);
+        fread(bytes, to_write, 1, fp);
+        write_message(csock, bytes, to_write);
+        bytes_written += to_write;
     }
 
     return 0;
 }
+
+int write_message(int csock, char *data, int length)
+{
+    int n = 0;
+
+    while (n < length) {
+        n += write(csock, &data[n], length - n);
+    }
+
+    return 0;
+}
+
+

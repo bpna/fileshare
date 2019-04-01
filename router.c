@@ -48,7 +48,6 @@ void error(const char *msg)
 
 int open_and_bind_socket(int portno);
 
-
 int main(int argc, char *argv[])
 {
     int master_socket, csock, max_fd, rv, sockfd, status;

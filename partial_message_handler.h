@@ -37,4 +37,7 @@ struct PartialMessageHandler * init_partials();
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
                 int length);
 
+int getPartialHeader(struct PartialMessageHandler *p, int sockfd, 
+                     struct Header *headerBuf);
+
 void free_partials(struct PartialMessageHandler *p);
