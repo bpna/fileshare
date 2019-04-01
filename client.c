@@ -7,28 +7,10 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include "db.h"
+#include "messages.h"
 
 #define DISCONNECTED 0
-#define ID_FIELD_LENGTH 1
-#define ID_OFFSET 0
-#define SOURCE_FIELD_LENGTH 20
-#define SOURCE_FIELD_OFFSET 1
-#define PASSWORD_FIELD_LENGTH 20
-#define PASSWORD_FIELD_OFFSET 21
-#define FILENAME_FIELD_LENGTH 20
-#define FILENAME_FIELD_OFFSET 41
-#define LENGTH_FIELD_LENGTH 4
-#define LENGTH_FIELD_OFFSET 61
-#define HEADER_LENGTH 65
 #define MAX_MSG_SIZE 450
-
-enum message_type {NEW_CLIENT = 1, NEW_CLIENT_ACK, ERROR_CLIENT_EXISTS,
-                   REQUEST_USER, CREATE_CLIENT = 64, CREATE_CLIENT_ACK,
-                   NEW_SERVER, NEW_SERVER_ACK, ERROR_SERVER_EXISTS,
-                   UPLOAD_FILE = 128, UPLOAD_ACK, ERROR_FILE_EXISTS,
-                   ERROR_UPLOAD_FAILURE, REQUEST_FILE, RETURN_FILE, 
-                   UPDATE_FILE, UPDATE_ACK, ERROR_FILE_DOES_NOT_EXIST,
-                   ERROR_BAD_PERMISSIONS};
 
 void error(const char *msg)
 {
@@ -36,22 +18,15 @@ void error(const char *msg)
     exit(0);
 }
 
-struct __attribute__((__packed__)) Header {
-    unsigned char id;
-    char source[SOURCE_FIELD_LENGTH];
-    char password[PASSWORD_FIELD_LENGTH];
-    char filename[FILENAME_FIELD_LENGTH];
-    uint32_t length;
-};
-
 int parse_request(int argc, char **argv);
 int connect_to_server(char *fqdn, int portno);
-int write_message(int sockfd, struct Header *h, char *data);
+int write_message(int sockfd, char *data, int length);
+int write_file(int csock, char *filename);
 
 int main(int argc, char **argv)
 {
     int sockfd, portno, n;
-    char message[450];
+    char header[450];
     enum message_type message_id;
     struct Header message_header;
 
@@ -67,9 +42,10 @@ int main(int argc, char **argv)
             strcpy(message_header.password, argv[5]);
             printf("argv[6] = %s\n", argv[6]);
             strcpy(message_header.filename, argv[6]);
-            write_message(sockfd, ((char *) message_header), HEADER_LENGTH);
+            write_message(sockfd, ((char *)&message_header), HEADER_LENGTH);
             write_file(sockfd, message_header.filename);
             break;
+
 
         default:
             fprintf(stderr, "bad message type >:O\n");
@@ -130,7 +106,7 @@ int connect_to_server(char *fqdn, int portno)
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
+    if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         error("ERROR connecting");
     }
  
@@ -146,7 +122,7 @@ int write_file(int csock, char *filename)
 
     fseek(fp, 0, SEEK_END);
     filelen = ftell(fp);
-    rewind(fileptr);
+    rewind(fp);
 
     while (bytes_written < filelen) {
         if (filelen - bytes_written < 10000) {
