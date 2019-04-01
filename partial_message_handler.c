@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
-#include "messages.h"
 #include "partial_message_handler.h"
 
 struct PartialMessage {

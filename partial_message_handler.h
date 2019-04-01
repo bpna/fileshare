@@ -1,3 +1,5 @@
+#include "messages.h"
+
 /*
  * 03/31/2019
  * COMP 112 Final Project

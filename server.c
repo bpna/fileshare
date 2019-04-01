@@ -41,13 +41,6 @@
 //linked list of partial messages
 
 
-struct __attribute__((__packed__)) header {
-    unsigned char msgType;
-    char user[20];
-    char pwd[20];
-    char fname[20];
-    int len;
-};
 
 void error(const char *msg)
 {
@@ -56,13 +49,13 @@ void error(const char *msg)
 } 
 
 //returns an allocated header
-struct header *makeHeader(int msgType, char *user, char * pwd, char* fname, int len){
-    struct header *myHeader = malloc(sizeof(struct header));
-    myHeader->msgType = msgType;
-    memcpy(myHeader->user, user, 20);
-    memcpy(myHeader->pwd, pwd, 20);
-    memcpy(myHeader->fname, fname, 20);
-    myHeader->len = len;
+struct Header *makeHeader(int msgType, char *user, char * pwd, char* fname, int len){
+    struct Header *myHeader = malloc(sizeof(struct Header));
+    myHeader->id = msgType;
+    memcpy(myHeader->source, user, 20);
+    memcpy(myHeader->password, pwd, 20);
+    memcpy(myHeader->filename, fname, 20);
+    myHeader->length = len;
     return myHeader;
 
 }
@@ -99,7 +92,7 @@ int intializeLSock(int portno){
 //      Scenario: you have a 13k bytes file. You do an initial read of 7000 bytes, then a real of 6000 bytes. WHen the partialMessage does the second read, it only returns 10k/13k bytes. When/how do the remainig 3k bytes get returned. If it gets returned as one 13k byte chunk, then how will it fit in the buffer
 //      need a function for deletePartial
 //      need a function for 
-char uploadFile(int sockfd, struct header *msgHeader, struct PartialMessageHandler* handler){
+char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
     //TODO: if file exists, send ERROR message return DISCONNECT CODE
     
     //TODO: verify filename has no special characteres except "."
@@ -107,8 +100,8 @@ char uploadFile(int sockfd, struct header *msgHeader, struct PartialMessageHandl
     char buffer[bytesToRead];
     int bytesRead = getBytesRead(handler, sockfd);
 
-    if(msgHeader->len  - bytesRead < bytesToRead){
-        bytesToRead = msgHeader->len  - bytesRead;
+    if(msgHeader->length  - bytesRead < bytesToRead){
+        bytesToRead = msgHeader->length  - bytesRead;
     }
 
     //TODO: prepend the file with a special character so we know it isn't "ready"
@@ -122,13 +115,13 @@ char uploadFile(int sockfd, struct header *msgHeader, struct PartialMessageHandl
     }
 
     n = add_partial(handler, buffer, sockfd, n);
-    FILE *fp = fopen(msgHeader->fname, "a");
+    FILE *fp = fopen(msgHeader->filename, "a");
     
     fwrite(buffer, 1, n, fp);
     fclose(fp);
-    if (n + bytesRead == msgHeader->len){
+    if (n + bytesRead == msgHeader->length){
 
-        msgHeader = makeHeader(UPLOAD_ACK_CODE, msgHeader->user, msgHeader->pwd, msgHeader->fname, 0);
+        msgHeader = makeHeader(UPLOAD_ACK_CODE, msgHeader->source, msgHeader->password, msgHeader->filename, 0);
         n = write(sockfd, (void *) msgHeader, HEADER_LENGTH);
         free(msgHeader);
         return DISCONNECT_CODE;
@@ -146,7 +139,7 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
     int n, headerBytesRead;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
-    struct header *msgHeader;
+    struct Header *msgHeader;
     char did_read;
     headerBytesRead = getPartialHeader(handler, sockfd, (void *) msgHeader);
 
@@ -159,7 +152,7 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
         }
         else{
             memcpy(msgHeader, buffer, HEADER_LENGTH);
-            if (msgHeader->len > 0){
+            if (msgHeader->length > 0){
                 add_partial(handler, buffer, sockfd, n);
                 return 0;
             }
@@ -174,7 +167,7 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
         }
         else{
             memcpy(&msgHeader[headerBytesRead], buffer, HEADER_LENGTH - headerBytesRead);
-            if (msgHeader->len > 0){
+            if (msgHeader->length > 0){
                 add_partial(handler, buffer, sockfd, n);
                 return 0;
             }
@@ -183,17 +176,17 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
 
 
     fprintf(stderr, "the number of bytes read in was %d\n", n);
-    fprintf(stderr, "the type of message incoming is %d\n", msgHeader->msgType);
-    fprintf(stderr, "the username incoming is %s\n", msgHeader->user);
-    fprintf(stderr, "the password incoming is %s\n", msgHeader->pwd);
-    fprintf(stderr, "the fname incoming is %s\n", msgHeader->fname);
-    fprintf(stderr, "the length incoming is %d\n", msgHeader->len);
+    fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
+    fprintf(stderr, "the username incoming is %s\n", msgHeader->source);
+    fprintf(stderr, "the password incoming is %s\n", msgHeader->password);
+    fprintf(stderr, "the fname incoming is %s\n", msgHeader->filename);
+    fprintf(stderr, "the length incoming is %d\n", msgHeader->length);
 
 
     /* TODO: Deal with endianess */
     
 
-    switch(msgHeader->msgType){
+    switch(msgHeader->id){
         case UPLOAD_FILE_CODE:
             return uploadFile(sockfd, msgHeader, handler);
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
@@ -246,7 +239,7 @@ int connectToRouter(char *domainName, int portno, char* serverName){
     char empty[20];
     bzero(empty, 20);
 
-    struct header *headerBuf = makeHeader(NEW_SERVER_CODE, empty, empty, serverName, 0);
+    struct Header *headerBuf = makeHeader(NEW_SERVER_CODE, empty, empty, serverName, 0);
 
 
     int n = write(sockfd, (void *)headerBuf, HEADER_LENGTH);
@@ -255,10 +248,10 @@ int connectToRouter(char *domainName, int portno, char* serverName){
     n = read(sockfd, buffer, HEADER_LENGTH);
     //POSSIBE TODO: this will fail if only one byte is read on a partial read. Extremely unlikely, but could happen
     headerBuf = (void *) buffer;
-    if (headerBuf->msgType == NEW_SERVER_ACK_CODE){
+    if (headerBuf->id == NEW_SERVER_ACK_CODE){
         return sockfd;
     }
-    else if (headerBuf->msgType == ERROR_SERVER_EXISTS_CODE){
+    else if (headerBuf->id == ERROR_SERVER_EXISTS_CODE){
         error("inputted servername already exists");
     }
     else{
