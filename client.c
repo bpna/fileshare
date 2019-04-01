@@ -46,12 +46,13 @@ struct __attribute__((__packed__)) Header {
 
 int parse_request(int argc, char **argv);
 int connect_to_server(char *fqdn, int portno);
-int write_message(int sockfd, struct Header *h, char *data);
+int write_message(int sockfd, char *data, int length);
+int write_file(int csock, char *filename);
 
 int main(int argc, char **argv)
 {
     int sockfd, portno, n;
-    char message[450];
+    char header[450];
     enum message_type message_id;
     struct Header message_header;
 
@@ -67,7 +68,7 @@ int main(int argc, char **argv)
             strcpy(message_header.password, argv[5]);
             printf("argv[6] = %s\n", argv[6]);
             strcpy(message_header.filename, argv[6]);
-            write_message(sockfd, ((char *) message_header), HEADER_LENGTH);
+            write_message(sockfd, ((char *)&message_header), HEADER_LENGTH);
             write_file(sockfd, message_header.filename);
             break;
 
@@ -146,7 +147,7 @@ int write_file(int csock, char *filename)
 
     fseek(fp, 0, SEEK_END);
     filelen = ftell(fp);
-    rewind(fileptr);
+    rewind(fp);
 
     while (bytes_written < filelen) {
         if (filelen - bytes_written < 10000) {
