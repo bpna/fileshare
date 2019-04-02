@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <sys/select.h>
+#include <ctype.h>
 
 #include <sys/time.h>
 #include <time.h>
@@ -49,16 +50,19 @@ void error(const char *msg)
 } 
 
 //returns an allocated header
-struct Header *makeHeader(int msgType, char *user, char * pwd, char* fname, int len){
-    struct Header *myHeader = malloc(sizeof(struct Header));
+//
+void sendHeader(int msgType, char *user, char * pwd, char* fname, int len, int sockfd){
+    struct Header *myHeader;
     myHeader->id = msgType;
     memcpy(myHeader->source, user, 20);
     memcpy(myHeader->password, pwd, 20);
     memcpy(myHeader->filename, fname, 20);
     myHeader->length = len;
-    return myHeader;
+    int n = write(sockfd, (void *) myHeader, HEADER_LENGTH);
 
 }
+
+
 //sets up the server sockets and binds it to the port
 int intializeLSock(int portno){
 
@@ -81,6 +85,16 @@ int intializeLSock(int portno){
 
 }
 
+//returns 1 if all characters in the fname are alphnumric, ".", or "-". returns 0 otherwise
+char validFname(char *fname){
+    for (int i = 0; i < HEADER_LENGTH; i++){
+        if (fname[i] != '-' || fname[i] != '.' || isalnum(fname[i] == 0)){
+            return 0;
+
+        }
+    }
+    return 1;
+}
 
 //reads in file
 //writes ack to file
@@ -93,7 +107,14 @@ int intializeLSock(int portno){
 //      need a function for deletePartial
 //      need a function for 
 char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
-    //TODO: if file exists, send ERROR message return DISCONNECT CODE
+    
+    char empty[20];
+    //if file already exists, send ERROR_CODe and disconnect
+    if( access( msgHeader->filename, F_OK ) != -1 ){
+        sendHeader(ERROR_FILE_EXISTS_CODE, empty, empty, msgHeader->filename, 0, sockfd);
+        return DISCONNECT_CODE;
+    }
+    
     
     //TODO: verify filename has no special characteres except "."
     int bytesToRead = 10000;
@@ -120,10 +141,9 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
     fwrite(buffer, 1, n, fp);
     fclose(fp);
     if (n + bytesRead == msgHeader->length){
-
-        msgHeader = makeHeader(UPLOAD_ACK_CODE, msgHeader->source, msgHeader->password, msgHeader->filename, 0);
-        n = write(sockfd, (void *) msgHeader, HEADER_LENGTH);
-        free(msgHeader);
+       
+        bzero(empty, 20);
+        sendHeader(UPLOAD_ACK_CODE, empty, empty, msgHeader->filename, 0, sockfd);
         return DISCONNECT_CODE;
     }
     
@@ -210,7 +230,7 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
 
 //connects to router, recieves ack, and returns socked number of connection with router
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
-int connectToRouter(char *domainName, int portno, char* serverName){
+int connectToRouter(char *domainName, int portno, char* servername){
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
 
@@ -238,16 +258,12 @@ int connectToRouter(char *domainName, int portno, char* serverName){
     /* send message*/
     char empty[20];
     bzero(empty, 20);
+    sendHeader(NEW_SERVER_CODE, empty, empty, servername, 0, sockfd);
 
-    struct Header *headerBuf = makeHeader(NEW_SERVER_CODE, empty, empty, serverName, 0);
+    int n = read(sockfd, buffer, HEADER_LENGTH);
 
-
-    int n = write(sockfd, (void *)headerBuf, HEADER_LENGTH);
-    free(headerBuf);
-    bzero(headerBuf, HEADER_LENGTH);
-    n = read(sockfd, buffer, HEADER_LENGTH);
     //POSSIBE TODO: this will fail if only one byte is read on a partial read. Extremely unlikely, but could happen
-    headerBuf = (void *) buffer;
+    struct Header *headerBuf = (void *) buffer;
     if (headerBuf->id == NEW_SERVER_ACK_CODE){
         return sockfd;
     }

@@ -177,3 +177,14 @@ static struct PartialMessage * find_partial(struct PartialMessageHandler *m,
         return temp;
     }
 }
+
+
+int get_bytes_read(struct PartialMessageHandler *p, int sockfd){
+    struct PartialMessage *node = p->head;
+    while(node != NULL){
+        if (node->sockfd == sockfd){
+            return node->bytes_read;
+        }
+    }
+    return 0;
+}
