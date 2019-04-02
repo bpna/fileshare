@@ -51,7 +51,7 @@ int getPartialHeader(struct PartialMessageHandler *p, int sockfd,
 }
 
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
-        int length)
+                int length)
 {
     assert(p != NULL);
     assert(length <=10000);

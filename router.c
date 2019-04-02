@@ -31,6 +31,7 @@ void error(const char *msg)
 }
 
 int open_and_bind_socket(int portno);
+int add_partial_data(char *data, int length);
 
 int main(int argc, char *argv[])
 {
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
     fd_set master_fd_set, copy_fd_set;
     struct sockaddr_in serv_addr, cli_addr;
     struct timeval timeout;
+    struct PartialMessageHandler *p = init_partials();
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -94,7 +96,13 @@ int main(int argc, char *argv[])
     return 0; 
 }
 
-// int get_message_type();
+static int freshvar()
+{
+    static int x = 0;
+    x++;
+
+    return x;
+}
 
 int open_and_bind_socket(int portno)
 {
@@ -119,4 +127,12 @@ int read_handler(int sockfd)
 {
     char buffer[MAX_MSG_SIZE];
     int bytes_read = read(sockfd, buffer, MAX_MSG_SIZE);
+
+    if (bytes_read == 0) {
+        close(sockfd);
+        return DISCONNECTED;
+    }
+
+    if (bytes_read < HEADER_LENGTH) {
+
 }
