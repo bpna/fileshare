@@ -30,7 +30,7 @@ struct PartialMessageHandler * init_partials()
 }
 
 int getPartialHeader(struct PartialMessageHandler *p, int sockfd, 
-                     struct Header *headerBuf)
+                     char *headerBuf)
 {
     struct PartialMessage *node = p->head;
     while (node !=NULL) {
@@ -69,9 +69,8 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
             temp->buflen = length;
 
         }
-        temp->bytes_read = 0;
         temp->sockfd = sockfd;
-        temp->next = NULL;
+
 
         return 0;
     } else {
@@ -90,29 +89,30 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
 
                 return 0;
             }
+        }
             //CONTRACT: they're never gonna pass you the complete header if length == 0
-            else{
-                memcpy(&(temp->data[n]), buffer, length);
-                temp->bytes_read += length;
-                temp->buflen += length;
-                //if last thing to be read
-                if (temp->bytes_read == temp->h->length) {
-                    bzero(buffer, 20000);
-                    memcpy(buffer, temp->data, temp->buflen);
-                    return temp->buflen;
-                }
-                else if (temp->buflen >= 10000){
-                    bzero(buffer, 20000);
-                    memcpy(buffer, temp->data, 10000);
-                    temp->buflen -= 10000;
-                    memcpy(temp->data, &(temp->data[10000]), temp->buflen);
-                    bzero(&(temp->data[temp->buflen]), 20000 - temp->buflen);
-                    return 10000;
-                }
-                else{
-                    return 0;
-                }
+        else{
+            memcpy(&(temp->data[n]), buffer, length);
+            temp->bytes_read += length;
+            temp->buflen += length;
+            //if last thing to be read
+            if (temp->bytes_read == temp->h->length) {
+                bzero(buffer, 20000);
+                memcpy(buffer, temp->data, temp->buflen);
+                return temp->buflen;
             }
+            else if (temp->buflen >= 10000){
+                bzero(buffer, 20000);
+                memcpy(buffer, temp->data, 10000);
+                temp->buflen -= 10000;
+                memcpy(temp->data, &(temp->data[10000]), temp->buflen);
+                bzero(&(temp->data[temp->buflen]), 20000 - temp->buflen);
+                return 10000;
+            }
+            else{
+                return 0;
+            }
+            
         }
     }
 }
@@ -134,6 +134,9 @@ static struct PartialMessage * new_partial(struct PartialMessageHandler *p)
         last->next = malloc(sizeof(*(last->next)));
         temp = last->next;
     }
+    temp->bytes_read = 0;
+    temp->next = NULL;
+    temp->buflen = 0;
 
     return temp;
 }

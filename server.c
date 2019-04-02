@@ -52,13 +52,15 @@ void error(const char *msg)
 //returns an allocated header
 //
 void sendHeader(int msgType, char *user, char * pwd, char* fname, int len, int sockfd){
-    struct Header *myHeader;
-    myHeader->id = msgType;
-    memcpy(myHeader->source, user, 20);
-    memcpy(myHeader->password, pwd, 20);
-    memcpy(myHeader->filename, fname, 20);
-    myHeader->length = len;
-    int n = write(sockfd, (void *) myHeader, HEADER_LENGTH);
+    struct Header myHeader;
+    myHeader.id = msgType;
+    memcpy(myHeader.source, 
+        user, 20);
+    memcpy(myHeader.password, pwd, 20);
+    fprintf(stderr, "filename in sendHeader function is %s\n", fname);
+    memcpy(myHeader.filename, fname, 20);
+    myHeader.length = len;
+    int n = write(sockfd, (void *) &myHeader, HEADER_LENGTH);
 
 }
 
@@ -109,17 +111,22 @@ char validFname(char *fname){
 char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
     
     char empty[20];
+    bzero(empty, 20);
+    int bytesToRead = 10000;
+    char buffer[20000];
+
+    int bytesRead = get_bytes_read(handler, sockfd);
+
     //if file already exists, send ERROR_CODe and disconnect
-    if( access( msgHeader->filename, F_OK ) != -1 ){
+    if( access( msgHeader->filename, F_OK ) != -1 && bytesRead == 0 ){
+        fprintf(stderr, "tried to upload file that existed\n");
         sendHeader(ERROR_FILE_EXISTS_CODE, empty, empty, msgHeader->filename, 0, sockfd);
         return DISCONNECT_CODE;
     }
     
     
     //TODO: verify filename has no special characteres except "."
-    int bytesToRead = 10000;
-    char buffer[bytesToRead];
-    int bytesRead = getBytesRead(handler, sockfd);
+    
 
     if(msgHeader->length  - bytesRead < bytesToRead){
         bytesToRead = msgHeader->length  - bytesRead;
@@ -129,6 +136,7 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
     
 
     int n = read(sockfd, buffer, bytesToRead);
+    fprintf(stderr, "%d bytes read from socket\n", n);
 
     if (n == 0){
         //TODO:delete partial, right here
@@ -136,13 +144,14 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
     }
 
     n = add_partial(handler, buffer, sockfd, n);
+    fprintf(stderr, "%d bytes returned from add_partial function\n", n);
     FILE *fp = fopen(msgHeader->filename, "a");
     
     fwrite(buffer, 1, n, fp);
     fclose(fp);
     if (n + bytesRead == msgHeader->length){
        
-        bzero(empty, 20);
+        
         sendHeader(UPLOAD_ACK_CODE, empty, empty, msgHeader->filename, 0, sockfd);
         return DISCONNECT_CODE;
     }
@@ -161,7 +170,8 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
     bzero(buffer, HEADER_LENGTH);
     struct Header *msgHeader;
     char did_read;
-    headerBytesRead = getPartialHeader(handler, sockfd, (void *) msgHeader);
+    headerBytesRead = getPartialHeader(handler, sockfd, buffer);
+    msgHeader = (void *) buffer;
 
     //TODO: put functions inside of these, this is paralell code
     if (headerBytesRead == 0){
@@ -208,6 +218,7 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
 
     switch(msgHeader->id){
         case UPLOAD_FILE_CODE:
+            fprintf(stderr, "uploading file\n" );
             return uploadFile(sockfd, msgHeader, handler);
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             

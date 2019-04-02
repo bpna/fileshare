@@ -40,7 +40,7 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
                 int length);
 
 int getPartialHeader(struct PartialMessageHandler *p, int sockfd, 
-                     struct Header *headerBuf);
+                     char *headerBuf);
 
 void free_partials(struct PartialMessageHandler *p);
 
