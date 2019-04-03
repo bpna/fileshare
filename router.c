@@ -21,7 +21,7 @@
 #include "messages.h"
 #include "partial_message_handler.h"
 
-#define DISCONNECTED 0
+#define DISCONNECTED -69
 #define MAX_MSG_READ 450
 
 void error(const char *msg)
