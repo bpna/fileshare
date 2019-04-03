@@ -53,12 +53,14 @@ void error(const char *msg)
 //
 void sendHeader(int msgType, char *user, char * pwd, char* fname, int len, int sockfd){
     struct Header myHeader;
+    bzero(myHeader, HEADER_LENGTH);
     myHeader.id = msgType;
-    memcpy(myHeader.source, 
-        user, 20);
-    memcpy(myHeader.password, pwd, 20);
-    fprintf(stderr, "filename in sendHeader function is %s\n", fname);
-    memcpy(myHeader.filename, fname, 20);
+    if (user != NULL)
+            memcpy(myHeader.source, user, SOURCE_FIELD_LENGTH);
+    if (pwd != NULL)
+            memcpy(myHeader.password, pwd, PASSWORD_FIELD_LENGTH);
+    if (fname != NULL)
+            memcpy(myHeader.filename, fname, FILENAME_FIELD_LENGTH);
     myHeader.length = len;
     int n = write(sockfd, (void *) &myHeader, HEADER_LENGTH);
 
@@ -112,8 +114,6 @@ char validFname(char *fname){
 //      need a function for 
 char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
     
-    char empty[20];
-    bzero(empty, 20);
     int bytesToRead = 10000;
     char buffer[20000];
 
@@ -122,7 +122,7 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
     //if file already exists, send ERROR_CODe and disconnect
     if( access( msgHeader->filename, F_OK ) != -1 && bytesRead == 0 ){
         fprintf(stderr, "tried to upload file that existed\n");
-        sendHeader(ERROR_FILE_EXISTS_CODE, empty, empty, msgHeader->filename, 0, sockfd);
+        sendHeader(ERROR_FILE_EXISTS_CODE, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT_CODE;
     }
     
@@ -154,7 +154,7 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
     if (n + bytesRead == msgHeader->length){
        
         
-        sendHeader(UPLOAD_ACK_CODE, empty, empty, msgHeader->filename, 0, sockfd);
+        sendHeader(UPLOAD_ACK_CODE, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT_CODE;
     }
     
@@ -174,6 +174,7 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
     char did_read;
     headerBytesRead = getPartialHeader(handler, sockfd, buffer);
     msgHeader = (void *) buffer;
+    enum message_type message_id;
 
     //TODO: put functions inside of these, this is paralell code
     if (headerBytesRead == 0){
@@ -217,20 +218,20 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
 
     /* TODO: Deal with endianess */
     
-
-    switch(msgHeader->id){
-        case UPLOAD_FILE_CODE:
+    message_id = msgHeader->id;
+    switch(message_id){
+        case UPLOAD_FILE:
             fprintf(stderr, "uploading file\n" );
             return uploadFile(sockfd, msgHeader, handler);
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             
             break;
-        case REQUEST_FILE_CODE:
+        case REQUEST_FILE:
             fprintf(stderr, " requesting file\n" );
             return handleFileRequest(sockfd, msgHeader, handler);
             //verify creds, verify file exists, send back file
             break;
-        case UPDATE_FILE_CODE:
+        case UPDATE_FILE:
             fprintf(stderr, " updating file\n" );
             return updateFile(sockfd, msgHeader, handler);
 
@@ -273,18 +274,17 @@ int connectToRouter(char *domainName, int portno, char* servername){
 
 
     /* send message*/
-    char empty[20];
-    bzero(empty, 20);
-    sendHeader(NEW_SERVER_CODE, empty, empty, servername, 0, sockfd);
+    sendHeader(NEW_SERVER_CODE, NULL, NULL, servername, 0, sockfd);
 
     int n = read(sockfd, buffer, HEADER_LENGTH);
 
     //POSSIBE TODO: this will fail if only one byte is read on a partial read. Extremely unlikely, but could happen
     struct Header *headerBuf = (void *) buffer;
-    if (headerBuf->id == NEW_SERVER_ACK_CODE){
+    enum message_type message_id = headerBuf->id;
+    if (message_id == NEW_SERVER_ACK){
         return sockfd;
     }
-    else if (headerBuf->id == ERROR_SERVER_EXISTS_CODE){
+    else if (message_id == ERROR_SERVER_EXISTS){
         error("inputted servername already exists");
     }
     else{
