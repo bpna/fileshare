@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
-#include "db.h"
+//#include "db.h"
 #include "messages.h"
 
 #define DISCONNECTED 0
