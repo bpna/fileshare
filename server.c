@@ -90,7 +90,9 @@ int intializeLSock(int portno){
 //returns 1 if all characters in the fname are alphnumric, ".", or "-". returns 0 otherwise
 char validFname(char *fname){
     for (int i = 0; i < HEADER_LENGTH; i++){
-        if (fname[i] != '-' || fname[i] != '.' || isalnum(fname[i] == 0)){
+        if (fname[i] == '\0')
+            return 1;
+        if (fname[i] != '-' && fname[i] != '.' && isalnum(fname[i] == 0)){
             return 0;
 
         }
@@ -224,9 +226,13 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
             
             break;
         case REQUEST_FILE_CODE:
+            fprintf(stderr, " requesting file\n" );
+            return handleFileRequest(sockfd, msgHeader, handler);
             //verify creds, verify file exists, send back file
             break;
         case UPDATE_FILE_CODE:
+            fprintf(stderr, " updating file\n" );
+            return updateFile(sockfd, msgHeader, handler);
 
              //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             break;
