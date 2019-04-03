@@ -277,8 +277,10 @@ int connectToRouter(char *domainName, int portno, char* servername){
     sendHeader(NEW_SERVER_CODE, NULL, NULL, servername, 0, sockfd);
 
     int n = read(sockfd, buffer, HEADER_LENGTH);
+    if (n == 0){
+        error("unable to establish connection with router")
+    }
 
-    //POSSIBE TODO: this will fail if only one byte is read on a partial read. Extremely unlikely, but could happen
     struct Header *headerBuf = (void *) buffer;
     enum message_type message_id = headerBuf->id;
     if (message_id == NEW_SERVER_ACK){
