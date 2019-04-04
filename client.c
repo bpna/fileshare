@@ -45,7 +45,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
 int connect_to_server(char *fqdn, int portno);
 int write_message(int sockfd, char *data, int length);
 int write_file(int csock, char *filename);
-char * send_recv_user_req(int sockfd, char *user, char *password, 
+struct Server * send_recv_user_req(int sockfd, char *user, char *password, 
                           char *file_owner);
 
 int main(int argc, char **argv)
@@ -110,6 +110,9 @@ int check_input_get_msg_id(int argc, char **argv)
  * crafts requests for the operator and target server and writes the request
  * header and payload to the socket.
  *
+ * It is a failure condition for the named file to not exist for the
+ * UPLOAD_FILE case.
+ *
  * returns the socket file descriptor for the opened socket. Depending on
  * the request type, this socket will be to EITHER the operator or server
  * so it's critical that process request also check the message_id before
@@ -119,37 +122,58 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                            db_t *db)
 {
     int sockfd;
+    struct stat sb;
     struct Header message_header;
     struct Server *server;
+
+    bzero(&message_header, sizeof(message_header));
 
     switch (message_id) {
         case NEW_CLIENT:
             sockfd = connect_to_server(argv[2], atoi(argv[3]));
-            bzero(&message_header, sizeof(message_header));
             message_header.id = NEW_CLIENT;
             strcpy(message_header.source, argv[4]);
             strcpy(message_header.password, argv[5]);
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             break;
         case UPLOAD_FILE:
+            if (stat(argv[6], &sb) == -1) {
+                fprintf(stderr, "Named file does not exist, exiting\n");
+                exit(1);
+            }
             sockfd = connect_to_server(argv[2], atoi(argv[3]));
-            bzero(&message_header, sizeof(message_header));
             message_header.id = UPLOAD_FILE;
             strcpy(message_header.source, argv[4]);
             strcpy(message_header.password, argv[5]);
             strcpy(message_header.filename, argv[6]);
+            message_header.length = htonl(sb.st_size);
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             write_file(sockfd, message_header.filename);
             break;
         case REQUEST_FILE:
             server = get_server_from_client_wrapper(db, argv[6], 
                                                "parse_and_send_request ()");
-            if (server = NULL) { /* no client/server pairing for file owner */
+            if (server == NULL) { /* no client/server pairing on client */
                 sockfd = connect_to_server(argv[2], atoi(argv[3]));
                 /* get server for file owner */
-                send_recv_user_req(sockfd, argv[4], argv[5], argv[6]);
+                server = send_recv_user_req(sockfd, argv[4], argv[5], argv[6]);
+                close(sockfd);
             }
 
+            if (server == NULL) { /* no client/server pairing on operator */
+                fprintf(stderr, "Server for user %s could not be resolved, \
+                                 exiting\n", argv[6]);
+                exit(1);
+            } else {
+                sockfd = connect_to_server(server->domain_name, server->port);
+                message_header.id = REQUEST_FILE;
+                strcpy(message_header.source, argv[4]);
+                strcpy(message_header.password, argv[5]);
+                strcpy(message_header.filename, argv[6]);
+                write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+            }
+
+            free(server);
             break;
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
@@ -216,6 +240,8 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
             }
 
             break;
+        case REQUEST_FILE:
+            // CODE YOU BASTARD
     }
 }
 
@@ -351,16 +377,18 @@ struct Server * get_server_from_client_wrapper(db_t *db, char *client,
  * send_recv_user_req() sends a request for the server associated with
  * user file_owner to the operator, which is represented by open socket sockfd.
  *
- * returns a malloc'd buffer containing the file_owner that the caller is
- * responsible for freeing
+ * returns a malloc'd Server struct containing the fqdn and port of the 
+ * file owner that the caller is responsible for freeing
  */
-char * send_recv_user_req(int sockfd, char *user, char *password, 
-                        char *file_owner)
+struct Server *  send_recv_user_req(int sockfd, char *user, char *password, 
+                                    char *file_owner)
 {
     int n, m, length;
     struct Header header;
-    char *buffer = malloc(HEADER_LENGTH);
-    if (buffer == NULL) {
+    char buffer[HEADER_LENGTH];
+    char *token;
+    struct Server *server = malloc(sizeof(*server));
+    if (server == NULL) {
         error("ERROR allocation failure");
     }
 
@@ -383,18 +411,41 @@ char * send_recv_user_req(int sockfd, char *user, char *password,
     }
 
     memcpy(&header, buffer, HEADER_LENGTH);
-    length = ntohl(header.length);
-    n = 0;
-    bzero(buffer, HEADER_LENGTH);
-    while (n < length) {
-        m = read(sockfd, &buffer[n], length - n);
-        if (m < 0) {
-            error("ERROR reading from socket");
+    if (header.id == REQUEST_USER_ACK) {
+        length = ntohl(header.length);
+        n = 0;
+        bzero(buffer, HEADER_LENGTH);
+        while (n < length) {
+            m = read(sockfd, &buffer[n], length - n);
+            if (m < 0) {
+                error("ERROR reading from socket");
+            }
+            n += m;
         }
-        n += m;
-    }
 
-    return buffer;
+        token = strtok(buffer, ":");
+        if (token == NULL) {
+            fprintf(stderr, "malformed payload in REQUEST_USER_ACK from \
+                             operator, exiting\n");
+            exit(1);
+        }
+        strcpy(server->domain_name, token);
+        token = strtok(NULL, ":");
+        if (token == NULL) {
+            fprintf(stderr, "malformed payload in REQUEST_USER_ACK from \
+                             operator, exiting\n");
+            exit(1);
+        }
+        server->port = atoi(token);
+        
+        return server;
+    } else if (header.id != ERROR_USER_DOES_NOT_EXIST) {
+        fprintf(stderr, "bad response %d received from operator when \
+                         requesting user, exiting\n", header.id);
+        exit(1);
+    } else {
+        return NULL;
+    }
 }
 
 /* void read_returned_file(int sockfd, struct Header *message_header)
