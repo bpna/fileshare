@@ -186,7 +186,6 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler){
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
     struct Header *msgHeader;
-    char did_read;
     headerBytesRead = getPartialHeader(handler, sockfd, buffer);
     msgHeader = (void *) buffer;
     enum message_type message_id;
