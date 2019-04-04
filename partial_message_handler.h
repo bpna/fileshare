@@ -45,7 +45,7 @@ struct PartialMessageHandler * init_partials();
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
                 int length, char is_file_inpnut);
 
-int getPartialHeader(struct PartialMessageHandler *p, int sockfd, 
+int get_partial_header(struct PartialMessageHandler *p, int sockfd, 
                      char *headerBuf);
 
 void free_partials(struct PartialMessageHandler *p);

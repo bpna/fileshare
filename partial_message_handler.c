@@ -27,17 +27,15 @@ static struct PartialMessage * find_partial(struct PartialMessageHandler *m,
                                             int sockfd);
 static struct PartialMessage * new_partial(struct PartialMessageHandler *m, int sockfd);
 
-struct PartialMessageHandler * init_partials()
-{
+struct PartialMessageHandler * init_partials() {
     struct PartialMessageHandler *m = malloc(sizeof(*m));
     m->head = NULL;
 
     return m;
 }
 
-int getPartialHeader(struct PartialMessageHandler *p, int sockfd, 
-                     char *headerBuf)
-{
+int get_partial_header(struct PartialMessageHandler *p, int sockfd, 
+                     char *headerBuf) {
     struct PartialMessage *node = p->head;
     while (node !=NULL) {
         if (node->sockfd == sockfd) { 
@@ -56,9 +54,7 @@ int getPartialHeader(struct PartialMessageHandler *p, int sockfd,
 }
 
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
-                int length, char is_file_input)
-{
-
+                int length, char is_file_input) {
     assert(p != NULL);
     assert(length <=INIT_BUFFER_LENGTH);
     int n;
@@ -117,8 +113,8 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
 }
 
 
-static struct PartialMessage * new_partial(struct PartialMessageHandler *p, int sockfd)
-{
+static struct PartialMessage * new_partial(struct PartialMessageHandler *p, 
+                                           int sockfd) {
     struct PartialMessage *temp = malloc(sizeof(struct PartialMessageHandler));
 
     temp->last_modified = time(NULL);
@@ -137,7 +133,7 @@ static struct PartialMessage * new_partial(struct PartialMessageHandler *p, int 
     return temp;
 }
 
-void delete_partial(struct PartialMessageHandler *p, int sockfd){
+void delete_partial(struct PartialMessageHandler *p, int sockfd) {
 
     if (p == NULL){
         return;
@@ -157,7 +153,7 @@ void delete_partial(struct PartialMessageHandler *p, int sockfd){
 
 }
 
-void timeout_sweep(struct PartialMessageHandler *p, fd_set *masterFDSet){
+void timeout_sweep(struct PartialMessageHandler *p, fd_set *masterFDSet) { 
     if (p == NULL){
         return;
     }
@@ -180,8 +176,7 @@ void timeout_sweep(struct PartialMessageHandler *p, fd_set *masterFDSet){
 }
 
 
-void free_partials(struct PartialMessageHandler *p)
-{
+void free_partials(struct PartialMessageHandler *p) {
     if (p == NULL) {
         return;
     } 
@@ -203,8 +198,7 @@ void free_partials(struct PartialMessageHandler *p)
 }
 
 static struct PartialMessage * find_partial(struct PartialMessageHandler *m, 
-                                            int sockfd)
-{
+                                            int sockfd) {
     assert(m != NULL);
 
     struct PartialMessage *temp;
@@ -222,7 +216,7 @@ static struct PartialMessage * find_partial(struct PartialMessageHandler *m,
 }
 
 
-int get_bytes_read(struct PartialMessageHandler *p, int sockfd){
+int get_bytes_read(struct PartialMessageHandler *p, int sockfd) {
     struct PartialMessage *node = p->head;
     while(node != NULL){
         if (node->sockfd == sockfd){
