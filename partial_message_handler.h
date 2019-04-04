@@ -53,4 +53,4 @@ void free_partials(struct PartialMessageHandler *p);
 int get_bytes_read(struct PartialMessageHandler *p, int sockfd);
 
 void delete_partial(struct PartialMessageHandler *p, int sockfd);
-void timeout_sweep(struct PartialMessageHandler *p);
+void timeout_sweep(struct PartialMessageHandler *p,fd_set *masterFDSet);

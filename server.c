@@ -12,7 +12,6 @@
 #include <sys/time.h>
 #include <time.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include "partial_message_handler.h"
 
 #define HEADER_LENGTH 65
@@ -317,10 +316,10 @@ int main(int argc, char *argv[])
         if (rv == -1)
             perror("Select");
         else if (rv ==0)
-            //TODO: do a timeoutSearch
-            ;
+            timeout_sweep(handler, &masterFDSet);
+            
         else{
-            //TODO: do a timeoutSearch
+            timeout_sweep(handler, &masterFDSet);
             for (int sockfd = 0; sockfd < maxSock + 1; sockfd++){
                 //if there is any connection or new data to be read
                 if ( FD_ISSET (sockfd, &copyFDSet) ) {

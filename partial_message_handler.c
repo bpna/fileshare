@@ -3,6 +3,11 @@
 #include <assert.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include "partial_message_handler.h"
 
 struct PartialMessage {
@@ -158,7 +163,7 @@ void delete_partial(struct PartialMessageHandler *p, int sockfd){
 
 }
 
-void timeout_sweep(struct PartialMessageHandler *p){
+void timeout_sweep(struct PartialMessageHandler *p, fd_set *masterFDSet){
     if (p == NULL){
         return;
     }
@@ -171,6 +176,8 @@ void timeout_sweep(struct PartialMessageHandler *p){
                 delete_temp_file(temp->h->filename);
                 free(temp->h);
             }
+            close(temp->sockfd);
+            FD_CLR(temp->sockfd, masterFDSet);
             free(temp);
         }
         temp = temp->next;
