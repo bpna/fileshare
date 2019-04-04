@@ -10,6 +10,8 @@
  * and router to prevent bugs from incorrect implementations of the file
  * sharing protocol.
  */
+#ifndef MESSAGES_H
+#define MESSAGES_H
 
 #define ID_FIELD_LENGTH 1
 #define ID_OFFSET 0
@@ -38,3 +40,5 @@ struct __attribute__((__packed__)) Header {
     char filename[FILENAME_FIELD_LENGTH];
     uint32_t length;
 };
+
+#endif

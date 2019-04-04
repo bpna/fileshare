@@ -174,13 +174,13 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
         }
         else{
             memcpy(&msgHeader[headerBytesRead], buffer, HEADER_LENGTH - headerBytesRead);
+            msgHeader->length = ntohl(msgHeader->length);
             if (msgHeader->length > 0){
                 add_partial(handler, buffer, sockfd, n, 0);
                 return 0;
             }
         }
     }
-
 
     fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);

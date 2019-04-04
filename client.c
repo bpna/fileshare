@@ -72,6 +72,11 @@ int main(int argc, char **argv)
 
 int check_input_get_msg_id(int argc, char **argv)
 {
+    if (argc < 2) {
+       fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
+       exit(0);
+    }
+
     if (strcmp(argv[1], "new_client") == 0) {
         if (argc != 5) {
             fprintf(stderr, "usage: %s new_client [router-FQDN] [router-portno] \
@@ -95,11 +100,6 @@ int check_input_get_msg_id(int argc, char **argv)
         }
 
         return REQUEST_FILE;
-    }
-
-    if (argc < 2) {
-       fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
-       exit(0);
     }
 
     return 0;
@@ -222,10 +222,11 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
         case UPLOAD_FILE:
             n = 0;
             while (n < HEADER_LENGTH) {
-                m += read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
+                m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
                 if (m < 0) {
                     error("ERROR reading from socket");
                 }                
+                n += m;
             }
 
             memcpy(&message_header, header_buffer, HEADER_LENGTH);
@@ -241,6 +242,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
 
             break;
         case REQUEST_FILE:
+            break;
             // CODE YOU BASTARD
     }
 }
@@ -357,13 +359,15 @@ struct Server * get_server_from_client_wrapper(db_t *db, char *client,
         } else {
             token = strtok(NULL, ":\n");
             if (token == NULL) {
-                fprintf(stderr, "CSPAIRS file %s badly formed\n");
+                fprintf(stderr, "CSPAIRS file %s badly formed\n", 
+                        CSPAIRS_FNAME);
                 exit(1);
             }
             strcpy(retval->domain_name, token);
             token = strtok(NULL, ":\n");
             if (token == NULL) {
-                fprintf(stderr, "CSPAIRS file %s badly formed\n");
+                fprintf(stderr, "CSPAIRS file %s badly formed\n", 
+                        CSPAIRS_FNAME);
                 exit(1);
             }
             retval->port = atoi(token);
