@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
-#include <netdb.h> 
+#include <netdb.h>
 #include "database/db.h"
 #include "database/cspairs.h"
 #include "messages.h"
@@ -31,21 +31,21 @@ struct Server {
     char domain_name[64];
 };
 
-void read_new_client_ack_payload(int sockfd, struct Header *message_header, 
+void read_new_client_ack_payload(int sockfd, struct Header *message_header,
                                  char *client, db_t *db);
-char * read_error_client_exists_payload(int sockfd, 
+char * read_error_client_exists_payload(int sockfd,
                                         struct Header *message_header);
 int check_input_get_msg_id(int argc, char **argv);
 int parse_and_send_request(const enum message_type message_id, char **argv,
                            db_t *db);
-struct Server * get_server_from_client_wrapper(db_t *db, char *client, 
+struct Server * get_server_from_client_wrapper(db_t *db, char *client,
                                                char *loc);
-int process_reply(int sockfd, const enum message_type message_id, char **argv, 
+int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t *db);
 int connect_to_server(char *fqdn, int portno);
 int write_message(int sockfd, char *data, int length);
 int write_file(int csock, char *filename);
-struct Server * send_recv_user_req(int sockfd, char *user, char *password, 
+struct Server * send_recv_user_req(int sockfd, char *user, char *password,
                           char *file_owner);
 
 int main(int argc, char **argv)
@@ -88,7 +88,7 @@ int check_input_get_msg_id(int argc, char **argv)
     } else if (strcmp(argv[1], "upload_file") == 0) {
         if (argc != 7) {
             fprintf(stderr, "usage: %s upload_file [router-FQDN] [router-portno] \
-                             [username] [password] [filename]\n", argv[0]);          
+                             [username] [password] [filename]\n", argv[0]);
         }
 
         return UPLOAD_FILE;
@@ -151,7 +151,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             write_file(sockfd, message_header.filename);
             break;
         case REQUEST_FILE:
-            server = get_server_from_client_wrapper(db, argv[6], 
+            server = get_server_from_client_wrapper(db, argv[6],
                                                "parse_and_send_request ()");
             if (server == NULL) { /* no client/server pairing on client */
                 sockfd = connect_to_server(argv[2], atoi(argv[3]));
@@ -183,7 +183,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
     return sockfd;
 }
 
-int process_reply(int sockfd, const enum message_type message_id, char **argv, 
+int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t *db)
 {
     int n, m;
@@ -205,11 +205,11 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
             memcpy(&message_header, header_buffer, HEADER_LENGTH);
             message_header.length = ntohl(message_header.length);
             if (message_header.id == NEW_CLIENT_ACK) {
-                read_new_client_ack_payload(sockfd, &message_header, argv[4], 
+                read_new_client_ack_payload(sockfd, &message_header, argv[4],
                                             db);
                 printf("Client %s successfully added\n", argv[4]);
             } else if (message_header.id == ERROR_CLIENT_EXISTS) {
-                clientbuf = read_error_client_exists_payload(sockfd, 
+                clientbuf = read_error_client_exists_payload(sockfd,
                                                              &message_header);
                 printf("Client %s already exists\n", clientbuf);
                 free(clientbuf);
@@ -225,14 +225,14 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                 m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
                 if (m < 0) {
                     error("ERROR reading from socket");
-                }                
+                }
                 n += m;
             }
 
             memcpy(&message_header, header_buffer, HEADER_LENGTH);
             message_header.length = htonl(message_header.length);
             if (message_header.id == UPLOAD_ACK) {
-                printf("File %s successfully uploaded\n", 
+                printf("File %s successfully uploaded\n",
                        message_header.filename);
             } else if (message_header.id == ERROR_FILE_EXISTS) {
                 printf("File %s already exists\n", message_header.filename);
@@ -305,10 +305,10 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc)
  * pairs file, depending on whether USE_DB is set.
  *
  * If the client is not in the pairs list, get_server_from_client_wrapper()
- * returns NULL. Otherwise, it malloc's and returns a Server struct which must 
+ * returns NULL. Otherwise, it malloc's and returns a Server struct which must
  * be free'd by the caller.
  */
-struct Server * get_server_from_client_wrapper(db_t *db, char *client, 
+struct Server * get_server_from_client_wrapper(db_t *db, char *client,
                                                char *loc)
 {
     enum DB_STATUS db_status;
@@ -359,14 +359,14 @@ struct Server * get_server_from_client_wrapper(db_t *db, char *client,
         } else {
             token = strtok(NULL, ":\n");
             if (token == NULL) {
-                fprintf(stderr, "CSPAIRS file %s badly formed\n", 
+                fprintf(stderr, "CSPAIRS file %s badly formed\n",
                         CSPAIRS_FNAME);
                 exit(1);
             }
             strcpy(retval->domain_name, token);
             token = strtok(NULL, ":\n");
             if (token == NULL) {
-                fprintf(stderr, "CSPAIRS file %s badly formed\n", 
+                fprintf(stderr, "CSPAIRS file %s badly formed\n",
                         CSPAIRS_FNAME);
                 exit(1);
             }
@@ -381,10 +381,10 @@ struct Server * get_server_from_client_wrapper(db_t *db, char *client,
  * send_recv_user_req() sends a request for the server associated with
  * user file_owner to the operator, which is represented by open socket sockfd.
  *
- * returns a malloc'd Server struct containing the fqdn and port of the 
+ * returns a malloc'd Server struct containing the fqdn and port of the
  * file owner that the caller is responsible for freeing
  */
-struct Server *  send_recv_user_req(int sockfd, char *user, char *password, 
+struct Server *  send_recv_user_req(int sockfd, char *user, char *password,
                                     char *file_owner)
 {
     int n, m, length;
@@ -401,7 +401,7 @@ struct Server *  send_recv_user_req(int sockfd, char *user, char *password,
     strcpy(header.source, user);
     strcpy(header.password, password);
     header.length = strlen(file_owner);
-    
+
     write_message(sockfd, (char *) &header, HEADER_LENGTH);
     write_message(sockfd, file_owner, strlen(file_owner));
 
@@ -441,7 +441,7 @@ struct Server *  send_recv_user_req(int sockfd, char *user, char *password,
             exit(1);
         }
         server->port = atoi(token);
-        
+
         return server;
     } else if (header.id != ERROR_USER_DOES_NOT_EXIST) {
         fprintf(stderr, "bad response %d received from operator when \
@@ -458,7 +458,7 @@ struct Server *  send_recv_user_req(int sockfd, char *user, char *password,
 
 } */
 
-void read_new_client_ack_payload(int sockfd, struct Header *message_header, 
+void read_new_client_ack_payload(int sockfd, struct Header *message_header,
                                  char *client, db_t *db)
 {
     int length = message_header->length;
@@ -477,7 +477,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
         n += m;
     }
     buffer[length] = '\0';
-    
+
     add_cspair_wrapper(db, client, buffer, "read_new_client_ack_payload()");
     free(buffer);
 }
@@ -501,10 +501,9 @@ char * read_error_client_exists_payload(int sockfd, struct Header *message_heade
         n += m;
     }
     client_name[length] = '\0';
-    
+
     return client_name;
 }
-
 
 int connect_to_server(char *fqdn, int portno)
 {
@@ -525,14 +524,14 @@ int connect_to_server(char *fqdn, int portno)
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
+    bcopy((char *)server->h_addr,
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         error("ERROR connecting");
     }
- 
+
     return sockfd;
 }
 

@@ -4,7 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "partial_message_handler.h"
@@ -23,7 +23,7 @@ struct PartialMessageHandler {
     struct PartialMessage *head;
 };
 
-static struct PartialMessage * find_partial(struct PartialMessageHandler *m, 
+static struct PartialMessage * find_partial(struct PartialMessageHandler *m,
                                             int sockfd);
 static struct PartialMessage * new_partial(struct PartialMessageHandler *m, int sockfd);
 
@@ -35,12 +35,12 @@ struct PartialMessageHandler * init_partials()
     return m;
 }
 
-int getPartialHeader(struct PartialMessageHandler *p, int sockfd, 
+int getPartialHeader(struct PartialMessageHandler *p, int sockfd,
                      char *headerBuf)
 {
     struct PartialMessage *node = p->head;
     while (node !=NULL) {
-        if (node->sockfd == sockfd) { 
+        if (node->sockfd == sockfd) {
             if (node->h == NULL) {
                 memcpy(headerBuf, node->data, node->bytes_read);
                 return node->bytes_read;
@@ -72,7 +72,7 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
             temp->h = malloc(sizeof(*(temp->h)));
             memcpy(temp->h, buffer, HEADER_LENGTH);
         } else {
-            memcpy(temp->data, buffer, length); 
+            memcpy(temp->data, buffer, length);
             temp->bytes_read = length;
 
         }
@@ -184,7 +184,7 @@ void free_partials(struct PartialMessageHandler *p)
 {
     if (p == NULL) {
         return;
-    } 
+    }
 
     struct PartialMessage *temp = p->head;
     struct PartialMessage *next = NULL;
@@ -202,7 +202,7 @@ void free_partials(struct PartialMessageHandler *p)
     free(p);
 }
 
-static struct PartialMessage * find_partial(struct PartialMessageHandler *m, 
+static struct PartialMessage * find_partial(struct PartialMessageHandler *m,
                                             int sockfd)
 {
     assert(m != NULL);

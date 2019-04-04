@@ -14,8 +14,8 @@ void error(char *err) {
     exit(1);
 }
 
-char *TEST_CLIENT = "charles";
-char *TEST_PASS = "qwerty";
+#define TEST_CLIENT "charles"
+#define TEST_PASS "qwerty"
 
 void cppairs_test_suite(db_t *db);
 void cspairs_test_suite(db_t *db);
@@ -23,9 +23,7 @@ void filetable_test_suite(db_t *db);
 void servertable_test_suite(db_t *db);
 
 int main(int argc, char* argv[]) {
-
     db_t *db = connect_to_db("nathan", "fileshare_test");
-
     if (db == NULL)
         error("ERROR connecting to database");
 
@@ -35,7 +33,6 @@ int main(int argc, char* argv[]) {
     servertable_test_suite(db);
 
     close_db_connection(db);
-
     return 0;
 }
 

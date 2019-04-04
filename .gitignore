@@ -37,6 +37,7 @@
 *.hex
 client
 server
+operator
 
 # Debug files
 *.dSYM/
