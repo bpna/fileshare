@@ -1,6 +1,5 @@
 #include "messages.h"
 #define FILE_BUFFER_MAX_LEN 10000
-
 /*
  * 03/31/2019
  * COMP 112 Final Project

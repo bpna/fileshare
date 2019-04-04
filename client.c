@@ -175,6 +175,10 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
 
             free(server);
             break;
+        case UPLOAD_FILE:
+            break;
+
+
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
             return 1;

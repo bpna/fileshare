@@ -34,6 +34,7 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
     fprintf(stderr, "current_filelen is %d\nbuf_len is %d\n", current_filelen, buf_len);
     fprintf(stderr, "filelen is %lu\n", filelen);
     if (current_filelen + buf_len == filelen){
+        remove(fname);
         rename(temp_fname, fname);
         return 1;
     }
