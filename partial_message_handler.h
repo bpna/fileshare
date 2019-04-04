@@ -1,5 +1,6 @@
 #include "file_saving_handler.h"
 #define INIT_BUFFER_LENGTH 512
+#define MINUTE 60000
 
 /*
  * 03/31/2019
@@ -50,3 +51,6 @@ int getPartialHeader(struct PartialMessageHandler *p, int sockfd,
 void free_partials(struct PartialMessageHandler *p);
 
 int get_bytes_read(struct PartialMessageHandler *p, int sockfd);
+
+void delete_partial(struct PartialMessageHandler *p, int sockfd);
+void timeout_sweep(struct PartialMessageHandler *p);

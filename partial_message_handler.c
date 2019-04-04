@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <time.h>
 #include "partial_message_handler.h"
 
 struct PartialMessage {
@@ -9,6 +10,7 @@ struct PartialMessage {
     int sockfd;
     char data[INIT_BUFFER_LENGTH];
     int bytes_read;
+    long last_modified;
     struct PartialMessage *next;
 };
 
@@ -51,6 +53,7 @@ int getPartialHeader(struct PartialMessageHandler *p, int sockfd,
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
                 int length, char is_file_input)
 {
+
     assert(p != NULL);
     assert(length <=INIT_BUFFER_LENGTH);
     int n;
@@ -71,24 +74,26 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
         return 0;
 
     } else if (temp->h == NULL) {
-            assert(temp->bytes_read + length <= HEADER_LENGTH);
-            assert(is_file_input == 0);
-            memcpy(&(temp->data[temp->bytes_read]), buffer, length);
+        temp->last_modified = time(NULL);
+        assert(temp->bytes_read + length <= HEADER_LENGTH);
+        assert(is_file_input == 0);
+        memcpy(&(temp->data[temp->bytes_read]), buffer, length);
 
-            temp->bytes_read += length;
+        temp->bytes_read += length;
 
             //if entire header read in
-            if (temp->bytes_read == HEADER_LENGTH){
-                temp->h = malloc(sizeof(struct Header));
-                memcpy(temp->h, temp->data, HEADER_LENGTH);
-                bzero(temp->data, HEADER_LENGTH);
-                temp->bytes_read = 0;
+        if (temp->bytes_read == HEADER_LENGTH){
+            temp->h = malloc(sizeof(struct Header));
+            memcpy(temp->h, temp->data, HEADER_LENGTH);
+            bzero(temp->data, HEADER_LENGTH);
+            temp->bytes_read = 0;
 
-                return 0;
-            }
+            return 0;
         }
+    }
             //CONTRACT: they're never gonna pass you the complete header if length == 0
     else{
+        temp->last_modified = time(NULL);
         temp->bytes_read += length;
         if (is_file_input == 0){
             memcpy(&(temp->data[temp->bytes_read - length]), buffer, length);
@@ -123,6 +128,7 @@ static struct PartialMessage * new_partial(struct PartialMessageHandler *p, int 
         last->next = malloc(sizeof(*(last->next)));
         temp = last->next;
     }
+    temp->last_modified = time(NULL);
     temp->h = NULL;
     temp->bytes_read = 0;
     temp->next = NULL;
@@ -131,6 +137,47 @@ static struct PartialMessage * new_partial(struct PartialMessageHandler *p, int 
 
     return temp;
 }
+
+void delete_partial(struct PartialMessageHandler *p, int sockfd){
+
+    if (p == NULL){
+        return;
+    }
+    struct PartialMessage *temp = p->head;
+    while (temp != NULL){
+        if (sockfd == temp->sockfd){
+            if (temp->h != NULL){
+                delete_temp_file(temp->h->filename);
+                free(temp->h);
+            }
+            free(temp);
+            return;
+        }
+        temp = temp->next;
+    }
+
+}
+
+void timeout_sweep(struct PartialMessageHandler *p){
+    if (p == NULL){
+        return;
+    }
+
+    long current_time = time(NULL);
+    struct PartialMessage *temp = p->head;
+    while (temp != NULL){
+        if (temp->last_modified - current_time >= MINUTE){
+            if (temp->h != NULL){
+                delete_temp_file(temp->h->filename);
+                free(temp->h);
+            }
+            free(temp);
+        }
+        temp = temp->next;
+    }
+
+}
+
 
 void free_partials(struct PartialMessageHandler *p)
 {
@@ -144,6 +191,7 @@ void free_partials(struct PartialMessageHandler *p)
     while (temp != NULL) {
         next = temp->next;
         if (temp->h != NULL) {
+            delete_temp_file(temp->h->filename);
             free(temp->h);
         }
         free(temp);
