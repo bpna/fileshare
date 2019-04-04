@@ -4,13 +4,21 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <netdb.h> 
-//#include "db.h"
+#include "database/db.h"
+#include "database/cspairs.h"
 #include "messages.h"
 
+#define RW_LENGTH 10000
 #define DISCONNECTED 0
 #define MAX_MSG_SIZE 450
+#define DB_OWNER "client"
+#define DB_NAME "postgres"
+#define USE_DB 0
+#define CSPAIRS_FNAME "client_cspairs.txt"
+#define CSPAIRS_FILE_MAX_LENGTH 10000
 
 void error(const char *msg)
 {
@@ -18,29 +26,102 @@ void error(const char *msg)
     exit(0);
 }
 
-void read_new_client_ack_payload(struct Header *message_header, PGconn *db);
-void read_error_client_exists_payload(struct Header *message_header);
-int parse_request(int argc, char **argv);
+struct Server {
+    uint16_t port;
+    char domain_name[64];
+};
+
+void read_new_client_ack_payload(int sockfd, struct Header *message_header, 
+                                 char *client, db_t *db);
+char * read_error_client_exists_payload(int sockfd, 
+                                        struct Header *message_header);
+int check_input_get_msg_id(int argc, char **argv);
+int parse_and_send_request(const enum message_type message_id, char **argv,
+                           db_t *db);
+struct Server * get_server_from_client_wrapper(db_t *db, char *client, 
+                                               char *loc);
+int process_reply(int sockfd, const enum message_type message_id, char **argv, 
+                  db_t *db);
 int connect_to_server(char *fqdn, int portno);
 int write_message(int sockfd, char *data, int length);
 int write_file(int csock, char *filename);
+char * send_recv_user_req(int sockfd, char *user, char *password, 
+                          char *file_owner);
 
 int main(int argc, char **argv)
 {
-    int sockfd, portno, n;
-    char header_buffer[HEADER_LENGTH];
-    char *clientbuf;
+    int sockfd, status;
     enum message_type message_id;
-    enum DB_STATUS db_status;
+    db_t *db;
+
+    if (USE_DB) {
+        db = connect_to_db(DB_OWNER, DB_NAME);
+    } else {
+        db = NULL;
+    }
+    message_id = check_input_get_msg_id(argc, argv);
+    sockfd = parse_and_send_request(message_id, argv, db);
+    if (sockfd == -1) {
+        return 1;
+    }
+    status = process_reply(sockfd, message_id, argv, db);
+
+    close(sockfd);
+    return 0;
+}
+
+int check_input_get_msg_id(int argc, char **argv)
+{
+    if (strcmp(argv[1], "new_client") == 0) {
+        if (argc != 5) {
+            fprintf(stderr, "usage: %s new_client [router-FQDN] [router-portno] \
+                             [username] [password]\n", argv[0]);
+            exit(0);
+        }
+
+        return NEW_CLIENT;
+    } else if (strcmp(argv[1], "upload_file") == 0) {
+        if (argc != 7) {
+            fprintf(stderr, "usage: %s upload_file [router-FQDN] [router-portno] \
+                             [username] [password] [filename]\n", argv[0]);          
+        }
+
+        return UPLOAD_FILE;
+    } else if (strcmp(argv[1], "request_file") == 0) {
+        if (argc != 8) {
+            fprintf(stderr, "usage: %s request_file [router-FQDN] [router-portno] \
+                             [username] [password] [owner-username] [filename]\n",
+                             argv[0]);
+        }
+
+        return REQUEST_FILE;
+    }
+
+    if (argc < 2) {
+       fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
+       exit(0);
+    }
+
+    return 0;
+}
+
+/*
+ * parses input params from client using check_input_get_msg_id()
+ * crafts requests for the operator and target server and writes the request
+ * header and payload to the socket.
+ *
+ * returns the socket file descriptor for the opened socket. Depending on
+ * the request type, this socket will be to EITHER the operator or server
+ * so it's critical that process request also check the message_id before
+ * using the socket.
+ */
+int parse_and_send_request(const enum message_type message_id, char **argv,
+                           db_t *db)
+{
+    int sockfd;
     struct Header message_header;
-    struct db_return db_return;
-    struct server_addr server;
+    struct Server *server;
 
-    /* create database */
-    PGconn *db = connect_to_db();
-
-    /* send the message request to the router or file server */
-    message_id = parse_request(argc, argv);
     switch (message_id) {
         case NEW_CLIENT:
             sockfd = connect_to_server(argv[2], atoi(argv[3]));
@@ -61,61 +142,81 @@ int main(int argc, char **argv)
             write_file(sockfd, message_header.filename);
             break;
         case REQUEST_FILE:
-            db_return = get_server_from_client(db, argv[6]);
-            check_db_status(db_return->status, "main() - REQUEST_FILE");
-            server = db_return->result;
-            if (server = NULL) {
-                sockfd = connect_to_server(argv[2], argv[3]);
-                send_user_request(sockfd);
+            server = get_server_from_client_wrapper(db, argv[6], 
+                                               "parse_and_send_request ()");
+            if (server = NULL) { /* no client/server pairing for file owner */
+                sockfd = connect_to_server(argv[2], atoi(argv[3]));
+                /* get server for file owner */
+                send_recv_user_req(sockfd, argv[4], argv[5], argv[6]);
+            }
 
-            
-
+            break;
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
             return 1;
     }
 
-    /* read reply from the server */
+    return sockfd;
+}
+
+int process_reply(int sockfd, const enum message_type message_id, char **argv, 
+                  db_t *db)
+{
+    int n, m;
+    char *clientbuf;
+    char header_buffer[HEADER_LENGTH];
+    struct Header message_header;
+
     switch (message_id) {
         case NEW_CLIENT:
             n = 0;
             while (n < HEADER_LENGTH) {
-                n += read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
+                m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
+                if (m < 0) {
+                    error("ERROR reading from socket");
+                }
+                n += m;
             }
-            memcpy(message_header, header_buffer, HEADER_LENGTH);
-            message_header->length = htonl(message_header->length);
-            if (message_header->id == NEW_CLIENT_ACK) {
-                read_new_client_ack_payload(&message_header, char *client, db);
+
+            memcpy(&message_header, header_buffer, HEADER_LENGTH);
+            message_header.length = ntohl(message_header.length);
+            if (message_header.id == NEW_CLIENT_ACK) {
+                read_new_client_ack_payload(sockfd, &message_header, argv[4], 
+                                            db);
                 printf("Client %s successfully added\n", argv[4]);
-            } else if (message_header->id == ERROR_CLIENT_EXISTS) {
-                clientbuf = read_error_client_exists_payload(&message_header);
+            } else if (message_header.id == ERROR_CLIENT_EXISTS) {
+                clientbuf = read_error_client_exists_payload(sockfd, 
+                                                             &message_header);
                 printf("Client %s already exists\n", clientbuf);
                 free(clientbuf);
             } else {
                 fprintf(stderr, "Bad response type %d received from router",
-                        message_header->id);
+                        message_header.id);
             }
+
             break;
         case UPLOAD_FILE:
             n = 0;
             while (n < HEADER_LENGTH) {
-                n += read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
+                m += read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
+                if (m < 0) {
+                    error("ERROR reading from socket");
+                }                
             }
-            memcpy(message_header, header_buffer, HEADER_LENGTH);
-            message_header->length = htonl(message_header->length);
-            if (message_header->id == UPLOAD_ACK) {
+
+            memcpy(&message_header, header_buffer, HEADER_LENGTH);
+            message_header.length = htonl(message_header.length);
+            if (message_header.id == UPLOAD_ACK) {
                 printf("File %s successfully uploaded\n", 
-                       message_header->filename);
-            } else if (message_header->id == ERROR_FILE_EXISTS) {
-                printf("File %s already exists\n", message_header->filename);
-            } else if (message_header->id == ERROR_UPLOAD_FAILURE) {
-                printf("File %s failed to upload\n", message_header->filename);
+                       message_header.filename);
+            } else if (message_header.id == ERROR_FILE_EXISTS) {
+                printf("File %s already exists\n", message_header.filename);
+            } else if (message_header.id == ERROR_UPLOAD_FAILURE) {
+                printf("File %s failed to upload\n", message_header.filename);
             }
+
             break;
     }
-
-    close(sockfd);
-    return 0;
 }
 
 static int freshvar()
@@ -126,7 +227,7 @@ static int freshvar()
     return x;
 }
 
-void check_db_status(enum db_status, char *func)
+void check_db_status(enum DB_STATUS db_status, char *func)
 {
     switch (db_status) {
         case CORRUPTED:
@@ -141,9 +242,159 @@ void check_db_status(enum db_status, char *func)
     }
 }
 
-void send_user_request(int sockfd)
+void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc)
 {
-    struct Header h;
+    int portno;
+    enum DB_STATUS db_status;
+    struct server_addr server;
+    char *fqdn, *portchar;
+    char buffer[255];
+    FILE *fp;
+
+    if (USE_DB) {
+        bzero((char *) &server, sizeof(server));
+        fqdn = strtok(buffer, ":");
+        portchar = strtok(NULL, ":");
+        portno = atoi(portchar);
+        strcpy(server.domain_name, fqdn);
+        server.port = portno;
+        server.id = freshvar();
+
+        db_status = add_cspair(db, client, &server);
+        check_db_status(db_status, loc);
+    } else {
+        fp = fopen(CSPAIRS_FNAME, "a+");
+        fwrite(client, 1, strlen(client), fp);
+        fwrite(":", 1, 1, fp);
+        fwrite(fqdn_port, 1, strlen(fqdn_port), fp);
+        fwrite("\n", 1, 1, fp);
+        fclose(fp);
+    }
+}
+
+/*
+ * This function calls get_server_from_client(), or reads from a client/server
+ * pairs file, depending on whether USE_DB is set.
+ *
+ * If the client is not in the pairs list, get_server_from_client_wrapper()
+ * returns NULL. Otherwise, it malloc's and returns a Server struct which must 
+ * be free'd by the caller.
+ */
+struct Server * get_server_from_client_wrapper(db_t *db, char *client, 
+                                               char *loc)
+{
+    enum DB_STATUS db_status;
+    struct db_return db_return;
+    struct server_addr *server;
+    struct Server *retval = malloc(sizeof(*retval));
+    FILE *fp = NULL;
+    char buffer[CSPAIRS_FILE_MAX_LENGTH];
+    char *token = NULL;
+    int length;
+
+    if (USE_DB) {
+        db_return = get_server_from_client(db, client);
+        check_db_status(db_return.status, loc);
+        if (db_return.result == NULL) {
+            free(retval);
+            return NULL;
+        }
+
+        server = (struct server_addr *)db_return.result;
+        retval->port = server->port;
+        strcpy(retval->domain_name, server->domain_name);
+    } else {
+        /* read contents of CSPAIRS file into buffer */
+        fp = fopen(CSPAIRS_FNAME, "rb");
+        if (fp == NULL) {
+            fprintf(stderr, "ERROR opening file %s for reading\n",
+                    CSPAIRS_FNAME);
+            exit(1);
+        }
+        fseek(fp, 0, SEEK_END);
+        length = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        fread(buffer, 1, length, fp);
+        fclose(fp);
+        if (length == 0) {
+            free(retval);
+            return NULL;
+        }
+
+        /* parse buffer for desired client */
+        token = strtok(buffer, ":\n");
+        while (token != NULL && strcmp(token, client) != 0) {
+            token = strtok(NULL, ":\n");
+        }
+        if (token == NULL) {
+            return NULL;
+        } else {
+            token = strtok(NULL, ":\n");
+            if (token == NULL) {
+                fprintf(stderr, "CSPAIRS file %s badly formed\n");
+                exit(1);
+            }
+            strcpy(retval->domain_name, token);
+            token = strtok(NULL, ":\n");
+            if (token == NULL) {
+                fprintf(stderr, "CSPAIRS file %s badly formed\n");
+                exit(1);
+            }
+            retval->port = atoi(token);
+        }
+    }
+
+    return retval;
+}
+
+/*
+ * send_recv_user_req() sends a request for the server associated with
+ * user file_owner to the operator, which is represented by open socket sockfd.
+ *
+ * returns a malloc'd buffer containing the file_owner that the caller is
+ * responsible for freeing
+ */
+char * send_recv_user_req(int sockfd, char *user, char *password, 
+                        char *file_owner)
+{
+    int n, m, length;
+    struct Header header;
+    char *buffer = malloc(HEADER_LENGTH);
+    if (buffer == NULL) {
+        error("ERROR allocation failure");
+    }
+
+    bzero(&header, sizeof(header));
+    header.id = REQUEST_USER;
+    strcpy(header.source, user);
+    strcpy(header.password, password);
+    header.length = strlen(file_owner);
+    
+    write_message(sockfd, (char *) &header, HEADER_LENGTH);
+    write_message(sockfd, file_owner, strlen(file_owner));
+
+    n = 0;
+    while (n < HEADER_LENGTH) {
+        m = read(sockfd, &buffer[n], HEADER_LENGTH - n);
+        if (m < 0) {
+            error("ERROR reading from socket");
+        }
+        n += m;
+    }
+
+    memcpy(&header, buffer, HEADER_LENGTH);
+    length = ntohl(header.length);
+    n = 0;
+    bzero(buffer, HEADER_LENGTH);
+    while (n < length) {
+        m = read(sockfd, &buffer[n], length - n);
+        if (m < 0) {
+            error("ERROR reading from socket");
+        }
+        n += m;
+    }
+
+    return buffer;
 }
 
 /* void read_returned_file(int sockfd, struct Header *message_header)
@@ -153,88 +404,52 @@ void send_user_request(int sockfd)
 } */
 
 void read_new_client_ack_payload(int sockfd, struct Header *message_header, 
-                                 char *client, PGconn *db)
+                                 char *client, db_t *db)
 {
     int length = message_header->length;
-    int n = 0;
-    int portno;
-    enum DB_STATUS db_status;
-    struct server_addr server;
-    char *fqdn, portchar;
+    int n, m;
     char *buffer = malloc(length + 1);
     if (buffer == NULL) {
         error("Allocation failure");
     }
 
+    n = 0;
     while (n < length) {
-        n += read(sockfd, &buffer[n], length - n);
+        m = read(sockfd, &buffer[n], length - n);
+        if (m < 0) {
+            error("ERROR reading from socket");
+        }
+        n += m;
     }
     buffer[length] = '\0';
     
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    fqdn = strtok(buffer, ":");
-    portchar = strtok(NULL, ":");
-    portno = atoi(portchar);
-    strcpy(server->domain_name, fqdn);
-    server->port = portno;
-    server->id = freshvar();
-
-    db_status = add_cspair(db, client, &server);
-    check_db_status(db_status, "read_new_client_ack_payload()");
+    add_cspair_wrapper(db, client, buffer, "read_new_client_ack_payload()");
     free(buffer);
 }
 
 
-char * read_error_client_exists_payload(struct Header *message_header)
+char * read_error_client_exists_payload(int sockfd, struct Header *message_header)
 {
+    int n, m;
     int length = message_header->length;
     char *client_name = malloc(length + 1);
     if (client_name == NULL) {
         error("Allocation failure");
     }
 
+    n = 0;
     while (n < length) {
-        n += read(sockfd, &client_name[n], length - n);
+        m = read(sockfd, &client_name[n], length - n);
+        if (m < 0) {
+            error("ERROR reading from socket");
+        }
+        n += m;
     }
     client_name[length] = '\0';
     
     return client_name;
 }
 
-
-int parse_request(int argc, char **argv)
-{
-    if (argc < 2) {
-       fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
-       exit(0);
-    }
-
-    if (strcmp(argv[1], "new_client") == 0) {
-        if (argc != 5) {
-            fprintf(stderr, "usage: %s new_client [router-FQDN] [router-portno] \
-                             [username] [password]\n", argv[0]);
-            exit(0);
-        }
-    } else if (strcmp(argv[1], "upload_file") == 0) {
-        if (argc != 7) {
-            fprintf(stderr, "usage: %s upload_file [server-FQDN] \
-                             [username] [password] \
-                             [filename]\n", argv[0]);          
-        }
-
-        return UPLOAD_FILE;
-    } else if (strcmp(argv[1], "request_file") == 0) {
-        if (argc != 8) {
-            fprintf(stderr, "usage: %s request_file [router-FQDN] [router-portno] \
-                             [username] [password] [owner-username] [filename]\n",
-                             argv[0]);
-        }
-
-        return REQUEST_FILE;
-    }
-
-    return 0;
-}
 
 int connect_to_server(char *fqdn, int portno)
 {
@@ -269,7 +484,7 @@ int connect_to_server(char *fqdn, int portno)
 int write_file(int csock, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
-    char bytes[10000];
+    char bytes[RW_LENGTH];
     long filelen;
     int to_write, bytes_written = 0;
 
@@ -278,10 +493,10 @@ int write_file(int csock, char *filename)
     rewind(fp);
 
     while (bytes_written < filelen) {
-        if (filelen - bytes_written < 10000) {
+        if (filelen - bytes_written < RW_LENGTH) {
             to_write = filelen - bytes_written;
         } else {
-            to_write = 10000;
+            to_write = RW_LENGTH;
         }
 
         fread(bytes, to_write, 1, fp);
@@ -298,9 +513,10 @@ int write_message(int csock, char *data, int length)
 
     while (n < length) {
         n += write(csock, &data[n], length - n);
+        if (n < 0) {
+            error("ERROR writing to socket");
+        }
     }
 
     return 0;
 }
-
-
