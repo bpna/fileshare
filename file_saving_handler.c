@@ -28,7 +28,7 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
     current_filelen = ftell(fp);
     fprintf(stderr, "file length is %lu\n", current_filelen);
 
-    fwrite(buffer, 0, buf_len, fp);
+    fwrite(buffer, 1, buf_len, fp);
     fclose(fp);
 
     if (current_filelen + buf_len == filelen){
