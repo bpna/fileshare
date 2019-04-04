@@ -139,15 +139,22 @@ void delete_partial(struct PartialMessageHandler *p, int sockfd) {
         return;
     }
     struct PartialMessage *temp = p->head;
+    struct PartialMessage *prev = NULL;
     while (temp != NULL){
         if (sockfd == temp->sockfd){
             if (temp->h != NULL){
                 delete_temp_file(temp->h->filename);
                 free(temp->h);
             }
+            if (temp == p->head) {
+                p->head = temp->next;
+            } else {
+                prev->next = temp->next;
+            }
             free(temp);
             return;
         }
+        prev = temp;
         temp = temp->next;
     }
 

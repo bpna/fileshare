@@ -100,6 +100,14 @@ int check_input_get_msg_id(int argc, char **argv)
         }
 
         return REQUEST_FILE;
+    } else if (strcmp(argv[1], "update_file") == 0) {
+        if (argc != 8) {
+            fprintf(stderr, "usage: %s update_file [router-FQDN] [router-portno] \
+                             [username] [password] [owner-username] [filename]\n",
+                             argv[0]);
+        }
+
+        return UPDATE_FILE;
     }
 
     return 0;
@@ -127,24 +135,22 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
     struct Server *server;
 
     bzero(&message_header, sizeof(message_header));
+    strcpy(message_header.source, argv[4]);
+    strcpy(message_header.password, argv[5]);
 
     switch (message_id) {
         case NEW_CLIENT:
             sockfd = connect_to_server(argv[2], atoi(argv[3]));
             message_header.id = NEW_CLIENT;
-            strcpy(message_header.source, argv[4]);
-            strcpy(message_header.password, argv[5]);
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             break;
-        case UPLOAD_FILE:
+        case UPLOAD_FILE: // TODO: needs to check operator for server
             if (stat(argv[6], &sb) == -1) {
                 fprintf(stderr, "Named file does not exist, exiting\n");
                 exit(1);
             }
-            sockfd = connect_to_server(argv[2], atoi(argv[3]));
+            sockfd = connect_to_server(argv[2], atoi(argv[3])); // TODO: this is where it just connects to the server and it shouldn't just do that, it should check the operator first
             message_header.id = UPLOAD_FILE;
-            strcpy(message_header.source, argv[4]);
-            strcpy(message_header.password, argv[5]);
             strcpy(message_header.filename, argv[6]);
             message_header.length = htonl(sb.st_size);
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
@@ -167,21 +173,27 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             } else {
                 sockfd = connect_to_server(server->domain_name, server->port);
                 message_header.id = REQUEST_FILE;
-                strcpy(message_header.source, argv[4]);
-                strcpy(message_header.password, argv[5]);
                 strcpy(message_header.filename, argv[6]);
                 write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             }
 
             free(server);
             break;
-        case UPLOAD_FILE:
+        case UPDATE_FILE: // TODO: needs to check operator for server
+            if (stat(argv[7], &sb) == -1) {
+                fprintf(stderr, "Named file does not exist, exiting\n");
+                exit(1);
+            }
+            sockfd = connect_to_server(argv[2], atoi(argv[3])); // TODO: this just connects to server
+            message_header.id = UPDATE_FILE;
+            strcpy(message_header.filename, argv[7]);
+            message_header.length = htonl(sb.st_size);
+            write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+            write_file(sockfd, message_header.filename);
             break;
-
-
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
-            return 1;
+            exit(1);
     }
 
     return sockfd;
@@ -195,19 +207,19 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
     char header_buffer[HEADER_LENGTH];
     struct Header message_header;
 
+    n = 0;
+    while (n < HEADER_LENGTH) {
+        m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
+        if (m < 0) {
+            error("ERROR reading from socket");
+        }
+        n += m;
+    }
+    memcpy(&message_header, header_buffer, HEADER_LENGTH);
+    message_header.length = ntohl(message_header.length);
+
     switch (message_id) {
         case NEW_CLIENT:
-            n = 0;
-            while (n < HEADER_LENGTH) {
-                m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
-                if (m < 0) {
-                    error("ERROR reading from socket");
-                }
-                n += m;
-            }
-
-            memcpy(&message_header, header_buffer, HEADER_LENGTH);
-            message_header.length = ntohl(message_header.length);
             if (message_header.id == NEW_CLIENT_ACK) {
                 read_new_client_ack_payload(sockfd, &message_header, argv[4], 
                                             db);
@@ -224,17 +236,6 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
 
             break;
         case UPLOAD_FILE:
-            n = 0;
-            while (n < HEADER_LENGTH) {
-                m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
-                if (m < 0) {
-                    error("ERROR reading from socket");
-                }                
-                n += m;
-            }
-
-            memcpy(&message_header, header_buffer, HEADER_LENGTH);
-            message_header.length = htonl(message_header.length);
             if (message_header.id == UPLOAD_ACK) {
                 printf("File %s successfully uploaded\n", 
                        message_header.filename);
@@ -245,13 +246,23 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
             }
 
             break;
+        case UPDATE_FILE:
+            if (message_header.id == UPDATE_FILE)
+                printf("File %s successfully updated\n", 
+                       message_header.filename);
+            else if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
+                printf("File %s already exists\n", message_header.filename);
+            else if (message_header.id == ERROR_BAD_PERMISSIONS)
+                printf("Invalid permissions for %s\n", 
+                       message_header.filename);
+            break;
         case REQUEST_FILE:
             break;
             // CODE YOU BASTARD
     }
 }
 
-static int freshvar()
+int freshvar()
 {
     static int x = 0;
     x++;

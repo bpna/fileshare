@@ -78,7 +78,7 @@ int intializeLSock(int portno){
 //returns 1 if all characters in the fname are alphnumric, ".", or "-". returns 0 otherwise
 char valid_fname(char *fname){
     for (int i = 0; i < FILENAME_FIELD_LENGTH; i++){
-        if (fname[i] == '\0' && i =! 0)
+        if (fname[i] == '\0' && i != 0)
             return 1;
         if (fname[i] != '-' && fname[i] != '.' && fname[i] != '/' && isalnum(fname[i] == 0)){
             return 0;
@@ -94,9 +94,9 @@ char valid_fname(char *fname){
 //returns DISCONNECT_CODE on succesfull read OR Error, returns 0 on partial read
 char upload_file(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
     
-    int bytesToRead = FILE_BUFFER_MAX_LENGTH;
-    char buffer[FILE_BUFFER_MAX_LENGTH];
-    enum message_id;
+    int bytesToRead = FILE_BUFFER_MAX_LEN;
+    char buffer[FILE_BUFFER_MAX_LEN];
+    enum message_type message_id;
 
     int bytesRead = get_bytes_read(handler, sockfd);
 
@@ -141,9 +141,9 @@ char upload_file(int sockfd, struct Header *msgHeader, struct PartialMessageHand
 // overwrites current file and sends an ACK
 char update_file(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler) {
     
-    int bytesToRead = FILE_BUFFER_MAX_LENGTH;
-    char buffer[FILE_BUFFER_MAX_LENGTH];
-    enum message_id;
+    int bytesToRead = FILE_BUFFER_MAX_LEN;
+    char buffer[FILE_BUFFER_MAX_LEN];
+    enum message_type message_id;
     int bytesRead = get_bytes_read(handler, sockfd);
 
     //if number of bytes left to read < 100000
@@ -273,7 +273,7 @@ int connect_to_router(char *domainName, int portno, char* servername){
 
 
     /* send message*/
-    sendHeader(NEW_SERVER_CODE, NULL, NULL, servername, 0, sockfd);
+    sendHeader(NEW_SERVER, NULL, NULL, servername, 0, sockfd);
 
     int n = read(sockfd, buffer, HEADER_LENGTH);
     if (n == 0){
