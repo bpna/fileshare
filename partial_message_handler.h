@@ -1,4 +1,5 @@
-#include "messages.h"
+#include "file_saving_handler.h"
+#define INIT_BUFFER_LENGTH 512
 
 /*
  * 03/31/2019
@@ -17,8 +18,6 @@
  * a NULL PartialMessageHandler * to any function in the interface.
  */
 
-#define INIT_BUFFER_LENGTH 20000
-#define RW_LENGTH 10000
 
 /*
  * Call this function before calling other functions in the interface.
@@ -31,13 +30,19 @@ struct PartialMessageHandler * init_partials();
  * in buffer.
  *
  * returns -1 if an error was encountered.
- * returns 0 when buffer was added to the handler, but those bytes should not
- * yet be written to disk (< 10000 bytes to write && server has more to read).
- * returns n > 0 when n bytes should be written to disk, buffer is modified
- * in-place.
+ * returns 1 when partial message has been read in completely and TCP connection 
+ * can be closed, else if message not completely read in returns 0.  if is_file_input != 0,
+ * a return value of 1 indicates the file is fully written to disk. if is_file_input == 0,
+ * a return value of 1 indicates that the buffer has been modified in place to contain the entire
+ * payload. 
+ *
+ * Requirements: buffer >= length of entire message if  is_file_input == 0
+ * 
+ * char is_file_input indicates if the buffer contains file data that needs to be written to disk
+ * if is_file_input != 0, the buffer is written to disk. 
  */
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
-                int length);
+                int length, char is_file_inpnut);
 
 int getPartialHeader(struct PartialMessageHandler *p, int sockfd, 
                      char *headerBuf);
