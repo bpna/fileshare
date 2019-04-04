@@ -182,23 +182,23 @@ char update_file(int sockfd, struct Header *msgHeader, struct PartialMessageHand
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
 int handle_request(int sockfd, struct PartialMessageHandler *handler){
-    int n, headerBytesRead;
+    int n, header_bytes_read;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
     struct Header *msgHeader;
-    headerBytesRead = getPartialHeader(handler, sockfd, buffer);
+    header_bytes_read = get_partial_header(handler, sockfd, buffer);
     msgHeader = (void *) buffer;
     enum message_type message_id;
 
     //TODO: put functions inside of these, this is paralell code
-    if (headerBytesRead < HEADER_LENGTH){
-        n = read(sockfd, buffer, HEADER_LENGTH - headerBytesRead);
-        if (n < HEADER_LENGTH - headerBytesRead){
+    if (header_bytes_read < HEADER_LENGTH){
+        n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
+        if (n < HEADER_LENGTH - header_bytes_read){
             add_partial(handler, buffer, sockfd, n, 0);
             return 0;
         }
         else{
-            memcpy(&msgHeader[headerBytesRead], buffer, HEADER_LENGTH - headerBytesRead);
+            memcpy(&msgHeader[header_bytes_read], buffer, HEADER_LENGTH - header_bytes_read);
             msgHeader->length = ntohl(msgHeader->length);
             if (msgHeader->length > 0){
                 add_partial(handler, buffer, sockfd, n, 0);

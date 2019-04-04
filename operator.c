@@ -21,7 +21,7 @@
 #include "messages.h"
 #include "partial_message_handler.h"
 
-#define DISCONNECTED 0
+#define DISCONNECTED -69
 
 void error(const char *msg)
 {
@@ -120,22 +120,34 @@ int open_and_bind_socket(int portno) {
     return master_socket;
 }
 
-int read_handler(int sockfd, struct PartialMessageHandler *handler) {
-    int header_bytes_read;
-    char buffer[HEADER_LENGTH];
-    int bytes_read = read(sockfd, buffer, MAX_MSG_SIZE);
+int handle_request(int sockfd, struct PartialMessageHandler *handler) {
 
-    if (bytes_read == 0) {
-        close(sockfd);
-        return DISCONNECTED;
-    }
+    int n, header_bytes_read;
+    char buffer[HEADER_LENGTH];
+    bzero(buffer, HEADER_LENGTH);
+    struct Header *msg_header;
 
     header_bytes_read = get_partial_header(handler, sockfd, buffer);
-    if (bytes_read < HEADER_LENGTH) {
-        n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
-        if (n < HEADER_LENGTH - header_bytes_read) {
-            add_partial(handler, buffer, sockfd, n, 0);
+    msg_header = (void *) buffer;
+    
 
+    if (header_bytes_read < HEADER_LENGTH){
+        n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
+        if (n < HEADER_LENGTH - header_bytes_read){
+            add_partial(handler, buffer, sockfd, n, 0);
+            return 0;
+        }
+        else{
+            memcpy(&msg_header[header_bytes_read], buffer, HEADER_LENGTH - header_bytes_read);
+            msg_header->length = ntohl(msg_header->length);
+            if (msg_header->length > 0){
+                add_partial(handler, buffer, sockfd, n, 0);
+                return 0;
+            }
         }
     }
+
+    //return handle_header(msg_header, sockfd, struct PartialMessageHandler *handler);
+
+    
 }
