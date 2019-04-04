@@ -22,7 +22,6 @@
 #include "partial_message_handler.h"
 
 #define DISCONNECTED 0
-#define MAX_MSG_READ 450
 
 void error(const char *msg)
 {
@@ -40,7 +39,7 @@ int main(int argc, char *argv[])
     fd_set master_fd_set, copy_fd_set;
     struct sockaddr_in serv_addr, cli_addr;
     struct timeval timeout;
-    struct PartialMessageHandler *p = init_partials();
+    struct PartialMessageHandler *handler = init_partials();
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -82,7 +81,7 @@ int main(int argc, char *argv[])
                             error("ERROR on accept");
                         }
                     } else { 
-                        status = read_handler(sockfd);
+                        status = read_handler(sockfd, handler);
                         if (status == DISCONNECTED) {
                             FD_CLR(sockfd, &master_fd_set);
                         }
@@ -96,16 +95,14 @@ int main(int argc, char *argv[])
     return 0; 
 }
 
-static int freshvar()
-{
+static int freshvar() {
     static int x = 0;
     x++;
 
     return x;
 }
 
-int open_and_bind_socket(int portno)
-{
+int open_and_bind_socket(int portno) {
     int master_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (master_socket < 0) {
         error("ERROR opening socket");
@@ -123,9 +120,9 @@ int open_and_bind_socket(int portno)
     return master_socket;
 }
 
-int read_handler(int sockfd)
-{
-    char buffer[MAX_MSG_SIZE];
+int read_handler(int sockfd, struct PartialMessageHandler *handler) {
+    int header_bytes_read;
+    char buffer[HEADER_LENGTH];
     int bytes_read = read(sockfd, buffer, MAX_MSG_SIZE);
 
     if (bytes_read == 0) {
@@ -133,7 +130,12 @@ int read_handler(int sockfd)
         return DISCONNECTED;
     }
 
+    header_bytes_read = get_partial_header(handler, sockfd, buffer);
     if (bytes_read < HEADER_LENGTH) {
+        n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
+        if (n < HEADER_LENGTH - header_bytes_read) {
+            add_partial(handler, buffer, sockfd, n, 0);
 
-
+        }
+    }
 }
