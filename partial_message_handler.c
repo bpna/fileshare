@@ -119,25 +119,19 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
 
 static struct PartialMessage * new_partial(struct PartialMessageHandler *p, int sockfd)
 {
-    struct PartialMessage *temp, *last;
-    
-    if (p->head == NULL) {
-        p->head = malloc(sizeof(*(p->head)));
-        temp = p->head;
-    } else {
-        temp = p->head;
-        while (temp != NULL) {
-            last = temp;
-            temp = temp->next;
-        }
-        last->next = malloc(sizeof(*(last->next)));
-        temp = last->next;
-    }
+    struct PartialMessage *temp = malloc(sizeof(struct PartialMessageHandler));
+
     temp->last_modified = time(NULL);
     temp->h = NULL;
     temp->bytes_read = 0;
-    temp->next = NULL;
     temp->sockfd = sockfd;
+
+    if (p->head == NULL) {
+        temp->next = NULL;
+    } else {
+        temp->next = p->head->next;
+    }
+    p->head = temp;
 
 
     return temp;
