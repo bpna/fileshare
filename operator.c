@@ -37,6 +37,7 @@ int read_handler(int sockfd);
 int handle_header(struct Header *h, int sockfd,
                   struct PartialMessageHandler *pm);
 int new_client(struct Header *h, int sockfd);
+int send_new_client_ack(int sockfd, struct server_addr *server);
 int request_user(struct Header *h, int sockfd);
 int new_server(struct Header *h, int sockfd);
 
@@ -169,10 +170,10 @@ int new_client(struct Header *h, int sockfd) {
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
+    close_db_connection(db);
     server = (struct server_addr *) dbr.result;
     if (dbr.status != SUCCESS) {
         free(server);
-        close_db_connection(db);
         return 1;
     }
 
@@ -185,19 +186,37 @@ int new_client(struct Header *h, int sockfd) {
     n = send(server_sock, (char *) &outgoing_message, HEADER_LENGTH, 0);
     if (n < HEADER_LENGTH) {
         free(server);
-        close_db_connection(db);
         close(server_sock);
         return 1;
     }
 
     n = send(server_sock, h->source, outgoing_message.length, 0);
-
-    free(server);
-    close_db_connection(db);
     close(server_sock);
-    if (n < outgoing_message.length) {
+    if (n < outgoing_message.length)
         return 1;
-    }
+
+    return send_new_client_ack(sockfd, server);
+}
+
+int send_new_client_ack(int sockfd, struct server_addr *server) {
+    struct Header outgoing_message;
+    int n;
+    char *payload = calloc(275, sizeof (char));
+    sprintf(payload, "%s:%d", server->domain_name, server->port);
+    free(server);
+
+    outgoing_message.id = 2;
+    strcpy(outgoing_message.source, OPERATOR_SOURCE);
+    outgoing_message.length = strlen(payload);
+
+    n = send(sockfd, (char *) &outgoing_message, HEADER_LENGTH, 0);
+    if (n < HEADER_LENGTH)
+        return 1;
+
+
+    n = send(sockfd, payload, outgoing_message.length, 0);
+    if (n < outgoing_message.length)
+        return 1;
 
     return DISCONNECTED;
 }
