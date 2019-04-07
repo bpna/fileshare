@@ -273,8 +273,9 @@ int new_server(struct Header *h, int sockfd) {
     db_t *db;
     enum DB_STATUS dbs;
     struct server_addr *server = calloc(1, sizeof (struct server_addr));
-    int n;
+    int n, len;
     struct Header outgoing_message;
+    char *payload;
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     server->id = freshvar();
@@ -282,16 +283,31 @@ int new_server(struct Header *h, int sockfd) {
     // server->domain_name = h->source TODO: decide how to send hostname
 
     dbs = add_server(db, server);
-    free(server);
     close_db_connection(db);
-    if (dbs != SUCCESS)
+    if (dbs == ELEMENT_ALREADY_EXISTS) {
+        outgoing_message.id = ERROR_SERVER_EXISTS;
+        payload = calloc(275, sizeof (char));
+        sprintf(payload, "%s:%d", server->domain_name, server->port);
+        len = strlen(payload);
+        outgoing_message.length = htonl(len);
+    } else if (dbs == SUCCESS) {
+        outgoing_message.id = NEW_SERVER_ACK;
+    } else {
         return 1;
+    }
+    free(server);
 
-    outgoing_message.id = NEW_SERVER_ACK;
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     n = read(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
     if (n < HEADER_LENGTH)
         return 1;
+
+    if (outgoing_message.id == ERROR_SERVER_EXISTS) {
+        n = send(sockfd, payload, len, 0);
+        free(payload);
+        if (n < len)
+            return 1;
+    }
 
     return DISCONNECTED;
 }
