@@ -56,12 +56,11 @@ int get_partial_header(struct PartialMessageHandler *p, int sockfd,
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
                 int length, char is_file_input) {
     assert(p != NULL);
-    assert(length <=INIT_BUFFER_LENGTH);
+    assert(length <=FILE_BUFFER_MAX_LEN);
     int n;
     struct PartialMessage *temp;
 
     if ((temp = find_partial(p, sockfd)) == NULL) {
-        assert(length <=HEADER_LENGTH);
         assert(is_file_input == 0);
         temp = new_partial(p, sockfd); /* allocate uninitialized PartialMessage */
         if (length == HEADER_LENGTH) {
@@ -97,6 +96,7 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
         temp->last_modified = time(NULL);
         temp->bytes_read += length;
         if (is_file_input == 0){
+            assert(length <=INIT_BUFFER_LENGTH);
             memcpy(&(temp->data[temp->bytes_read - length]), buffer, length);
             if (temp->bytes_read == temp->h->length){
                 bzero(buffer, length);
