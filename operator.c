@@ -155,7 +155,7 @@ int handle_header(struct Header *h, int sockfd,
         case REQUEST_USER:
             return request_user(h, sockfd);
         case CREATE_CLIENT_ACK:
-            return 0;
+            return DISCONNECTED;
         case NEW_SERVER:
             return new_server(h, sockfd);
         default:
@@ -271,33 +271,33 @@ int request_user(struct Header *h, int sockfd) {
     struct Header outgoing_message;
     char *payload = calloc(275, sizeof (char));
 
-    //desired_user = TODO: get desired user
+    // desired_user = TODO: get desired user
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = get_server_from_client(db, desired_user);
     free(desired_user);
     close_db_connection(db);
-    outgoing_message.id = REQUEST_USER_ACK;
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     if (dbr.status == ELEMENT_NOT_FOUND) {
-        len = 0;
+        outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
     } else if (dbr.status == SUCCESS) {
+        outgoing_message.id = REQUEST_USER_ACK;
         server = (struct server_addr *) dbr.result;
         sprintf(payload, "%s:%d", server->domain_name, server->port);
         len = strlen(payload);
         free(server);
+        outgoing_message.length = htonl(len);
     } else {
         return 1;
     }
 
-    outgoing_message.length = htonl(len);
     n = send(sockfd, (char *) &outgoing_message, HEADER_LENGTH, 0);
     if (n < HEADER_LENGTH) {
         free(payload);
         return 1;
     }
 
-    if (len > 0) {
+    if (outgoing_message.id == REQUEST_USER_ACK) {
         n = send(sockfd, payload, len, 0);
         free(payload);
         if (n < len)
