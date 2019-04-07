@@ -194,7 +194,7 @@ int new_client(struct Header *h, int sockfd) {
     len = strlen(h->source);
     outgoing_message.length = htonl(len);
 
-    n = send(server_sock, (char *) &outgoing_message, HEADER_LENGTH, 0);
+    n = write(server_sock, (char *) &outgoing_message, HEADER_LENGTH);
     if (n < HEADER_LENGTH) {
         close_db_connection(db);
         free(server);
@@ -202,7 +202,7 @@ int new_client(struct Header *h, int sockfd) {
         return 1;
     }
 
-    n = send(server_sock, h->source, len, 0);
+    n = write(server_sock, h->source, len);
     close(server_sock);
     if (n < len) {
         close_db_connection(db);
@@ -228,11 +228,11 @@ int send_client_exists_ack(int sockfd, char *username) {
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     len = strlen(username);
     outgoing_message.length = htonl(len);
-    n = send(sockfd, (char *) &outgoing_message, HEADER_LENGTH, 0);
+    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
     if (n < HEADER_LENGTH)
         return 1;
 
-    n = send(sockfd, username, len, 0);
+    n = write(sockfd, username, len);
     if (n < len)
         return 1;
     return DISCONNECTED;
@@ -251,11 +251,11 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
     len = strlen(payload);
     outgoing_message.length = htonl(len);
 
-    n = send(sockfd, (char *) &outgoing_message, HEADER_LENGTH, 0);
+    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
     if (n < HEADER_LENGTH)
         return 1;
 
-    n = send(sockfd, payload, len, 0);
+    n = write(sockfd, payload, len);
     if (n < len)
         return 1;
 
@@ -291,14 +291,14 @@ int request_user(struct Header *h, int sockfd) {
         return 1;
     }
 
-    n = send(sockfd, (char *) &outgoing_message, HEADER_LENGTH, 0);
+    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
     if (n < HEADER_LENGTH) {
         free(payload);
         return 1;
     }
 
     if (outgoing_message.id == REQUEST_USER_ACK) {
-        n = send(sockfd, payload, len, 0);
+        n = write(sockfd, payload, len);
         free(payload);
         if (n < len)
             return 1;
@@ -341,7 +341,7 @@ int new_server(struct Header *h, int sockfd) {
         return 1;
 
     if (outgoing_message.id == ERROR_SERVER_EXISTS) {
-        n = send(sockfd, payload, len, 0);
+        n = write(sockfd, payload, len);
         free(payload);
         if (n < len)
             return 1;
