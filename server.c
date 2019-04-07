@@ -182,7 +182,7 @@ char update_file(int sockfd, struct Header *msgHeader, struct PartialMessageHand
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
 int handle_request(int sockfd, struct PartialMessageHandler *handler){
-    int n, header_bytes_read;
+    int n = 0, header_bytes_read;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
     struct Header *msgHeader;
@@ -232,7 +232,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler){
             break;
         case UPDATE_FILE:
             fprintf(stderr, " updating file\n" );
-            //return update_file(sockfd, msgHeader, handler);
+            return update_file(sockfd, msgHeader, handler);
 
              //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             break;
