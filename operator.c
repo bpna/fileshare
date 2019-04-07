@@ -38,6 +38,7 @@ int read_handler(int sockfd);
 int handle_header(struct Header *h, int sockfd,
                   struct PartialMessageHandler *pm);
 int new_client(struct Header *h, int sockfd);
+int send_client_exists_ack(int sockfd, char *username);
 int send_new_client_ack(int sockfd, struct server_addr *server);
 int request_user(struct Header *h, int sockfd);
 int new_server(struct Header *h, int sockfd);
@@ -165,17 +166,25 @@ int handle_header(struct Header *h, int sockfd,
 int new_client(struct Header *h, int sockfd) {
     db_t *db;
     struct db_return dbr;
+    enum DB_STATUS dbs;
     struct server_addr *server;
     int server_sock, n, len;
     struct Header outgoing_message;
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
-    close_db_connection(db);
-    server = (struct server_addr *) dbr.result;
     if (dbr.status != SUCCESS) {
-        free(server);
+        close_db_connection(db);
         return 1;
+    }
+
+    server = (struct server_addr *) dbr.result;
+
+    dbr = get_server_from_client(db, h->source);
+    if (dbr.status == SUCCESS) {
+        close_db_connection(db);
+        free(server);
+        return send_client_exists_ack(sockfd, h->source);
     }
 
     // server_sock = connect_to_server(server->domain_name, server->port);
@@ -187,6 +196,7 @@ int new_client(struct Header *h, int sockfd) {
 
     n = send(server_sock, (char *) &outgoing_message, HEADER_LENGTH, 0);
     if (n < HEADER_LENGTH) {
+        close_db_connection(db);
         free(server);
         close(server_sock);
         return 1;
@@ -194,10 +204,38 @@ int new_client(struct Header *h, int sockfd) {
 
     n = send(server_sock, h->source, len, 0);
     close(server_sock);
-    if (n < len)
+    if (n < len) {
+        close_db_connection(db);
+        free(server);
         return 1;
+    }
+
+    dbs = add_cspair(db, h->source, server);
+    close_db_connection(db);
+    if (dbs != SUCCESS) {
+        free(server);
+        return 1;
+    }
 
     return send_new_client_ack(sockfd, server);
+}
+
+int send_client_exists_ack(int sockfd, char *username) {
+    int n, len;
+    struct Header outgoing_message;
+
+    outgoing_message.id = ERROR_CLIENT_EXISTS;
+    strcpy(outgoing_message.source, OPERATOR_SOURCE);
+    len = strlen(username);
+    outgoing_message.length = htonl(len);
+    n = send(sockfd, (char *) &outgoing_message, HEADER_LENGTH, 0);
+    if (n < HEADER_LENGTH)
+        return 1;
+
+    n = send(sockfd, username, len, 0);
+    if (n < len)
+        return 1;
+    return DISCONNECTED;
 }
 
 int send_new_client_ack(int sockfd, struct server_addr *server) {
