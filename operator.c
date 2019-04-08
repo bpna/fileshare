@@ -159,8 +159,7 @@ int read_handler(int sockfd, struct PartialMessageHandler *handler) {
         }
     }
 
-    return handle_header(msg_header, sockfd,
-                         struct PartialMessageHandler *handler);
+    return handle_header(msg_header, sockfd, handler);
 }
 
 int handle_header(struct Header *h, int sockfd,
