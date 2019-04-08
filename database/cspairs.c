@@ -28,7 +28,6 @@ struct db_return get_server_from_client(db_t *db, char *client) {
     struct server_addr *addr =
         (struct server_addr *) malloc(sizeof (struct server_addr));
 
-    // addr->id = get_id(addr);
     addr->port = atoi(PQgetvalue(res, 0, 0));
     strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
 
@@ -63,5 +62,6 @@ int client_exists(db_t *db, char *client) {
 }
 
 struct server_addr *find_server(db_t *db, char *client) {
+    // TODO: write to operator asking for server info and receive info
     return NULL;
 }
