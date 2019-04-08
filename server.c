@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include "partial_message_handler.h"
 
-#define HEADER_LENGTH 65
+#define HEADER_LENGTH 85
 #define DISCONNECT_CODE -69
 
 //functions to write
