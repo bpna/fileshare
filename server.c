@@ -14,20 +14,8 @@
 #include <sys/types.h>
 #include "partial_message_handler.h"
 
-#define HEADER_LENGTH 65
+#define HEADER_LENGTH 85
 #define DISCONNECT_CODE -69
-#define NEW_SERVER_CODE 66
-#define NEW_SERVER_ACK_CODE 67
-#define ERROR_SERVER_EXISTS_CODE 68
-#define UPLOAD_FILE_CODE 128
-#define UPLOAD_ACK_CODE 129
-#define ERROR_FILE_EXISTS_CODE 130
-#define ERROR_UPLOAD_FAILURE_CODE 131
-#define REQUEST_FILE_CODE 132
-#define RETURN_FILE_CODE 133
-#define UPDATE_FILE_CODE 134
-#define UPDATE_ACK_CODE 135
-#define ERROR_FILE_DOES_NOT_EXIST_CODE 136
 
 //functions to write
 
@@ -59,7 +47,7 @@ void sendHeader(int msgType, char *user, char * pwd, char* fname, int len, int s
             memcpy(myHeader.password, pwd, PASSWORD_FIELD_LENGTH);
     if (fname != NULL)
             memcpy(myHeader.filename, fname, FILENAME_FIELD_LENGTH);
-    myHeader.length = len;
+    myHeader.length = htonl(len);
     int n = write(sockfd, (void *) &myHeader, HEADER_LENGTH);
 
 }
@@ -88,11 +76,13 @@ int intializeLSock(int portno){
 }
 
 //returns 1 if all characters in the fname are alphnumric, ".", or "-". returns 0 otherwise
-char validFname(char *fname){
-    for (int i = 0; i < HEADER_LENGTH; i++){
-        if (fname[i] == '\0')
+char valid_fname(char *fname){
+    for (int i = 0; i < FILENAME_FIELD_LENGTH; i++){
+
+        //if NULL character
+        if (fname[i] == '\0' && i != 0)
             return 1;
-        if (fname[i] != '-' && fname[i] != '.' && isalnum(fname[i] == 0)){
+        if (fname[i] != '-' && fname[i] != '.' && fname[i] != '/' && isalnum(fname[i]) == 0){
             return 0;
 
         }
@@ -104,30 +94,32 @@ char validFname(char *fname){
 //writes ack to file
 //writes ack if successfull, error if not
 //returns DISCONNECT_CODE on succesfull read OR Error, returns 0 on partial read
-//PROBLEMS:
-//      how do you know when its returned to you the "final" chunk of cod
-//          how do you know how many bytes that is? critical to know if your'e writing to disk
-//      Scenario: you have a 13k bytes file. You do an initial read of 7000 bytes, then a real of 6000 bytes. WHen the partialMessage does the second read, it only returns 10k/13k bytes. When/how do the remainig 3k bytes get returned. If it gets returned as one 13k byte chunk, then how will it fit in the buffer
-//      need a function for 
-char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
+char upload_file(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
     
-    int bytesToRead = 10000;
-    char buffer[10000];
+    int bytesToRead = FILE_BUFFER_MAX_LEN;
+    char buffer[FILE_BUFFER_MAX_LEN];
+    enum message_type message_id;
 
     int bytesRead = get_bytes_read(handler, sockfd);
 
     //if file already exists, send ERROR_CODe and disconnect
-    if( access( msgHeader->filename, F_OK ) != -1 ){
+    if (access( msgHeader->filename, F_OK ) != -1) {
         fprintf(stderr, "tried to upload file that existed\n");
-        sendHeader(ERROR_FILE_EXISTS_CODE, NULL, NULL, msgHeader->filename, 0, sockfd);
+        message_id = ERROR_FILE_EXISTS;
+        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        return DISCONNECT_CODE;
+    }
+    
+    //TODO: make an error code for "bad filename"
+    if (valid_fname(msgHeader->filename) == 0){
+        message_id = ERROR_UPLOAD_FAILURE;
+        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT_CODE;
     }
     
     
-    //TODO: verify filename has no special characteres except "."
-    
     //if number of bytes left to read < 100000
-    if(msgHeader->length  - bytesRead < bytesToRead){
+    if (msgHeader->length  - bytesRead < bytesToRead) {
         bytesToRead = msgHeader->length  - bytesRead;
     }
     
@@ -135,7 +127,6 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
     fprintf(stderr, "%d bytes read from socket\n", n);
 
     if (n == 0){
-        delete_partial(handler, sockfd);
         return DISCONNECT_CODE;
     }
 
@@ -143,7 +134,8 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
 
     //if file completely read in
     if (n > 0){
-        sendHeader(UPLOAD_ACK_CODE, NULL, NULL, msgHeader->filename, 0, sockfd);
+        message_id = UPLOAD_ACK;
+        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT_CODE;
     }
     
@@ -152,28 +144,106 @@ char uploadFile(int sockfd, struct Header *msgHeader, struct PartialMessageHandl
 
 }
 
+//vefifies a client has write access to file, reads in a file from the socket, and on completiong
+// overwrites current file and sends an ACK
+char update_file(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler) {
+    
+    int bytesToRead = FILE_BUFFER_MAX_LEN;
+    char buffer[FILE_BUFFER_MAX_LEN];
+    enum message_type message_id;
+    int bytesRead = get_bytes_read(handler, sockfd);
+
+    //if number of bytes left to read < 100000
+    if (msgHeader->length  - bytesRead < bytesToRead) 
+        bytesToRead = msgHeader->length  - bytesRead;
+    
+    //if file does not exist, send ERROR_CODE and disconnect
+    if (access( msgHeader->filename, F_OK ) == -1 ) {
+        fprintf(stderr, "tried to upload file that existed\n");
+        message_id = ERROR_FILE_DOES_NOT_EXIST;
+        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        return DISCONNECT_CODE;
+    }
+
+    int n = read(sockfd, buffer, bytesToRead);
+    fprintf(stderr, "%d bytes read from socket\n", n);
+
+    if (n == 0)
+        return DISCONNECT_CODE;
+    
+
+    n = add_partial(handler, buffer, sockfd, n, 1);
+
+    //if file completely read in
+    if (n > 0){
+        message_id = UPDATE_ACK;
+        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        return DISCONNECT_CODE;
+    }
+    
+    return 0;
+}
+
+
+/*
+ * purpose: handles a request for a file from a client. If user has proper permissions
+ *  and the request is valid, sends back the RETURN_FILE header and file
+ * Returns DISCONNECT_CODE in every case
+ */
+int handle_file_request(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
+
+    //if file does not exist, send ERROR_CODE and disconnect
+    FILE *fp = fopen(msgHeader->filename, "rb");
+    int length, n, m;
+    char buffer[FILE_BUFFER_MAX_LEN];
+
+    if (fp == NULL){
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL, msgHeader->filename, 0, sockfd);
+        return DISCONNECT_CODE;
+    }
+
+    //TODO: check permissions
+
+    fseek(fp, 0, SEEK_END);
+    length = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    sendHeader(RETURN_FILE, NULL, NULL, msgHeader->filename, length, sockfd);
+    do {
+        n = fread(buffer, 1, FILE_BUFFER_MAX_LEN, fp);
+        m = write(sockfd, buffer, n);
+        if (m < 0){
+            error("error writing to socket");
+        }
+
+    } while(n == FILE_BUFFER_MAX_LEN);
+    fclose(fp);
+    return DISCONNECT_CODE;
+
+
+
+}
+
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
-
-int handleRequest(int sockfd, struct PartialMessageHandler *handler){
-    int n, headerBytesRead;
+int handle_request(int sockfd, struct PartialMessageHandler *handler){
+    int n = 0, header_bytes_read;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
     struct Header *msgHeader;
-    char did_read;
-    headerBytesRead = getPartialHeader(handler, sockfd, buffer);
+    header_bytes_read = get_partial_header(handler, sockfd, buffer);
     msgHeader = (void *) buffer;
     enum message_type message_id;
 
     //TODO: put functions inside of these, this is paralell code
-    if (headerBytesRead < HEADER_LENGTH){
-        n = read(sockfd, buffer, HEADER_LENGTH - headerBytesRead);
-        if (n < HEADER_LENGTH - headerBytesRead){
+    if (header_bytes_read < HEADER_LENGTH){
+        n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
+        if (n < HEADER_LENGTH - header_bytes_read){
             add_partial(handler, buffer, sockfd, n, 0);
             return 0;
         }
         else{
-            memcpy(&msgHeader[headerBytesRead], buffer, HEADER_LENGTH - headerBytesRead);
+            memcpy(&msgHeader[header_bytes_read], buffer, HEADER_LENGTH - header_bytes_read);
             msgHeader->length = ntohl(msgHeader->length);
             if (msgHeader->length > 0){
                 add_partial(handler, buffer, sockfd, n, 0);
@@ -196,18 +266,18 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
     switch(message_id){
         case UPLOAD_FILE:
             fprintf(stderr, "uploading file\n" );
-            return uploadFile(sockfd, msgHeader, handler);
+            return upload_file(sockfd, msgHeader, handler);
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             
             break;
         case REQUEST_FILE:
             fprintf(stderr, " requesting file\n" );
-            //return handleFileRequest(sockfd, msgHeader, handler);
+            return handle_file_request(sockfd, msgHeader, handler);
             //verify creds, verify file exists, send back file
             break;
         case UPDATE_FILE:
             fprintf(stderr, " updating file\n" );
-            //return updateFile(sockfd, msgHeader, handler);
+            return update_file(sockfd, msgHeader, handler);
 
              //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             break;
@@ -222,7 +292,7 @@ int handleRequest(int sockfd, struct PartialMessageHandler *handler){
 
 //connects to router, recieves ack, and returns socked number of connection with router
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
-int connectToRouter(char *domainName, int portno, char* servername){
+int connect_to_router(char *domainName, int portno, char* servername){
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
 
@@ -248,7 +318,7 @@ int connectToRouter(char *domainName, int portno, char* servername){
 
 
     /* send message*/
-    sendHeader(NEW_SERVER_CODE, NULL, NULL, servername, 0, sockfd);
+    sendHeader(NEW_SERVER, NULL, NULL, servername, 0, sockfd);
 
     int n = read(sockfd, buffer, HEADER_LENGTH);
     if (n == 0){
@@ -293,7 +363,7 @@ int main(int argc, char *argv[])
     clilen = sizeof(cli_addr);
 
     /* TODO: Talk with the router to say that you've come online */
-    //int routerSock = connectToRouter(argv[2], atoi(argv[3]), argv[1])
+    //int routerSock = connect_to_router(argv[2], atoi(argv[3]), argv[1])
 
     int maxSock, rv, newSock = -1;
     struct timeval tv;
@@ -336,10 +406,11 @@ int main(int argc, char *argv[])
                         fprintf(stderr, "new info incoming\n" );
                         //if sockfd = routerSock
                             // addClient
-                        int status = handleRequest(sockfd, handler);
+                        int status = handle_request(sockfd, handler);
 
                         if (status == DISCONNECT_CODE){
                             fprintf(stderr, "disconnecting client\n" );
+                            delete_partial(handler, sockfd);
                             close(sockfd);
                             FD_CLR(sockfd, &masterFDSet);
                         }

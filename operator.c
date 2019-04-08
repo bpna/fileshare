@@ -22,7 +22,7 @@
 #include "partial_message_handler.h"
 #include "database/cspairs.h"
 
-#define DISCONNECTED 0
+#define DISCONNECTED -69
 #define MAX_MSG_READ 450
 #define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
@@ -34,7 +34,7 @@ void error(const char *msg) {
 
 int open_and_bind_socket(int portno);
 int add_partial_data(char *data, int length);
-int read_handler(int sockfd);
+int read_handler(int sockfd, struct PartialMessageHandler *handler);
 int handle_header(struct Header *h, int sockfd,
                   struct PartialMessageHandler *pm);
 int new_client(struct Header *h, int sockfd);
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     fd_set master_fd_set, copy_fd_set;
     struct sockaddr_in serv_addr, cli_addr;
     struct timeval timeout;
-    struct PartialMessageHandler *p = init_partials();
+    struct PartialMessageHandler *handler = init_partials();
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
                             error("ERROR on accept");
                         }
                     } else {
-                        status = read_handler(sockfd);
+                        status = read_handler(sockfd, handler);
                         if (status == DISCONNECTED) {
                             FD_CLR(sockfd, &master_fd_set);
                         }
@@ -133,18 +133,34 @@ int open_and_bind_socket(int portno) {
     return master_socket;
 }
 
-int read_handler(int sockfd) {
-    char buffer[512];
-    int bytes_read = read(sockfd, buffer, 512);
+int read_handler(int sockfd, struct PartialMessageHandler *handler) {
 
-    if (bytes_read == 0) {
-        close(sockfd);
-        return DISCONNECTED;
+    int n, header_bytes_read;
+    char buffer[HEADER_LENGTH];
+    bzero(buffer, HEADER_LENGTH);
+    struct Header *msg_header;
+
+    header_bytes_read = get_partial_header(handler, sockfd, buffer);
+    msg_header = (void *) buffer;
+
+    if (header_bytes_read < HEADER_LENGTH){
+        n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
+        if (n < HEADER_LENGTH - header_bytes_read){
+            add_partial(handler, buffer, sockfd, n, 0);
+            return 0;
+        }
+        else{
+            memcpy(&msg_header[header_bytes_read], buffer, HEADER_LENGTH - header_bytes_read);
+            msg_header->length = ntohl(msg_header->length);
+            if (msg_header->length > 0){
+                add_partial(handler, buffer, sockfd, n, 0);
+                return 0;
+            }
+        }
     }
 
-    // if (bytes_read < HEADER_LENGTH) {
-
-    return 0;
+    return handle_header(msg_header, sockfd,
+                         struct PartialMessageHandler *handler);
 }
 
 int handle_header(struct Header *h, int sockfd,
