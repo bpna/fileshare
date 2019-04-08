@@ -15,4 +15,4 @@ struct db_return least_populated_server(db_t *db);
 
 enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr);
 
-struct db_return get_server_id(db_t *db, struct server_addr *addr);
+enum DB_STATUS get_server_id(db_t *db, struct server_addr *addr);

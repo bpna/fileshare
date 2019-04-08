@@ -32,6 +32,11 @@ struct db_return clients_served_by(db_t *db, struct server_addr *addr) {
 
     PGresult *res = PQexec(db, stm);
 
+    if (PQntuples(res) == 0) {
+        free(stm);
+        return generate_dbr(ELEMENT_NOT_FOUND, NULL);
+    }
+
     long count = atol(PQgetvalue(res, 0, 0));
 
     free(stm);
@@ -51,6 +56,11 @@ struct db_return least_populated_server(db_t *db) {
 
     PGresult *res = PQexec(db, stm);
 
+    if (PQntuples(res) == 0) {
+        free(stm);
+        return generate_dbr(ELEMENT_NOT_FOUND, NULL);
+    }
+
     struct server_addr *addr =
         (struct server_addr *) malloc(sizeof (struct server_addr));
 
@@ -60,15 +70,20 @@ struct db_return least_populated_server(db_t *db) {
     free(stm);
     PQclear(res);
 
-    return get_server_id(db, addr);
+    return generate_dbr(get_server_id(db, addr), addr);
 }
 
 enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
-    char *stm = calloc(100, sizeof (char));
+    char *stm = calloc(350, sizeof (char));
     sprintf(stm, "SELECT clients FROM servers WHERE port=%d AND domain='%s'",
             addr->port, addr->domain_name);
 
     PGresult *res = PQexec(db, stm);
+
+    if (PQntuples(res) == 0) {
+        free(stm);
+        return ELEMENT_NOT_FOUND;
+    }
 
     int clients = atoi(PQgetvalue(res, 0, 0));
     PQclear(res);
@@ -90,10 +105,24 @@ enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
     return SUCCESS;
 }
 
-struct db_return get_server_id(db_t *db, struct server_addr *addr) {
+enum DB_STATUS get_server_id(db_t *db, struct server_addr *addr) {
+    char *stm;
+    PGresult *res;
     if (check_connection(db))
-        return generate_dbr(CORRUPTED, NULL);
-    addr->id = 1; //TODO: actually write this
+        return CORRUPTED;
 
-    return generate_dbr(SUCCESS, addr);
+    stm = calloc(350, sizeof (char));
+    sprintf(stm, "SELECT id FROM servers WHERE port=%d AND domain='%s'",
+            addr->port, addr->domain_name);
+    res = PQexec(db, stm);
+    free(stm);
+
+    if (PQntuples(res) == 0)
+        return ELEMENT_NOT_FOUND;
+
+    addr->id = atoi(PQgetvalue(res, 0, 0));
+
+    PQclear(res);
+
+    return SUCCESS;
 }
