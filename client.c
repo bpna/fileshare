@@ -9,7 +9,7 @@
 #include <netdb.h> 
 #include "database/db.h"
 #include "database/cspairs.h"
-#include "messages.h"
+#include "partial_message_handler.h"
 
 #define RW_LENGTH 10000
 #define DISCONNECTED 0
@@ -157,27 +157,28 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             write_file(sockfd, message_header.filename);
             break;
         case REQUEST_FILE:
-            server = get_server_from_client_wrapper(db, argv[6], 
-                                               "parse_and_send_request ()");
-            if (server == NULL) { /* no client/server pairing on client */
+            // server = get_server_from_client_wrapper(db, argv[6], 
+            //                                    "parse_and_send_request ()");
+            // if (server == NULL) { /* no client/server pairing on client */
+            //     sockfd = connect_to_server(argv[2], atoi(argv[3]));
+            //     /* get server for file owner */
+            //     server = send_recv_user_req(sockfd, argv[4], argv[5], argv[6]);
+            //     close(sockfd);
+            // }
+
+            // if (server == NULL) { /* no client/server pairing on operator */
+            //     fprintf(stderr, "Server for user %s could not be resolved, \
+            //                      exiting\n", argv[6]);
+            //     exit(1);
+            // } else {
+            //     sockfd = connect_to_server(server->domain_name, server->port);
                 sockfd = connect_to_server(argv[2], atoi(argv[3]));
-                /* get server for file owner */
-                server = send_recv_user_req(sockfd, argv[4], argv[5], argv[6]);
-                close(sockfd);
-            }
-
-            if (server == NULL) { /* no client/server pairing on operator */
-                fprintf(stderr, "Server for user %s could not be resolved, \
-                                 exiting\n", argv[6]);
-                exit(1);
-            } else {
-                sockfd = connect_to_server(server->domain_name, server->port);
                 message_header.id = REQUEST_FILE;
-                strcpy(message_header.filename, argv[6]);
+                strcpy(message_header.filename, argv[7]);
                 write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-            }
+            // }
 
-            free(server);
+            //free(server);
             break;
         case UPDATE_FILE: // TODO: needs to check operator for server
             if (stat(argv[7], &sb) == -1) {
@@ -206,6 +207,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
     char *clientbuf;
     char header_buffer[HEADER_LENGTH];
     struct Header message_header;
+    char file_buffer[RW_LENGTH];
 
     n = 0;
     while (n < HEADER_LENGTH) {
@@ -247,7 +249,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
 
             break;
         case UPDATE_FILE:
-            if (message_header.id == UPDATE_FILE)
+            if (message_header.id == UPDATE_ACK)
                 printf("File %s successfully updated\n", 
                        message_header.filename);
             else if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
@@ -257,9 +259,24 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                        message_header.filename);
             break;
         case REQUEST_FILE:
+            
+            if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
+               printf("File %s already exists\n", message_header.filename);
+            else if (message_header.id == RETURN_FILE){
+                do{
+                    m = read(sockfd, file_buffer, RW_LENGTH);
+                    if (m <= 0) {
+                        error("ERROR reading from socket");
+                    }
+                } while(save_buffer(message_header.filename, file_buffer, m, message_header.length) == 0);
+
+            }
+            else
+                printf("Unknown error when requesting file \n");
+
             break;
-            // CODE YOU BASTARD
     }
+    return 0;
 }
 
 int freshvar()
@@ -569,7 +586,7 @@ int write_file(int csock, char *filename)
             to_write = RW_LENGTH;
         }
 
-        fread(bytes, to_write, 1, fp);
+        fread(bytes, 1, to_write, fp);
         write_message(csock, bytes, to_write);
         bytes_written += to_write;
     }

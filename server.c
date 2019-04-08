@@ -47,7 +47,7 @@ void sendHeader(int msgType, char *user, char * pwd, char* fname, int len, int s
             memcpy(myHeader.password, pwd, PASSWORD_FIELD_LENGTH);
     if (fname != NULL)
             memcpy(myHeader.filename, fname, FILENAME_FIELD_LENGTH);
-    myHeader.length = len;
+    myHeader.length = htonl(len);
     int n = write(sockfd, (void *) &myHeader, HEADER_LENGTH);
 
 }
@@ -78,9 +78,11 @@ int intializeLSock(int portno){
 //returns 1 if all characters in the fname are alphnumric, ".", or "-". returns 0 otherwise
 char valid_fname(char *fname){
     for (int i = 0; i < FILENAME_FIELD_LENGTH; i++){
+
+        //if NULL character
         if (fname[i] == '\0' && i != 0)
             return 1;
-        if (fname[i] != '-' && fname[i] != '.' && fname[i] != '/' && isalnum(fname[i] == 0)){
+        if (fname[i] != '-' && fname[i] != '.' && fname[i] != '/' && isalnum(fname[i]) == 0){
             return 0;
 
         }
@@ -108,8 +110,13 @@ char upload_file(int sockfd, struct Header *msgHeader, struct PartialMessageHand
         return DISCONNECT_CODE;
     }
     
+    //TODO: make an error code for "bad filename"
+    if (valid_fname(msgHeader->filename) == 0){
+        message_id = ERROR_UPLOAD_FAILURE;
+        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        return DISCONNECT_CODE;
+    }
     
-    //TODO: verify filename has no special characteres except "."
     
     //if number of bytes left to read < 100000
     if (msgHeader->length  - bytesRead < bytesToRead) {
@@ -150,8 +157,6 @@ char update_file(int sockfd, struct Header *msgHeader, struct PartialMessageHand
     if (msgHeader->length  - bytesRead < bytesToRead) 
         bytesToRead = msgHeader->length  - bytesRead;
     
-
-
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1 ) {
         fprintf(stderr, "tried to upload file that existed\n");
@@ -177,6 +182,46 @@ char update_file(int sockfd, struct Header *msgHeader, struct PartialMessageHand
     }
     
     return 0;
+}
+
+
+/*
+ * purpose: handles a request for a file from a client. If user has proper permissions
+ *  and the request is valid, sends back the RETURN_FILE header and file
+ * Returns DISCONNECT_CODE in every case
+ */
+int handle_file_request(int sockfd, struct Header *msgHeader, struct PartialMessageHandler* handler){
+
+    //if file does not exist, send ERROR_CODE and disconnect
+    FILE *fp = fopen(msgHeader->filename, "rb");
+    int length, n, m;
+    char buffer[FILE_BUFFER_MAX_LEN];
+
+    if (fp == NULL){
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL, msgHeader->filename, 0, sockfd);
+        return DISCONNECT_CODE;
+    }
+
+    //TODO: check permissions
+
+    fseek(fp, 0, SEEK_END);
+    length = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    sendHeader(RETURN_FILE, NULL, NULL, msgHeader->filename, length, sockfd);
+    do {
+        n = fread(buffer, 1, FILE_BUFFER_MAX_LEN, fp);
+        m = write(sockfd, buffer, n);
+        if (m < 0){
+            error("error writing to socket");
+        }
+
+    } while(n == FILE_BUFFER_MAX_LEN);
+    fclose(fp);
+    return DISCONNECT_CODE;
+
+
+
 }
 
 //reads in a request
@@ -227,7 +272,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler){
             break;
         case REQUEST_FILE:
             fprintf(stderr, " requesting file\n" );
-            //return handleFileRequest(sockfd, msgHeader, handler);
+            return handle_file_request(sockfd, msgHeader, handler);
             //verify creds, verify file exists, send back file
             break;
         case UPDATE_FILE:

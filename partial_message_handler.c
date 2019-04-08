@@ -101,7 +101,6 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
             if (temp->bytes_read == temp->h->length){
                 bzero(buffer, length);
                 memcpy(buffer, temp->data, temp->bytes_read);
-                //DELeTE_PARTIAL TODO
                 return 1;
             }
             else
