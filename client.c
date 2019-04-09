@@ -157,7 +157,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             strcpy(message_header.filename, full_filename);
             message_header.length = htonl(sb.st_size);
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-            write_file(sockfd, message_header.filename);
+            write_file(sockfd, argv[6]);
             break;
         case REQUEST_FILE:
             // server = get_server_from_client_wrapper(db, argv[6],
@@ -593,6 +593,7 @@ int write_file(int csock, char *filename)
         write_message(csock, bytes, to_write);
         bytes_written += to_write;
     }
+    fclose(fp);
 
     return 0;
 }
