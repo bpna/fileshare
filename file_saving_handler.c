@@ -26,13 +26,10 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
     unsigned long current_filelen;
     FILE *fp = fopen(temp_fname, "ab");
     current_filelen = ftell(fp);
-    // fprintf(stderr, "file length is %lu\n", current_filelen);
 
     fwrite(buffer, 1, buf_len, fp);
     fclose(fp);
 
-//    fprintf(stderr, "current_filelen is %lu\nbuf_len is %d\n", current_filelen, buf_len);
-  //  fprintf(stderr, "filelen is %lu\n", filelen);
     if (current_filelen + buf_len == filelen){
         remove(fname);
         rename(temp_fname, fname);
