@@ -16,16 +16,6 @@
 
 #define DISCONNECT_CODE -69
 
-//functions to write
-
-//reads in a message from the router, adds a client, sends ack, creates folder for that 
-//does partial message handling
-
-//TODO: set timeout value on read
-
-//TODO: if you eliminate a timed-out partial for upload, make sure to delete file that was being written 
-//linked list of partial messages
-
 
 
 void error(const char *msg)
@@ -34,8 +24,8 @@ void error(const char *msg)
     exit(1);
 } 
 
-//returns an allocated header
-//
+
+//sends a header to a given socketfd
 void sendHeader(int msgType, char *user, char * pwd, char* fname, int len, int sockfd){
     struct Header myHeader;
     bzero(&myHeader, HEADER_LENGTH);
