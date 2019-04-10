@@ -209,21 +209,22 @@ int new_client(struct Header *h, int sockfd) {
     len = strlen(h->source);
     outgoing_message.length = htonl(len);
 
-    n = write(server_sock, (char *) &outgoing_message, HEADER_LENGTH);
-    if (n < HEADER_LENGTH) {
-        close_db_connection(db);
-        free(server);
-        close(server_sock);
-        return 1;
-    }
+    // n = write(server_sock, (char *) &outgoing_message, HEADER_LENGTH);
+    // printf("yay %d\n", n);
+    // if (n < HEADER_LENGTH) {
+    //     close_db_connection(db);
+    //     free(server);
+    //     close(server_sock);
+    //     return 1;
+    // }
 
-    n = write(server_sock, h->source, len);
-    close(server_sock);
-    if (n < len) {
-        close_db_connection(db);
-        free(server);
-        return 1;
-    }
+    // n = write(server_sock, h->source, len);
+    // close(server_sock);
+    // if (n < len) {
+    //     close_db_connection(db);
+    //     free(server);
+    //     return 1;
+    // }
 
     dbs = add_cspair(db, h->source, server);
     close_db_connection(db);
@@ -331,42 +332,40 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
 int new_server(struct Header *h, int sockfd) {
     db_t *db;
     enum DB_STATUS dbs;
-    struct server_addr *server = calloc(1, sizeof (struct server_addr));
+    struct server_addr server;
     int n, len;
     struct Header outgoing_message;
     char *payload;
 
     db = connect_to_db(DB_OWNER, DB_NAME);
-    server->id = freshvar();
-    // server->port = h->length TODO: decide how to send portno
-    // server->domain_name = h->source TODO: decide how to send hostname
+    server.id = 3;
+    server.port = 9011;
+    strcpy(server.domain_name, "localhost.localdomain");
+    // server.id = freshvar();
+    // server->port = TODO: decide how to send portno
+    // server->domain_name = TODO: decide how to send hostname
 
-    dbs = add_server(db, server);
-    close_db_connection(db);
+    dbs = add_server(db, &server);
+    fprintf(stderr, "%d\n", dbs);
     if (dbs == ELEMENT_ALREADY_EXISTS) {
+        close_db_connection(db);
         outgoing_message.id = ERROR_SERVER_EXISTS;
         payload = calloc(275, sizeof (char));
-        sprintf(payload, "%s:%d", server->domain_name, server->port);
+        sprintf(payload, "%s:%d", server.domain_name, server.port);
         len = strlen(payload);
         outgoing_message.length = htonl(len);
     } else if (dbs == SUCCESS) {
+        close_db_connection(db);
         outgoing_message.id = NEW_SERVER_ACK;
     } else {
         return 1;
     }
-    free(server);
 
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
-    n = read(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+    printf("%d\n", n);
     if (n < HEADER_LENGTH)
         return 1;
-
-    if (outgoing_message.id == ERROR_SERVER_EXISTS) {
-        n = write(sockfd, payload, len);
-        free(payload);
-        if (n < len)
-            return 1;
-    }
 
     return DISCONNECTED;
 }

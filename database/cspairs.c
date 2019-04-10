@@ -23,7 +23,7 @@ struct db_return get_server_from_client(db_t *db, char *client) {
     free(stm);
 
     if (PQntuples(res) == 0)
-        return generate_dbr(SUCCESS, find_server(db, client));
+        return generate_dbr(ELEMENT_NOT_FOUND, find_server(db, client));
 
     struct server_addr *addr =
         (struct server_addr *) malloc(sizeof (struct server_addr));
