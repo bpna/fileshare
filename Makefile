@@ -18,7 +18,7 @@ client: client.o partial_message_handler.o file_saving_handler.o database/db.o d
 operator: operator.o partial_message_handler.o file_saving_handler.o database/db.o database/servertable.o database/cspairs.o
 	$(CC) -g -o $@ $^ $(DB_INCLUDES)
 
-server: server.o file_saving_handler.o partial_message_handler.o
+server: server.o file_saving_handler.o partial_message_handler.o database/db.o database/cppairs.o
 	$(CC) -g -o $@ $^ $(DB_INCLUDES)
 
 clean:

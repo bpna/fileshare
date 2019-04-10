@@ -279,6 +279,8 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                 printf("Unknown error when requesting file \n");
 
             break;
+        default:
+            break;
     }
     return 0;
 }
@@ -303,6 +305,8 @@ void check_db_status(enum DB_STATUS db_status, char *func)
         case INVALID_AUTHENTICATION:
             fprintf(stderr, "in %s, invalid db auth\n", func);
             exit(1);
+        default:
+            return;
     }
 }
 
@@ -560,7 +564,7 @@ int connect_to_server(char *fqdn, int portno)
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr,
+    bcopy((char *)server->h_addr_list[0],
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
