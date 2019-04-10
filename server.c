@@ -13,9 +13,13 @@
 #include <time.h>
 #include <sys/types.h>
 #include "partial_message_handler.h"
+#include "database/cppairs.h"
 
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
+#define BAD_FILENAME -76
+#define DB_OWNER "nathan"
+#define DB_NAME "fileshare"
 
 //functions to write
 
@@ -26,8 +30,6 @@
 
 //TODO: if you eliminate a timed-out partial for upload, make sure to delete file that was being written
 //linked list of partial messages
-
-
 
 void error(const char *msg) {
     perror(msg);
@@ -46,6 +48,8 @@ int handle_file_request(int sockfd, struct Header *msgHeader,
                         struct PartialMessageHandler* handler);
 int handle_request(int sockfd, struct PartialMessageHandler *handler);
 int connect_to_operator(char *domainName, int portno, char* servername);
+int create_client(int sockfd, struct Header *msgHeader,
+                  struct PartialMessageHandler* handler);
 
 //ARGV arguments
 //      port number to run on
@@ -65,7 +69,7 @@ int main(int argc, char *argv[]) {
     clilen = sizeof(cli_addr);
 
     /* TODO: Talk with the operator to say that you've come online */
-    //int operatorSock = connect_to_operator(argv[2], atoi(argv[3]), argv[1])
+    int operatorSock = connect_to_operator(argv[2], atoi(argv[3]), argv[1]);
 
     int maxSock, rv, newSock = -1;
     struct timeval tv;
@@ -96,7 +100,8 @@ int main(int argc, char *argv[]) {
                 if ( FD_ISSET (sockfd, &copyFDSet) ) {
                     if (sockfd == lSock) {
                         fprintf(stderr, "there's a new connection in town\n");
-                        newSock = accept(sockfd, (struct sockaddr *) &cli_addr,  &clilen);
+                        newSock = accept(sockfd, (struct sockaddr *) &cli_addr,
+                                         &clilen);
                         if (newSock > 0) {
                             FD_SET(newSock, &masterFDSet);
                             maxSock = (newSock > maxSock) ? newSock: maxSock;
@@ -179,25 +184,23 @@ char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
     int bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
-    enum message_type message_id;
 
     int bytesRead = get_bytes_read(handler, sockfd);
 
     //if file already exists, send ERROR_CODE and disconnect
-    if (access( msgHeader->filename, F_OK) != -1) {
+    if (access(msgHeader->filename, F_OK) != -1) {
         fprintf(stderr, "tried to upload file that existed\n");
-        message_id = ERROR_FILE_EXISTS;
-        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        sendHeader(ERROR_FILE_EXISTS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
 
     //TODO: make an error code for "bad filename"
     if (valid_fname(msgHeader->filename) == 0) {
-        message_id = ERROR_UPLOAD_FAILURE;
-        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
-
 
     //if number of bytes left to read < 100000
     if (msgHeader->length  - bytesRead < bytesToRead)
@@ -209,26 +212,23 @@ char upload_file(int sockfd, struct Header *msgHeader,
     if (n == 0)
         return DISCONNECT;
 
-
     n = add_partial(handler, buffer, sockfd, n, 1);
 
     //if file completely read in
     if (n > 0) {
-        message_id = UPLOAD_ACK;
-        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
 
     return 0;
 }
 
-//vefifies a client has write access to file, reads in a file from the socket, and on completiong
+// vefifies a client has write access to file, reads in a file from the socket, and on completiong
 // overwrites current file and sends an ACK
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
     int bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
-    enum message_type message_id;
     int bytesRead = get_bytes_read(handler, sockfd);
 
     //if number of bytes left to read < 100000
@@ -238,8 +238,8 @@ char update_file(int sockfd, struct Header *msgHeader,
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
         fprintf(stderr, "tried to upload file that existed\n");
-        message_id = ERROR_FILE_DOES_NOT_EXIST;
-        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
 
@@ -253,14 +253,12 @@ char update_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
-        message_id = UPDATE_ACK;
-        sendHeader(message_id, NULL, NULL, msgHeader->filename, 0, sockfd);
+        sendHeader(UPDATE_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
 
     return 0;
 }
-
 
 /*
  * purpose: handles a request for a file from a client. If user has proper permissions
@@ -275,7 +273,8 @@ int handle_file_request(int sockfd, struct Header *msgHeader,
     char buffer[FILE_BUFFER_MAX_LEN];
 
     if (fp == NULL) {
-        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL, msgHeader->filename, 0, sockfd);
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL, msgHeader->filename,
+                   0, sockfd);
         return DISCONNECT;
     }
 
@@ -315,7 +314,8 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
             return 0;
         }
         else{
-            memcpy(&msgHeader[header_bytes_read], buffer, HEADER_LENGTH - header_bytes_read);
+            memcpy(&msgHeader[header_bytes_read], buffer,
+                   HEADER_LENGTH - header_bytes_read);
             msgHeader->length = ntohl(msgHeader->length);
             if (msgHeader->length > 0){
                 add_partial(handler, buffer, sockfd, n, 0);
@@ -331,32 +331,56 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
     fprintf(stderr, "the fname incoming is %s\n", msgHeader->filename);
     fprintf(stderr, "the length incoming is %d\n", msgHeader->length);
 
-
     /* TODO: Deal with endianess */
 
     message_id = msgHeader->id;
     switch(message_id){
+        case CREATE_CLIENT:
+            fprintf(stderr, "creating clinet\n");
+            // return create_client(sockfd, msgHeader, handler);
         case UPLOAD_FILE:
-            fprintf(stderr, "uploading file\n" );
+            fprintf(stderr, "uploading file\n");
             return upload_file(sockfd, msgHeader, handler);
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
-
-            break;
         case REQUEST_FILE:
-            fprintf(stderr, " requesting file\n" );
+            fprintf(stderr, "requesting file\n");
             return handle_file_request(sockfd, msgHeader, handler);
             //verify creds, verify file exists, send back file
-            break;
         case UPDATE_FILE:
-            fprintf(stderr, " updating file\n" );
+            fprintf(stderr, "updating file\n");
             return update_file(sockfd, msgHeader, handler);
-
-             //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
-            break;
+            //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             //TODO in future: add in permision cases
             //TODO: Delete file
             //TODO:
+        case NEW_SERVER_ACK:
+            fprintf(stderr, "new server ack\n");
+            return DISCONNECT;
+        case ERROR_SERVER_EXISTS:
+            fprintf(stderr, "server exists\n");
+            error("ERROR server exists in operator");
+        default:
+            return 1;
     }
+    return DISCONNECT;
+}
+
+int create_client(int sockfd, struct Header *msgHeader,
+                  struct PartialMessageHandler* handler) {
+    db_t *db;
+    enum DB_STATUS dbs;
+    char *username, *password, *servername;
+    struct Header h;
+
+    db = connect_to_db(DB_OWNER, DB_NAME);
+    // TODO: get user info
+
+    dbs = add_cppair(db, username, password);
+    close_db_connection(db);
+    if (dbs)
+        return 1;
+
+    sendHeader(CREATE_CLIENT_ACK, servername, NULL, NULL, 0, sockfd);
     return DISCONNECT;
 }
 
@@ -378,15 +402,16 @@ int connect_to_operator(char *domainName, int portno, char* servername) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
+
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr,
+    bcopy((char *)server->h_addr_list[0],
           (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
+
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
         error("ERROR connecting");
-
 
     /* send message*/
     sendHeader(NEW_SERVER, NULL, NULL, servername, 0, sockfd);
@@ -394,7 +419,6 @@ int connect_to_operator(char *domainName, int portno, char* servername) {
     int n = read(sockfd, buffer, HEADER_LENGTH);
     if (n == 0)
         error("unable to establish connection with operator");
-
 
     struct Header *headerBuf = (void *) buffer;
     enum message_type message_id = headerBuf->id;
