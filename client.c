@@ -78,7 +78,7 @@ int check_input_get_msg_id(int argc, char **argv)
     }
 
     if (strcmp(argv[1], "new_client") == 0) {
-        if (argc != 5) {
+        if (argc != 6) {
             fprintf(stderr, "usage: %s new_client [router-FQDN] [router-portno] \
                              [username] [password]\n", argv[0]);
             exit(0);

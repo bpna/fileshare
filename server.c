@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     clilen = sizeof(cli_addr);
 
     /* TODO: Talk with the operator to say that you've come online */
-    int operatorSock = connect_to_operator(argv[2], atoi(argv[3]), argv[1]);
+    int operatorSock = connect_to_operator(argv[3], atoi(argv[4]), argv[2]);
 
     int maxSock, rv, newSock = -1;
     struct timeval tv;
