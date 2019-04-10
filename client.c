@@ -47,6 +47,7 @@ int write_message(int sockfd, char *data, int length);
 int write_file(int csock, char *filename);
 struct Server * send_recv_user_req(int sockfd, char *user, char *password,
                           char *file_owner);
+char *make_full_fname(char* owner, char *fname);
 
 int main(int argc, char **argv)
 {
@@ -133,6 +134,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
     struct stat sb;
     struct Header message_header;
     struct Server *server;
+    char *full_filename = NULL;
 
     bzero(&message_header, sizeof(message_header));
     strcpy(message_header.source, argv[4]);
@@ -151,10 +153,11 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             }
             sockfd = connect_to_server(argv[2], atoi(argv[3])); // TODO: this is where it just connects to the server and it shouldn't just do that, it should check the operator first
             message_header.id = UPLOAD_FILE;
-            strcpy(message_header.filename, argv[6]);
+            full_filename = make_full_fname(message_header.source ,argv[6]);
+            strcpy(message_header.filename, full_filename);
             message_header.length = htonl(sb.st_size);
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-            write_file(sockfd, message_header.filename);
+            write_file(sockfd, argv[6]);
             break;
         case REQUEST_FILE:
             // server = get_server_from_client_wrapper(db, argv[6],
@@ -174,7 +177,8 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             //     sockfd = connect_to_server(server->domain_name, server->port);
                 sockfd = connect_to_server(argv[2], atoi(argv[3]));
                 message_header.id = REQUEST_FILE;
-                strcpy(message_header.filename, argv[7]);
+                full_filename = make_full_fname(argv[6] ,argv[7]);
+                strcpy(message_header.filename, full_filename);
                 write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             // }
 
@@ -196,7 +200,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             fprintf(stderr, "bad message type %d >:O\n", message_id);
             exit(1);
     }
-
+    free(full_filename);
     return sockfd;
 }
 
@@ -589,6 +593,7 @@ int write_file(int csock, char *filename)
         write_message(csock, bytes, to_write);
         bytes_written += to_write;
     }
+    fclose(fp);
 
     return 0;
 }
@@ -605,4 +610,20 @@ int write_message(int csock, char *data, int length)
     }
 
     return 0;
+}
+
+/* Purpose: creates a filename in format "file-owner/filename" so as to be
+ * interpretable by the server
+ * Takes the owner name and fname as cstrings as arguments
+ * Returns the malloced full filename
+ */
+char *make_full_fname(char* owner, char *fname){
+    int len_owner = strlen(owner);
+    int len_fname = strlen(fname);
+    //2 extra bytes for the "/" and the "\0"
+    char *full_fname = calloc(len_owner + len_fname + 2, 1);
+    memcpy(full_fname, owner, len_owner);
+    full_fname[len_owner] = '/';
+    memcpy((&full_fname[len_owner + 1]), fname, len_fname);
+    return full_fname;
 }

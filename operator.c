@@ -40,7 +40,7 @@ int handle_header(struct Header *h, int sockfd,
 int new_client(struct Header *h, int sockfd);
 int send_client_exists_ack(int sockfd, char *username);
 int send_new_client_ack(int sockfd, struct server_addr *server);
-int request_user(struct Header *h, int sockfd);
+int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm);
 int new_server(struct Header *h, int sockfd);
 
 int main(int argc, char *argv[]) {
@@ -168,7 +168,7 @@ int handle_header(struct Header *h, int sockfd,
         case NEW_CLIENT:
             return new_client(h, sockfd);
         case REQUEST_USER:
-            return request_user(h, sockfd);
+            return request_user(h, sockfd, pm);
         case CREATE_CLIENT_ACK:
             return DISCONNECTED;
         case NEW_SERVER:
@@ -278,46 +278,52 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
     return DISCONNECTED;
 }
 
-int request_user(struct Header *h, int sockfd) {
+int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm) {
     db_t *db;
     struct db_return dbr;
-    char *desired_user;
+    char buffer[INIT_BUFFER_LENGTH];
     struct server_addr *server;
     int n, len;
     struct Header outgoing_message;
-    char *payload = calloc(275, sizeof (char));
+    bzero(buffer, INIT_BUFFER_LENGTH);
 
-    // desired_user = TODO: get desired user
+    n = read(sockfd, buffer, h->length);
+    if (n < 1){
+        fprintf(stderr, "Error writing to socket in function request_user\n" );
+        return DISCONNECTED;
+    }
+    if (add_partial(pm, buffer, sockfd, n, 0) == 0){
+        return 1;
+    }
+
 
     db = connect_to_db(DB_OWNER, DB_NAME);
-    dbr = get_server_from_client(db, desired_user);
-    free(desired_user);
+    dbr = get_server_from_client(db, buffer);
     close_db_connection(db);
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
+    bzero(buffer, INIT_BUFFER_LENGTH);
+
     if (dbr.status == ELEMENT_NOT_FOUND) {
         outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
     } else if (dbr.status == SUCCESS) {
         outgoing_message.id = REQUEST_USER_ACK;
         server = (struct server_addr *) dbr.result;
-        sprintf(payload, "%s:%d", server->domain_name, server->port);
-        len = strlen(payload);
-        free(server);
+        sprintf(buffer, "%s:%d", server->domain_name, server->port);
+        len = strlen(buffer);
         outgoing_message.length = htonl(len);
     } else {
-        return 1;
+        fprintf(stderr, "Error accessing database in function request_user\n" );
     }
 
     n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
-    if (n < HEADER_LENGTH) {
-        free(payload);
-        return 1;
-    }
+    if (n < HEADER_LENGTH) 
+        fprintf(stderr, "Error writing to socket in function request_user\n" );
+    
 
     if (outgoing_message.id == REQUEST_USER_ACK) {
-        n = write(sockfd, payload, len);
-        free(payload);
+        n = write(sockfd, buffer, len);
         if (n < len)
-            return 1;
+            fprintf(stderr, "Error writing to socket in function request_user\n" );
     }
 
     return DISCONNECTED;
