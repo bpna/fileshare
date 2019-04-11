@@ -21,6 +21,7 @@
 #include "messages.h"
 #include "partial_message_handler.h"
 #include "database/cspairs.h"
+#include "io.h"
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
@@ -112,26 +113,7 @@ static int freshvar() {
     return x;
 }
 
-int open_and_bind_socket(int portno) {
-    struct sockaddr_in serv_addr;
-    int master_socket;
 
-    master_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (master_socket < 0) {
-        error("ERROR opening socket");
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
-    if (bind(master_socket, (struct sockaddr *) &serv_addr,
-             sizeof(serv_addr)) < 0){
-        error("ERROR on binding");
-    }
-
-    return master_socket;
-}
 
 int read_handler(int sockfd, struct PartialMessageHandler *handler) {
 
