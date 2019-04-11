@@ -151,7 +151,7 @@ int handle_header(struct Header *h, int sockfd,
         case NEW_SERVER:
             return new_server(h, sockfd);
         default:
-            return 1;
+            return DISCONNECTED;
     }
 }
 
@@ -326,7 +326,7 @@ int new_server(struct Header *h, int sockfd) {
         close_db_connection(db);
         outgoing_message.id = NEW_SERVER_ACK;
     } else {
-        return 1;
+        return DISCONNECTED;
     }
 
     strcpy(outgoing_message.source, OPERATOR_SOURCE);

@@ -42,7 +42,7 @@ char update_file(int sockfd, struct Header *msgHeader,
 int handle_file_request(int sockfd, struct Header *msgHeader,
                         struct PartialMessageHandler* handler);
 int handle_request(int sockfd, struct PartialMessageHandler *handler);
-int connect_to_operator(char *domainName, int portno, char* servername);
+void connect_to_operator(char *domainName, int portno, char* servername);
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler* handler);
 
@@ -63,8 +63,8 @@ int main(int argc, char *argv[]) {
     socklen_t clilen;
     clilen = sizeof(cli_addr);
 
-    /* TODO: Talk with the operator to say that you've come online */
-    int operatorSock = connect_to_operator(argv[3], atoi(argv[4]), argv[2]);
+    /* : Talk with the operator to say that you've come online */
+    connect_to_operator(argv[3], atoi(argv[4]), argv[2]);
 
     int maxSock, rv, newSock = -1;
     struct timeval tv;
@@ -133,7 +133,7 @@ void sendHeader(int msgType, char *user, char * pwd,
     if (fname != NULL)
             memcpy(myHeader.filename, fname, FILENAME_FIELD_LENGTH);
     myHeader.length = htonl(len);
-    int n = write_message(sockfd, (void *) &myHeader, HEADER_LENGTH);
+    write_message(sockfd, (void *) &myHeader, HEADER_LENGTH);
     return;
 }
 
@@ -352,47 +352,29 @@ int create_client(int sockfd, struct Header *msgHeader,
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
-int connect_to_operator(char *domainName, int portno, char* servername) {
+void connect_to_operator(char *domainName, int portno, char* servername) {
+
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
+    int operator_sock = connect_to_server(domainName, portno);
 
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-        error("ERROR opening socket");
-
-    server = gethostbyname(domainName);
-    if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
-        exit(0);
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr_list[0],
-          (char *)&serv_addr.sin_addr.s_addr,
-         server->h_length);
-    serv_addr.sin_port = htons(portno);
-
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
-        error("ERROR connecting");
 
     /* send message*/
-    sendHeader(NEW_SERVER, NULL, NULL, servername, 0, sockfd);
+    sendHeader(NEW_SERVER, NULL, NULL, servername, 0, operator_sock);
 
-    int n = read(sockfd, buffer, HEADER_LENGTH);
-    if (n == 0)
+    int n = read(operator_sock, buffer, HEADER_LENGTH);
+    if (n <= 0)
         error("unable to establish connection with operator");
+    close(operator_sock);
 
     struct Header *headerBuf = (void *) buffer;
     enum message_type message_id = headerBuf->id;
     if (message_id == NEW_SERVER_ACK)
-        return sockfd;
+        return;
     else if (message_id == ERROR_SERVER_EXISTS)
         error("inputted servername already exists");
     else
         error("unknown error connecting operator, please try again");
-    return sockfd;
+   
+
 }
