@@ -315,8 +315,10 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
     }
 
     n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
-    if (n < HEADER_LENGTH) 
+    if (n < HEADER_LENGTH){
         fprintf(stderr, "Error writing to socket in function request_user\n" );
+        return DISCONNECTED;
+    }
     
 
     if (outgoing_message.id == REQUEST_USER_ACK) {
