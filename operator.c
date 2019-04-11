@@ -181,11 +181,7 @@ int new_client(struct Header *h, int sockfd) {
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
-<<<<<<< HEAD
         fprintf(stderr, "dbr status was not success\n");
-=======
-        printf("getting server failed\n");
->>>>>>> 3d2b78ab91c61ba4cb7f72ffbc3eb3ac6d429074
         close_db_connection(db);
         return DISCONNECTED;
     }
@@ -327,7 +323,7 @@ int new_server(struct Header *h, int sockfd) {
     strcpy(server.domain_name, token);
     token = strtok(NULL, "");
     server.port = atoi(token);
-    
+
     fprintf(stderr, " fqdn of new_server is %s\nportno of new_server is %d\n",server.domain_name, server.port );
 
     dbs = add_server(db, &server);
