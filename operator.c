@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in serv_addr, cli_addr;
     struct timeval timeout;
     struct PartialMessageHandler *handler = init_partials();
+    db_t *db;
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -61,6 +62,17 @@ int main(int argc, char *argv[]) {
     clilen = sizeof(cli_addr);
     timeout.tv_sec = 3600;
     timeout.tv_usec = 0;
+
+    db = connect_to_db(DB_OWNER, DB_NAME);
+    if (create_table(db, "servers", "Id INT PRIMARY KEY, PORT SMALLINT, \
+                                     Domain VARCHAR(255), Clients INT, \
+                                     Stored_Bytes BIGINT"))
+        error("ERROR creating server table");
+    if (create_table(db, "cspairs", "Name VARCHAR(20), Port SMALLINT, \
+                                     Domain VARCHAR(255)"))
+        error("ERROR creating cspairs table");
+
+
 
     while (1) {
         FD_ZERO(&copy_fd_set);
@@ -107,8 +119,6 @@ static int freshvar() {
 
     return x;
 }
-
-
 
 int read_handler(int sockfd, struct PartialMessageHandler *handler) {
 
@@ -302,10 +312,10 @@ int new_server(struct Header *h, int sockfd) {
     char *payload;
 
     db = connect_to_db(DB_OWNER, DB_NAME);
-    server.id = 3;
+    // server.id = 3;
     server.port = 9011;
     strcpy(server.domain_name, "localhost.localdomain");
-    // server.id = freshvar();
+    server.id = freshvar();
     // server->port = TODO: decide how to send portno
     // server->domain_name = TODO: decide how to send hostname
 
