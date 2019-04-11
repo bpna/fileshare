@@ -27,6 +27,11 @@
 #define MAX_MSG_READ 450
 #define DB_OWNER "jfeldz"
 #define DB_NAME "fileshare"
+#define DB_OWNER "client"
+#define DB_NAME "postgres"
+#define USE_DB 0
+#define CSPAIRS_FNAME "client_cspairs.txt"
+#define CSPAIRS_FILE_MAX_LENGTH 10000
 
 int open_and_bind_socket(int portno);
 int add_partial_data(char *data, int length);
@@ -46,7 +51,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in serv_addr, cli_addr;
     struct timeval timeout;
     struct PartialMessageHandler *handler = init_partials();
-    db_t *db;
+    db_t *db = NULL;
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -203,7 +208,7 @@ int new_client(struct Header *h, int sockfd) {
 
     fprintf(stderr, "about to write CREATE_CLIENT to server\n" );
     write_message(server_sock, (void *)&outgoing_message, HEADER_LENGTH);
-    sprintf(client_info, "%s:%d", server->domain_name, server->port);
+    sprintf(client_info, "%s\0%s", h->source, h->password);
     write_message(server_sock, client_info, strlen(client_info));
     fprintf(stderr, "just finished writing CREATE_CLIENT to server\n" );
 
@@ -320,7 +325,7 @@ int new_server(struct Header *h, int sockfd) {
     strcpy(server.domain_name, token);
     token = strtok(NULL, "");
     server.port = atoi(token);
-    
+
     fprintf(stderr, " fqdn of new_server is %s\nportno of new_server is %d\n",server.domain_name, server.port );
 
     dbs = add_server(db, &server);

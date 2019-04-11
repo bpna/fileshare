@@ -20,6 +20,15 @@
 #define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
+#define REQUEST_TYPE_ARG 1
+#define OPERATOR_FQDN_ARG 2
+#define OPERATOR_PORT_ARG 3
+#define USERNAME_ARG 4
+#define PASSWORD_ARG 5
+#define UPLOAD_FNAME_ARG 6
+#define OWNER_ARG 6
+#define REQUEST_FNAME_ARG 7
+#define UPDATE_FNAME_ARG 7
 
 struct Server {
     uint16_t port;
@@ -33,8 +42,10 @@ char *read_error_client_exists_payload(int sockfd,
 int check_input_get_msg_id(int argc, char **argv);
 int parse_and_send_request(const enum message_type message_id, char **argv,
                            db_t *db);
-struct Server *get_server_from_client_wrapper(db_t *db, char *client,
-                                              char *loc);
+void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port, 
+                        char *loc);
+struct Server * get_server_from_client_wrapper(db_t *db, char *client,
+                                               char *loc);
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t *db);
 struct Server *send_recv_user_req(int sockfd, char *user, char *password,
@@ -135,55 +146,109 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             message_header.id = NEW_CLIENT;
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             break;
-        case UPLOAD_FILE: // TODO: needs to check operator for server
-            if (stat(argv[6], &sb) == -1) {
+        case UPLOAD_FILE: 
+            if (stat(argv[UPLOAD_FNAME_ARG], &sb) == -1) {
                 fprintf(stderr, "Named file does not exist, exiting\n");
                 exit(1);
             }
-            sockfd = connect_to_server(argv[2], atoi(argv[3])); // TODO: this is where it just connects to the server and it shouldn't just do that, it should check the operator first
-            message_header.id = UPLOAD_FILE;
-            full_filename = make_full_fname(message_header.source ,argv[6]);
-            strcpy(message_header.filename, full_filename);
-            message_header.length = htonl(sb.st_size);
-            write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-            write_file(sockfd, argv[6]);
+            server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
+                                     "parse_and_send_request() - UPLOAD_FILE");
+            if (server == NULL) { /* no client/server pairing on client */
+                sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG],
+                                           atoi(argv[OPERATOR_PORT_ARG]));
+                /* get server for self from operator */
+                server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
+                                            argv[PASSWORD_ARG], 
+                                            argv[USERNAME_ARG]);
+                add_cspair_wrapper(db, argv[USERNAME_ARG], server->domain_name,
+                                   server->port, 
+                                   "parse_and_send_request() - UPLOAD_FILE"); 
+                close(sockfd);
+            }
+
+            if (server == NULL) { /* no client/server pairing on operator */
+                fprintf(stderr, "Server for user %s could not be resolved, \
+                                 exiting\n", argv[USERNAME_ARG]);
+                exit(1);
+            } else { /* upload the file */
+                sockfd = connect_to_server(server->domain_name, server->port); 
+                message_header.id = UPLOAD_FILE;
+                full_filename = make_full_fname(argv[USERNAME_ARG], 
+                                                argv[UPLOAD_FNAME_ARG]);
+                strcpy(message_header.filename, full_filename);
+                message_header.length = htonl(sb.st_size);
+                write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+                write_file(sockfd, argv[UPLOAD_FNAME_ARG]);
+            }
+
+            free(server);
             break;
         case REQUEST_FILE:
-            // server = get_server_from_client_wrapper(db, argv[6],
-            //                                    "parse_and_send_request ()");
-            // if (server == NULL) { /* no client/server pairing on client */
-            //     sockfd = connect_to_server(argv[2], atoi(argv[3]));
-            //     /* get server for file owner */
-            //     server = send_recv_user_req(sockfd, argv[4], argv[5], argv[6]);
-            //     close(sockfd);
-            // }
+            server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
+                                    "parse_and_send_request() - REQUEST_FILE");
+            if (server == NULL) { /* no client/server pairing on client */
+                sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG], 
+                                           atoi(argv[OPERATOR_PORT_ARG]));
+                /* get server for file owner from operator */
+                server = send_recv_user_req(sockfd, argv[USERNAME_ARG], 
+                                            argv[PASSWORD_ARG], argv[OWNER_ARG]);
+                add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+                                   server->port, 
+                                   "parse_and_send_request() - REQUEST_FILE"); 
+                close(sockfd);
+            }
 
-            // if (server == NULL) { /* no client/server pairing on operator */
-            //     fprintf(stderr, "Server for user %s could not be resolved, \
-            //                      exiting\n", argv[6]);
-            //     exit(1);
-            // } else {
-            //     sockfd = connect_to_server(server->domain_name, server->port);
-                sockfd = connect_to_server(argv[2], atoi(argv[3]));
+            if (server == NULL) { /* no client/server pairing on operator */
+                fprintf(stderr, "Server for user %s could not be resolved, \
+                                 exiting\n", argv[OWNER_ARG]);
+                exit(1);
+            } else { /* request the file */
+                sockfd = connect_to_server(server->domain_name, server->port);
                 message_header.id = REQUEST_FILE;
-                full_filename = make_full_fname(argv[6] ,argv[7]);
+                full_filename = make_full_fname(argv[OWNER_ARG],
+                                                argv[REQUEST_FNAME_ARG]);
                 strcpy(message_header.filename, full_filename);
                 write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-            // }
+            }
 
-            //free(server);
+            free(server);
             break;
-        case UPDATE_FILE: // TODO: needs to check operator for server
-            if (stat(argv[7], &sb) == -1) {
+        case UPDATE_FILE:
+            if (stat(argv[UPDATE_FNAME_ARG], &sb) == -1) {
                 fprintf(stderr, "Named file does not exist, exiting\n");
                 exit(1);
             }
-            sockfd = connect_to_server(argv[2], atoi(argv[3])); // TODO: this just connects to server
-            message_header.id = UPDATE_FILE;
-            strcpy(message_header.filename, argv[7]);
-            message_header.length = htonl(sb.st_size);
-            write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-            write_file(sockfd, message_header.filename);
+            server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
+                                     "parse_and_send_request() - UPLOAD_FILE");
+            if (server == NULL) { /* no client/server pairing on client */
+                sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG],
+                                           atoi(argv[OPERATOR_PORT_ARG]));
+                /* get server for owner from operator */
+                server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
+                                            argv[PASSWORD_ARG], 
+                                            argv[OWNER_ARG]);
+                add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+                                   server->port,
+                                   "parse_and_send_request() - UPLOAD_FILE"); 
+                close(sockfd);
+            }
+
+            if (server == NULL) { /* no client/server pairing on operator */
+                fprintf(stderr, "Server for user %s could not be resolved, \
+                                 exiting\n", argv[USERNAME_ARG]);
+                exit(1);
+            } else { /* upload the file */
+                sockfd = connect_to_server(server->domain_name, server->port); 
+                message_header.id = UPDATE_FILE;
+                full_filename = make_full_fname(message_header.source, 
+                                                argv[UPDATE_FNAME_ARG]);
+                strcpy(message_header.filename, full_filename);
+                message_header.length = htonl(sb.st_size);
+                write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+                write_file(sockfd, argv[UPDATE_FNAME_ARG]);
+            }    
+
+            free(server);
             break;
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
@@ -289,29 +354,33 @@ void check_db_status(enum DB_STATUS db_status, char *func) {
     }
 }
 
-void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc) {
-    int portno;
+void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
+                        char *loc) {
     enum DB_STATUS db_status;
     struct server_addr server;
-    char *fqdn, *portchar;
-    char buffer[255];
+    char portno[6];
+    int portno_length;
     FILE *fp;
+
+    if (port > 65536) {
+        error("ERROR port no out-of-range\n");
+    }
 
     if (USE_DB) {
         bzero((char *) &server, sizeof(server));
-        fqdn = strtok(buffer, ":");
-        portchar = strtok(NULL, ":");
-        portno = atoi(portchar);
         strcpy(server.domain_name, fqdn);
-        server.port = portno;
+        server.port = port;
 
         db_status = add_cspair(db, client, &server);
         check_db_status(db_status, loc);
     } else {
+        portno_length = sprintf(portno, "%u", port);
         fp = fopen(CSPAIRS_FNAME, "a+");
         fwrite(client, 1, strlen(client), fp);
         fwrite(":", 1, 1, fp);
-        fwrite(fqdn_port, 1, strlen(fqdn_port), fp);
+        fwrite(fqdn, 1, strlen(fqdn), fp);
+        fwrite(":", 1, 1, fp);
+        fwrite(portno, 1, portno_length, fp);
         fwrite("\n", 1, 1, fp);
         fclose(fp);
     }
@@ -327,7 +396,6 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc) {
  */
 struct Server *get_server_from_client_wrapper(db_t *db, char *client,
                                               char *loc) {
-    enum DB_STATUS db_status;
     struct db_return db_return;
     struct server_addr *server;
     struct Server *retval = malloc(sizeof(*retval));
@@ -478,6 +546,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
     int length = message_header->length;
     int n, m;
     char *buffer = malloc(length + 1);
+    char *fqdn, *port;
     if (buffer == NULL) {
         error("Allocation failure");
     }
@@ -492,7 +561,23 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
     }
     buffer[length] = '\0';
 
-    add_cspair_wrapper(db, client, buffer, "read_new_client_ack_payload()");
+    fqdn = strtok(buffer, ":");
+    if (fqdn == NULL) {
+        fprintf(stderr, "new_client_ack_payload empty, exiting\n");
+        exit(1);
+    }
+    if (strlen(fqdn) > SERVER_NAME_MAX_LENGTH) {
+        fprintf(stderr, "server name %s too long, exiting\n");
+        exit(1);
+    }
+    port = strtok(NULL, "");
+    if (port == NULL) {
+        fprintf(stderr, "new_client_ack_payload, no port number in payload\n");
+        exit(1);
+    }
+
+    add_cspair_wrapper(db, client, fqdn, atoi(port),
+                       "read_new_client_ack_payload()");
     free(buffer);
 }
 

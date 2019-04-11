@@ -13,6 +13,7 @@
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
+#define SERVER_NAME_MAX_LENGTH 19
 #define ID_FIELD_LENGTH 1
 #define ID_OFFSET 0
 #define SOURCE_FIELD_LENGTH 20
