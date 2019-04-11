@@ -56,7 +56,7 @@ void cspairs_test_suite(db_t *db) {
         error("ERROR creating cspairs table");
 
     // struct server_addr addr = {
-    //     .id = 1,
+    //     .name = "test",
     //     .port = 9010,
     //     .domain_name = "nathan@allenhub.com"
     // };
@@ -103,13 +103,13 @@ void filetable_test_suite(db_t *db) {
 }
 
 void servertable_test_suite(db_t *db) {
-    if (create_table(db, "servers", "Id INT PRIMARY KEY, PORT SMALLINT, \
-                                     Domain VARCHAR(255), Clients INT, \
-                                     Stored_Bytes BIGINT"))
+    if (create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, \
+                                     PORT SMALLINT, Domain VARCHAR(255), \
+                                     Clients INT, Stored_Bytes BIGINT"))
         error("ERROR creating server table");
 
     // struct server_addr addr = {
-    //     .id = 1,
+    //     .name = "test",
     //     .port = 9010,
     //     .domain_name = "nathan@allenhub.com"
     // };

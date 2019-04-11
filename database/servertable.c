@@ -15,8 +15,8 @@ enum DB_STATUS add_server(db_t *db, struct server_addr *addr) {
     //TODO: check if port-domain pair is in db
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "INSERT INTO servers VALUES(%d, %d, '%s', 0, 0)",
-            addr->id, addr->port, addr->domain_name);
+    sprintf(stm, "INSERT INTO servers VALUES(%s, %d, '%s', 0, 0)",
+            addr->name, addr->port, addr->domain_name);
 
     return exec_command(db, stm);
 }
@@ -70,7 +70,7 @@ struct db_return least_populated_server(db_t *db) {
     free(stm);
     PQclear(res);
 
-    return generate_dbr(get_server_id(db, addr), addr);
+    return generate_dbr(get_server_name(db, addr), addr);
 }
 
 enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
@@ -105,7 +105,7 @@ enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
     return SUCCESS;
 }
 
-enum DB_STATUS get_server_id(db_t *db, struct server_addr *addr) {
+enum DB_STATUS get_server_name(db_t *db, struct server_addr *addr) {
     char *stm;
     PGresult *res;
     if (check_connection(db))
@@ -120,8 +120,7 @@ enum DB_STATUS get_server_id(db_t *db, struct server_addr *addr) {
     if (PQntuples(res) == 0)
         return ELEMENT_NOT_FOUND;
 
-    addr->id = atoi(PQgetvalue(res, 0, 0));
-
+    strcpy(addr->name, PQgetvalue(res, 0, 0));
     PQclear(res);
 
     return SUCCESS;
