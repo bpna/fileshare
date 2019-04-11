@@ -64,15 +64,13 @@ int main(int argc, char *argv[]) {
     timeout.tv_usec = 0;
 
     db = connect_to_db(DB_OWNER, DB_NAME);
-    if (create_table(db, "servers", "Id INT PRIMARY KEY, PORT SMALLINT, \
-                                     Domain VARCHAR(255), Clients INT, \
-                                     Stored_Bytes BIGINT"))
+    if (create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, \
+                                     PORT SMALLINT, Domain VARCHAR(255), \
+                                     Clients INT, Stored_Bytes BIGINT"))
         error("ERROR creating server table");
     if (create_table(db, "cspairs", "Name VARCHAR(20), Port SMALLINT, \
                                      Domain VARCHAR(255)"))
         error("ERROR creating cspairs table");
-
-
 
     while (1) {
         FD_ZERO(&copy_fd_set);
@@ -113,15 +111,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-static int freshvar() {
-    static int x = 0;
-    x++;
-
-    return x;
-}
-
 int read_handler(int sockfd, struct PartialMessageHandler *handler) {
-
     int n, header_bytes_read;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
@@ -275,7 +265,6 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         return 1;
     }
 
-
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = get_server_from_client(db, buffer);
     close_db_connection(db);
@@ -300,7 +289,6 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         return DISCONNECTED;
     }
 
-
     if (outgoing_message.id == REQUEST_USER_ACK)
         n = write_message(sockfd, buffer, len);
 
@@ -316,15 +304,13 @@ int new_server(struct Header *h, int sockfd) {
     char *payload;
 
     db = connect_to_db(DB_OWNER, DB_NAME);
-    // server.id = 3;
+    strcpy(server.name, h->source);
     server.port = 9011;
     strcpy(server.domain_name, "localhost.localdomain");
-    server.id = freshvar();
     // server->port = TODO: decide how to send portno
     // server->domain_name = TODO: decide how to send hostname
 
     dbs = add_server(db, &server);
-    fprintf(stderr, "%d\n", dbs);
     if (dbs == ELEMENT_ALREADY_EXISTS) {
         close_db_connection(db);
         outgoing_message.id = ERROR_SERVER_EXISTS;

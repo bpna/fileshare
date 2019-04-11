@@ -14,7 +14,7 @@
 #ifndef DB_STRUCTS
 #define DB_STRUCTS
 struct server_addr {
-    int id;
+    char name[20];
     short port;
     char domain_name[64];
 };
