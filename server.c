@@ -303,7 +303,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
     switch(message_id){
         case CREATE_CLIENT:
             fprintf(stderr, "creating clinet\n");
-            // return create_client(sockfd, msgHeader, handler);
+             return create_client(sockfd, msgHeader, handler);
         case UPLOAD_FILE:
             fprintf(stderr, "uploading file\n");
             return upload_file(sockfd, msgHeader, handler);
@@ -360,7 +360,7 @@ void connect_to_operator(char *domainName, int portno, char* servername) {
 
 
     /* send message*/
-    sendHeader(NEW_SERVER, NULL, NULL, servername, 0, operator_sock);
+    sendHeader(NEW_SERVER, servername, NULL, NULL, 0, operator_sock);
 
     int n = read(operator_sock, buffer, HEADER_LENGTH);
     if (n <= 0)

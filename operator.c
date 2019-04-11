@@ -25,7 +25,7 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define DB_OWNER "nathan"
+#define DB_OWNER "jfeldz"
 #define DB_NAME "fileshare"
 
 int open_and_bind_socket(int portno);
@@ -88,6 +88,7 @@ int main(int argc, char *argv[]) {
             for (sockfd = 0; sockfd < max_fd + 1; sockfd++) {
                 if (FD_ISSET(sockfd, &copy_fd_set)) {
                     if (sockfd == master_socket) {
+                        fprintf(stderr, "there's a new connection in town\n" );
                         csock = accept(master_socket, (struct sockaddr *) &cli_addr,
                                 &clilen);
                         if (csock > 0) {
@@ -99,9 +100,11 @@ int main(int argc, char *argv[]) {
                             error("ERROR on accept");
                         }
                     } else {
+                        fprintf(stderr, "new message incoming\n" );
                         status = read_handler(sockfd, handler);
                         if (status == DISCONNECTED) {
                             FD_CLR(sockfd, &master_fd_set);
+                            close(sockfd);
                         }
                     }
                 }
@@ -132,6 +135,9 @@ int read_handler(int sockfd, struct PartialMessageHandler *handler) {
 
     if (header_bytes_read < HEADER_LENGTH){
         n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
+        if (n < 0){
+            return DISCONNECTED;
+        }
         if (n < HEADER_LENGTH - header_bytes_read){
             add_partial(handler, buffer, sockfd, n, 0);
             return 0;
@@ -151,6 +157,7 @@ int read_handler(int sockfd, struct PartialMessageHandler *handler) {
 
 int handle_header(struct Header *h, int sockfd,
                   struct PartialMessageHandler *pm) {
+    fprintf(stderr, "in the header, \nmsgType is %d\nsource is %s\npassword is %s\nlength is %d\n", h->id, h->source, h->password, h->length);
     switch (h->id) {
         case NEW_CLIENT:
             return new_client(h, sockfd);
@@ -172,6 +179,8 @@ int new_client(struct Header *h, int sockfd) {
     struct server_addr *server;
     int server_sock, n, len;
     struct Header outgoing_message;
+    char client_info[512];
+    bzero(client_info, 512);
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
@@ -184,17 +193,26 @@ int new_client(struct Header *h, int sockfd) {
 
     dbr = get_server_from_client(db, h->source);
     if (dbr.status == SUCCESS) {
+        fprintf(stderr, "ERROR: client already exists\n");
         close_db_connection(db);
         free(server);
         return send_client_exists_ack(sockfd, h->source);
     }
 
-    // server_sock = connect_to_server(server->domain_name, server->port);
+    fprintf(stderr, "about to connect to server in new_client\n" );
+    server_sock = connect_to_server(server->domain_name, server->port);
 
     outgoing_message.id = CREATE_CLIENT;
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     len = strlen(h->source);
     outgoing_message.length = htonl(len);
+
+    fprintf(stderr, "about to write CREATE_CLIENT to server\n" );
+    write_message(sockfd, (void *)&outgoing_message, HEADER_LENGTH);
+    sprintf(client_info, "%s:%d", server->domain_name, server->port);
+    write_message(server_sock, client_info, strlen(client_info));
+    fprintf(stderr, "just finished writing CREATE_CLIENT to server\n" );
+
 
     // n = write(server_sock, (char *) &outgoing_message, HEADER_LENGTH);
     // printf("yay %d\n", n);
@@ -216,6 +234,7 @@ int new_client(struct Header *h, int sockfd) {
     dbs = add_cspair(db, h->source, server);
     close_db_connection(db);
     if (dbs != SUCCESS) {
+        fprintf(stderr, "Error: failed to add to cspair\n" );
         free(server);
         return DISCONNECTED;
     }
