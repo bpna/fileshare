@@ -200,7 +200,7 @@ int new_client(struct Header *h, int sockfd) {
 
     fprintf(stderr, "about to write CREATE_CLIENT to server\n" );
     write_message(server_sock, (void *)&outgoing_message, HEADER_LENGTH);
-    sprintf(client_info, "%s:%d", server->domain_name, server->port);
+    sprintf(client_info, "%s\0%s", h->source, h->password);
     write_message(server_sock, client_info, strlen(client_info));
     fprintf(stderr, "just finished writing CREATE_CLIENT to server\n" );
 
