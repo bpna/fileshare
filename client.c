@@ -21,12 +21,6 @@
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
-void error(const char *msg)
-{
-    perror(msg);
-    exit(0);
-}
-
 struct Server {
     uint16_t port;
     char domain_name[64];
@@ -43,7 +37,6 @@ struct Server * get_server_from_client_wrapper(db_t *db, char *client,
                                                char *loc);
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t *db);
-int write_file(int csock, char *filename);
 struct Server * send_recv_user_req(int sockfd, char *user, char *password,
                           char *file_owner);
 char *make_full_fname(char* owner, char *fname);

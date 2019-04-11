@@ -28,11 +28,6 @@
 #define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
 
-void error(const char *msg) {
-    perror(msg);
-    exit(1);
-}
-
 int open_and_bind_socket(int portno);
 int add_partial_data(char *data, int length);
 int read_handler(int sockfd, struct PartialMessageHandler *handler);
@@ -226,13 +221,9 @@ int send_client_exists_ack(int sockfd, char *username) {
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     len = strlen(username);
     outgoing_message.length = htonl(len);
-    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
-    if (n < HEADER_LENGTH)
-        return 1;
+    n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
 
-    n = write(sockfd, username, len);
-    if (n < len)
-        return 1;
+    n = write_message(sockfd, username, len);
     return DISCONNECTED;
 }
 
@@ -249,13 +240,9 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
     len = strlen(payload);
     outgoing_message.length = htonl(len);
 
-    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
-    if (n < HEADER_LENGTH)
-        return 1;
+    n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
 
-    n = write(sockfd, payload, len);
-    if (n < len)
-        return 1;
+    n = write_message(sockfd, payload, len);
 
     return DISCONNECTED;
 }
@@ -297,16 +284,11 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         fprintf(stderr, "Error accessing database in function request_user\n" );
     }
 
-    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
-    if (n < HEADER_LENGTH) 
-        fprintf(stderr, "Error writing to socket in function request_user\n" );
-    
+    n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
 
-    if (outgoing_message.id == REQUEST_USER_ACK) {
-        n = write(sockfd, buffer, len);
-        if (n < len)
-            fprintf(stderr, "Error writing to socket in function request_user\n" );
-    }
+
+    if (outgoing_message.id == REQUEST_USER_ACK)
+        n = write_message(sockfd, buffer, len);
 
     return DISCONNECTED;
 }
@@ -344,10 +326,7 @@ int new_server(struct Header *h, int sockfd) {
     }
 
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
-    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
-    printf("%d\n", n);
-    if (n < HEADER_LENGTH)
-        return 1;
+    n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
 
     return DISCONNECTED;
 }

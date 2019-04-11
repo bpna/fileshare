@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include "partial_message_handler.h"
 #include "database/cppairs.h"
+#include "io.h"
 
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
@@ -30,11 +31,6 @@
 
 //TODO: if you eliminate a timed-out partial for upload, make sure to delete file that was being written
 //linked list of partial messages
-
-void error(const char *msg) {
-    perror(msg);
-    exit(1);
-}
 
 void sendHeader(int msgType, char *user, char * pwd,
                 char* fname, int len, int sockfd);
@@ -63,7 +59,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    int lSock = intializeLSock(atoi(argv[1]));
+    int lSock = open_and_bind_socket(atoi(argv[1]));
     struct sockaddr_in cli_addr;
     socklen_t clilen;
     clilen = sizeof(cli_addr);
@@ -140,7 +136,7 @@ void sendHeader(int msgType, char *user, char * pwd,
     if (fname != NULL)
             memcpy(myHeader.filename, fname, FILENAME_FIELD_LENGTH);
     myHeader.length = htonl(len);
-    int n = write(sockfd, (void *) &myHeader, HEADER_LENGTH);
+    int n = write_message(sockfd, (void *) &myHeader, HEADER_LENGTH);
     return;
 }
 
@@ -280,18 +276,9 @@ int handle_file_request(int sockfd, struct Header *msgHeader,
 
     //TODO: check permissions
 
-    fseek(fp, 0, SEEK_END);
-    length = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
     sendHeader(RETURN_FILE, NULL, NULL, msgHeader->filename, length, sockfd);
-    do {
-        n = fread(buffer, 1, FILE_BUFFER_MAX_LEN, fp);
-        m = write(sockfd, buffer, n);
-        if (m < 0)
-            error("error writing to socket");
-    } while (n == FILE_BUFFER_MAX_LEN);
-    fclose(fp);
+    if (write_file(sockfd, msgHeader->filename))
+        error("ERROR sending file");
     return DISCONNECT;
 }
 
