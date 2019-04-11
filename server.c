@@ -8,7 +8,6 @@
 #include <netdb.h>
 #include <sys/select.h>
 #include <ctype.h>
-
 #include <sys/time.h>
 #include <time.h>
 #include <sys/types.h>
@@ -73,6 +72,7 @@ int main(int argc, char *argv[]) {
     fd_set masterFDSet, copyFDSet;
     FD_ZERO(&masterFDSet);
     FD_ZERO(&copyFDSet);
+    listen(lSock, BACKLOG_QUEUE_SIZE);
     FD_SET(lSock, &masterFDSet);
 
     struct PartialMessageHandler *handler = init_partials();
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
             timeout_sweep(handler, &masterFDSet);
             for (int sockfd = 0; sockfd < maxSock + 1; sockfd++) {
                 //if there is any connection or new data to be read
-                if ( FD_ISSET (sockfd, &copyFDSet) ) {
+                if (FD_ISSET(sockfd, &copyFDSet)) {
                     if (sockfd == lSock) {
                         fprintf(stderr, "there's a new connection in town\n");
                         newSock = accept(sockfd, (struct sockaddr *) &cli_addr,
@@ -396,6 +396,6 @@ void connect_to_operator(char *domainName, int operator_portno, int server_portn
         error("inputted servername already exists");
     else
         error("unknown error connecting operator, please try again");
-   
 
+    return;
 }

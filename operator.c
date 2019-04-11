@@ -25,7 +25,7 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define DB_OWNER "jfeldz"
+#define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
 
 int open_and_bind_socket(int portno);
@@ -176,7 +176,11 @@ int new_client(struct Header *h, int sockfd) {
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
+<<<<<<< HEAD
         fprintf(stderr, "dbr status was not success\n");
+=======
+        printf("getting server failed\n");
+>>>>>>> 3d2b78ab91c61ba4cb7f72ffbc3eb3ac6d429074
         close_db_connection(db);
         return DISCONNECTED;
     }
@@ -200,28 +204,10 @@ int new_client(struct Header *h, int sockfd) {
     outgoing_message.length = htonl(len);
 
     fprintf(stderr, "about to write CREATE_CLIENT to server\n" );
-    write_message(sockfd, (void *)&outgoing_message, HEADER_LENGTH);
+    write_message(server_sock, (void *)&outgoing_message, HEADER_LENGTH);
     sprintf(client_info, "%s:%d", server->domain_name, server->port);
     write_message(server_sock, client_info, strlen(client_info));
     fprintf(stderr, "just finished writing CREATE_CLIENT to server\n" );
-
-
-    // n = write(server_sock, (char *) &outgoing_message, HEADER_LENGTH);
-    // printf("yay %d\n", n);
-    // if (n < HEADER_LENGTH) {
-    //     close_db_connection(db);
-    //     free(server);
-    //     close(server_sock);
-    //     return 1;
-    // }
-
-    // n = write(server_sock, h->source, len);
-    // close(server_sock);
-    // if (n < len) {
-    //     close_db_connection(db);
-    //     free(server);
-    //     return 1;
-    // }
 
     dbs = add_cspair(db, h->source, server);
     close_db_connection(db);
@@ -348,8 +334,10 @@ int new_server(struct Header *h, int sockfd) {
         close_db_connection(db);
         outgoing_message.id = NEW_SERVER_ACK;
     } else {
+        printf("failed: %d\n", dbs);
         return DISCONNECTED;
     }
+    printf("sending msg to server\n");
 
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);

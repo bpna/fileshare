@@ -58,3 +58,4 @@ dkms.conf
 vgcore*
 stat.c
 *.swp
+client_cspairs.txt
