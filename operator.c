@@ -25,7 +25,7 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define DB_OWNER "nathan"
+#define DB_OWNER "jfeldz"
 #define DB_NAME "fileshare"
 
 int open_and_bind_socket(int portno);
@@ -101,6 +101,7 @@ int main(int argc, char *argv[]) {
                         fprintf(stderr, "new message incoming\n" );
                         status = read_handler(sockfd, handler);
                         if (status == DISCONNECTED) {
+                            delete_partial(handler, sockfd);
                             FD_CLR(sockfd, &master_fd_set);
                             close(sockfd);
                         }
@@ -170,17 +171,14 @@ int new_client(struct Header *h, int sockfd) {
     struct server_addr *server;
     int server_sock, n, len;
     struct Header outgoing_message;
+    bzero(&outgoing_message, HEADER_LENGTH);
     char client_info[512];
     bzero(client_info, 512);
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
-<<<<<<< HEAD
         fprintf(stderr, "dbr status was not success\n");
-=======
-        printf("getting server failed\n");
->>>>>>> 3d2b78ab91c61ba4cb7f72ffbc3eb3ac6d429074
         close_db_connection(db);
         return DISCONNECTED;
     }
