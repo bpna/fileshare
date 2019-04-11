@@ -34,7 +34,6 @@
 
 void sendHeader(int msgType, char *user, char * pwd,
                 char* fname, int len, int sockfd);
-int intializeLSock(int portno);
 char valid_fname(char *fname);
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
@@ -104,8 +103,6 @@ int main(int argc, char *argv[]) {
                         }
                     } else {
                         fprintf(stderr, "new info incoming\n" );
-                        //if sockfd = operatorSock
-                            // addClient
                         int status = handle_request(sockfd, handler);
 
                         if (status == DISCONNECT){
@@ -140,24 +137,6 @@ void sendHeader(int msgType, char *user, char * pwd,
     return;
 }
 
-//sets up the server sockets and binds it to the port
-int intializeLSock(int portno) {
-    int sockfd;
-    struct sockaddr_in serv_addr;
-    int n;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-       error("ERROR opening socket");
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
-    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-             error("ERROR on binding");
-    listen(sockfd,5);
-    return sockfd;
-}
 
 //returns 1 if all characters in the fname are alphnumric, ".", or "-". returns 0 otherwise
 char valid_fname(char *fname) {
