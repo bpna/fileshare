@@ -167,7 +167,7 @@ int new_client(struct Header *h, int sockfd) {
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
         close_db_connection(db);
-        return 1;
+        return DISCONNECTED;
     }
 
     server = (struct server_addr *) dbr.result;
@@ -207,7 +207,7 @@ int new_client(struct Header *h, int sockfd) {
     close_db_connection(db);
     if (dbs != SUCCESS) {
         free(server);
-        return 1;
+        return DISCONNECTED;
     }
 
     return send_new_client_ack(sockfd, server);
