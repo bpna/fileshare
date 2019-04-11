@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include "io.h"
 #include "database/db.h"
 #include "database/cspairs.h"
 #include "partial_message_handler.h"
@@ -42,8 +43,6 @@ struct Server * get_server_from_client_wrapper(db_t *db, char *client,
                                                char *loc);
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t *db);
-int connect_to_server(char *fqdn, int portno);
-int write_message(int sockfd, char *data, int length);
 int write_file(int csock, char *filename);
 struct Server * send_recv_user_req(int sockfd, char *user, char *password,
                           char *file_owner);
@@ -79,7 +78,7 @@ int check_input_get_msg_id(int argc, char **argv)
     }
 
     if (strcmp(argv[1], "new_client") == 0) {
-        if (argc != 5) {
+        if (argc != 6) {
             fprintf(stderr, "usage: %s new_client [router-FQDN] [router-portno] \
                              [username] [password]\n", argv[0]);
             exit(0);
@@ -279,6 +278,8 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                 printf("Unknown error when requesting file \n");
 
             break;
+        default:
+            break;
     }
     return 0;
 }
@@ -303,6 +304,8 @@ void check_db_status(enum DB_STATUS db_status, char *func)
         case INVALID_AUTHENTICATION:
             fprintf(stderr, "in %s, invalid db auth\n", func);
             exit(1);
+        default:
+            return;
     }
 }
 
@@ -539,77 +542,6 @@ char * read_error_client_exists_payload(int sockfd, struct Header *message_heade
     client_name[length] = '\0';
 
     return client_name;
-}
-
-int connect_to_server(char *fqdn, int portno)
-{
-    struct hostent *server;
-    struct sockaddr_in serv_addr;
-
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        error("ERROR opening socket");
-    }
-
-    printf("server arg is %s\n", fqdn);
-    server = gethostbyname(fqdn);
-    if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
-        exit(0);
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr,
-         (char *)&serv_addr.sin_addr.s_addr,
-         server->h_length);
-    serv_addr.sin_port = htons(portno);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        error("ERROR connecting");
-    }
-
-    return sockfd;
-}
-
-int write_file(int csock, char *filename)
-{
-    FILE *fp = fopen(filename, "rb");
-    char bytes[RW_LENGTH];
-    long filelen;
-    int to_write, bytes_written = 0;
-
-    fseek(fp, 0, SEEK_END);
-    filelen = ftell(fp);
-    rewind(fp);
-
-    while (bytes_written < filelen) {
-        if (filelen - bytes_written < RW_LENGTH) {
-            to_write = filelen - bytes_written;
-        } else {
-            to_write = RW_LENGTH;
-        }
-
-        fread(bytes, 1, to_write, fp);
-        write_message(csock, bytes, to_write);
-        bytes_written += to_write;
-    }
-    fclose(fp);
-
-    return 0;
-}
-
-int write_message(int csock, char *data, int length)
-{
-    int n = 0;
-
-    while (n < length) {
-        n += write(csock, &data[n], length - n);
-        if (n < 0) {
-            error("ERROR writing to socket");
-        }
-    }
-
-    return 0;
 }
 
 /* Purpose: creates a filename in format "file-owner/filename" so as to be
