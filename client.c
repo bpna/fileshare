@@ -318,7 +318,7 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc)
         portno = atoi(portchar);
         strcpy(server.domain_name, fqdn);
         server.port = portno;
-        server.id = freshvar();
+      //  server.id = freshvar();
 
         db_status = add_cspair(db, client, &server);
         check_db_status(db_status, loc);

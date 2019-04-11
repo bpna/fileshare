@@ -150,6 +150,7 @@ int handle_header(struct Header *h, int sockfd,
     fprintf(stderr, "in the header, \nmsgType is %d\nsource is %s\npassword is %s\nlength is %d\n", h->id, h->source, h->password, h->length);
     switch (h->id) {
         case NEW_CLIENT:
+        fprintf(stderr, "about to go to return new_client\n" );
             return new_client(h, sockfd);
         case REQUEST_USER:
             return request_user(h, sockfd, pm);
@@ -175,6 +176,7 @@ int new_client(struct Header *h, int sockfd) {
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
+        fprintf(stderr, "dbr status was not success\n");
         close_db_connection(db);
         return DISCONNECTED;
     }
@@ -320,22 +322,27 @@ int new_server(struct Header *h, int sockfd) {
     struct server_addr server;
     int n, len;
     struct Header outgoing_message;
-    char *payload;
+    char  *token;
+    char buffer[512];
+    bzero(buffer, 512);
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     strcpy(server.name, h->source);
-    server.port = 9011;
-    strcpy(server.domain_name, "localhost.localdomain");
-    // server->port = TODO: decide how to send portno
-    // server->domain_name = TODO: decide how to send hostname
+
+    n = read(sockfd, buffer, h->length);
+    if (n < h->length)
+        return 1;
+    token = strtok(buffer, ":");
+    strcpy(server.domain_name, token);
+    token = strtok(NULL, "");
+    server.port = atoi(token);
+    
+    fprintf(stderr, " fqdn of new_server is %s\nportno of new_server is %d\n",server.domain_name, server.port );
 
     dbs = add_server(db, &server);
     if (dbs == ELEMENT_ALREADY_EXISTS) {
         close_db_connection(db);
         outgoing_message.id = ERROR_SERVER_EXISTS;
-        payload = calloc(275, sizeof (char));
-        sprintf(payload, "%s:%d", server.domain_name, server.port);
-        len = strlen(payload);
         outgoing_message.length = htonl(len);
     } else if (dbs == SUCCESS) {
         close_db_connection(db);

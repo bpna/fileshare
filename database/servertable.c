@@ -15,7 +15,7 @@ enum DB_STATUS add_server(db_t *db, struct server_addr *addr) {
     //TODO: check if port-domain pair is in db
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "INSERT INTO servers VALUES(%s, %d, '%s', 0, 0)",
+    sprintf(stm, "INSERT INTO servers VALUES('%s', %d, '%s', 0, 0)",
             addr->name, addr->port, addr->domain_name);
 
     return exec_command(db, stm);
