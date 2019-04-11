@@ -27,6 +27,11 @@
 #define MAX_MSG_READ 450
 #define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
+#define DB_OWNER "client"
+#define DB_NAME "postgres"
+#define USE_DB 0
+#define CSPAIRS_FNAME "client_cspairs.txt"
+#define CSPAIRS_FILE_MAX_LENGTH 10000
 
 int open_and_bind_socket(int portno);
 int add_partial_data(char *data, int length);
@@ -46,7 +51,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in serv_addr, cli_addr;
     struct timeval timeout;
     struct PartialMessageHandler *handler = init_partials();
-    db_t *db;
+    db_t *db = NULL;
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
