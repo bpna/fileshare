@@ -161,7 +161,7 @@ int handle_header(struct Header *h, int sockfd,
         case NEW_SERVER:
             return new_server(h, sockfd);
         default:
-            return 1;
+            return DISCONNECTED;
     }
 }
 
@@ -177,7 +177,7 @@ int new_client(struct Header *h, int sockfd) {
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
         close_db_connection(db);
-        return 1;
+        return DISCONNECTED;
     }
 
     server = (struct server_addr *) dbr.result;
@@ -217,7 +217,7 @@ int new_client(struct Header *h, int sockfd) {
     close_db_connection(db);
     if (dbs != SUCCESS) {
         free(server);
-        return 1;
+        return DISCONNECTED;
     }
 
     return send_new_client_ack(sockfd, server);
@@ -294,7 +294,11 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         fprintf(stderr, "Error accessing database in function request_user\n" );
     }
 
-    n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+    n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+    if (n < HEADER_LENGTH){
+        fprintf(stderr, "Error writing to socket in function request_user\n" );
+        return DISCONNECTED;
+    }
 
 
     if (outgoing_message.id == REQUEST_USER_ACK)
@@ -332,7 +336,7 @@ int new_server(struct Header *h, int sockfd) {
         close_db_connection(db);
         outgoing_message.id = NEW_SERVER_ACK;
     } else {
-        return 1;
+        return DISCONNECTED;
     }
 
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
