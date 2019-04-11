@@ -27,6 +27,11 @@
 #define MAX_MSG_READ 450
 #define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
+#define DB_OWNER "client"
+#define DB_NAME "postgres"
+#define USE_DB 0
+#define CSPAIRS_FNAME "client_cspairs.txt"
+#define CSPAIRS_FILE_MAX_LENGTH 10000
 
 int open_and_bind_socket(int portno);
 int add_partial_data(char *data, int length);
@@ -46,7 +51,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in serv_addr, cli_addr;
     struct timeval timeout;
     struct PartialMessageHandler *handler = init_partials();
-    db_t *db;
+    db_t *db = NULL;
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -150,6 +155,7 @@ int handle_header(struct Header *h, int sockfd,
     fprintf(stderr, "in the header, \nmsgType is %d\nsource is %s\npassword is %s\nlength is %d\n", h->id, h->source, h->password, h->length);
     switch (h->id) {
         case NEW_CLIENT:
+        fprintf(stderr, "about to go to return new_client\n" );
             return new_client(h, sockfd);
         case REQUEST_USER:
             return request_user(h, sockfd, pm);
@@ -175,7 +181,11 @@ int new_client(struct Header *h, int sockfd) {
     db = connect_to_db(DB_OWNER, DB_NAME);
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
+<<<<<<< HEAD
+        fprintf(stderr, "dbr status was not success\n");
+=======
         printf("getting server failed\n");
+>>>>>>> 3d2b78ab91c61ba4cb7f72ffbc3eb3ac6d429074
         close_db_connection(db);
         return DISCONNECTED;
     }
@@ -303,23 +313,27 @@ int new_server(struct Header *h, int sockfd) {
     struct server_addr server;
     int n, len;
     struct Header outgoing_message;
-    char *payload;
+    char  *token;
+    char buffer[512];
+    bzero(buffer, 512);
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     strcpy(server.name, h->source);
-    printf("%s\n", server.name);
-    server.port = 9011;
-    strcpy(server.domain_name, "localhost.localdomain");
-    // server->port = TODO: decide how to send portno
-    // server->domain_name = TODO: decide how to send hostname
+
+    n = read(sockfd, buffer, h->length);
+    if (n < h->length)
+        return 1;
+    token = strtok(buffer, ":");
+    strcpy(server.domain_name, token);
+    token = strtok(NULL, "");
+    server.port = atoi(token);
+    
+    fprintf(stderr, " fqdn of new_server is %s\nportno of new_server is %d\n",server.domain_name, server.port );
 
     dbs = add_server(db, &server);
     if (dbs == ELEMENT_ALREADY_EXISTS) {
         close_db_connection(db);
         outgoing_message.id = ERROR_SERVER_EXISTS;
-        payload = calloc(275, sizeof (char));
-        sprintf(payload, "%s:%d", server.domain_name, server.port);
-        len = strlen(payload);
         outgoing_message.length = htonl(len);
     } else if (dbs == SUCCESS) {
         close_db_connection(db);

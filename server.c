@@ -41,7 +41,7 @@ char update_file(int sockfd, struct Header *msgHeader,
 int handle_file_request(int sockfd, struct Header *msgHeader,
                         struct PartialMessageHandler* handler);
 int handle_request(int sockfd, struct PartialMessageHandler *handler);
-void connect_to_operator(char *domainName, int portno, char* servername);
+void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername);
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler* handler);
 
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
     clilen = sizeof(cli_addr);
 
     /* : Talk with the operator to say that you've come online */
-    connect_to_operator(argv[3], atoi(argv[4]), argv[2]);
+    connect_to_operator(argv[3], atoi(argv[4]), atoi(argv[1]), argv[2]);
 
     int maxSock, rv, newSock = -1;
     struct timeval tv;
@@ -335,34 +335,55 @@ int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler* handler) {
     db_t *db;
     enum DB_STATUS dbs;
-    char *username, *password, *servername;
-    struct Header h;
+    char buffer[512];
+    char username[SOURCE_FIELD_LENGTH];
+    char password[PASSWORD_FIELD_LENGTH];
+    char *token;
+    int n;
+    bzero(buffer, 512);
+    bzero(username, SOURCE_FIELD_LENGTH);
+    bzero(password, PASSWORD_FIELD_LENGTH);
 
     db = connect_to_db(DB_OWNER, DB_NAME);
     // TODO: get user info
 
+    n = read(sockfd, buffer, msgHeader->length);
+    if (n < msgHeader->length)
+        return 1;
+    token = strtok(buffer, "");
+    strcpy(username, token);
+    token = strtok(NULL, "");
+    strcpy(password, token);
+    
+    fprintf(stderr, " username of create_client is %s\npassword of create_client is %d\n",username, password );
+
+
     dbs = add_cppair(db, username, password);
     close_db_connection(db);
     if (dbs)
-        return 1;
+        return DISCONNECT;
 
-    sendHeader(CREATE_CLIENT_ACK, servername, NULL, NULL, 0, sockfd);
+    sendHeader(CREATE_CLIENT_ACK, NULL, NULL, NULL, 0, sockfd);
     return DISCONNECT;
 }
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
-void connect_to_operator(char *domainName, int portno, char* servername) {
+void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername) {
 
-    char buffer[HEADER_LENGTH];
-    bzero(buffer, HEADER_LENGTH);
-    int operator_sock = connect_to_server(domainName, portno);
+    char buffer[512];
+    bzero(buffer, 512);
+    int operator_sock = connect_to_server(domainName, operator_portno);
+    int n;
 
 
     /* send message*/
-    sendHeader(NEW_SERVER, servername, NULL, NULL, 0, operator_sock);
+    sprintf(buffer, "%s:%d", "localhost", server_portno);
+    sendHeader(NEW_SERVER, servername, NULL, NULL, strlen(buffer), operator_sock);
+    write_message(operator_sock, buffer, strlen(buffer));
 
-    int n = read(operator_sock, buffer, HEADER_LENGTH);
+
+    n = read(operator_sock, buffer, HEADER_LENGTH);
     if (n <= 0)
         error("unable to establish connection with operator");
     close(operator_sock);
