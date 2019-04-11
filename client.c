@@ -28,21 +28,20 @@ struct Server {
 
 void read_new_client_ack_payload(int sockfd, struct Header *message_header,
                                  char *client, db_t *db);
-char * read_error_client_exists_payload(int sockfd,
-                                        struct Header *message_header);
+char *read_error_client_exists_payload(int sockfd,
+                                       struct Header *message_header);
 int check_input_get_msg_id(int argc, char **argv);
 int parse_and_send_request(const enum message_type message_id, char **argv,
                            db_t *db);
-struct Server * get_server_from_client_wrapper(db_t *db, char *client,
-                                               char *loc);
+struct Server *get_server_from_client_wrapper(db_t *db, char *client,
+                                              char *loc);
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t *db);
-struct Server * send_recv_user_req(int sockfd, char *user, char *password,
-                          char *file_owner);
+struct Server *send_recv_user_req(int sockfd, char *user, char *password,
+                                  char *file_owner);
 char *make_full_fname(char* owner, char *fname);
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int sockfd, status;
     enum message_type message_id;
     db_t *db;
@@ -63,8 +62,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-int check_input_get_msg_id(int argc, char **argv)
-{
+int check_input_get_msg_id(int argc, char **argv) {
     if (argc < 2) {
        fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
        exit(0);
@@ -120,8 +118,7 @@ int check_input_get_msg_id(int argc, char **argv)
  * using the socket.
  */
 int parse_and_send_request(const enum message_type message_id, char **argv,
-                           db_t *db)
-{
+                           db_t *db) {
     int sockfd;
     struct stat sb;
     struct Header message_header;
@@ -197,8 +194,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
 }
 
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
-                  db_t *db)
-{
+                  db_t *db) {
     int n, m;
     char *clientbuf;
     char header_buffer[HEADER_LENGTH];
@@ -277,16 +273,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
     return 0;
 }
 
-int freshvar()
-{
-    static int x = 0;
-    x++;
-
-    return x;
-}
-
-void check_db_status(enum DB_STATUS db_status, char *func)
-{
+void check_db_status(enum DB_STATUS db_status, char *func) {
     switch (db_status) {
         case CORRUPTED:
             fprintf(stderr, "in %s, db corrupted\n", func);
@@ -302,8 +289,7 @@ void check_db_status(enum DB_STATUS db_status, char *func)
     }
 }
 
-void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc)
-{
+void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc) {
     int portno;
     enum DB_STATUS db_status;
     struct server_addr server;
@@ -318,7 +304,6 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc)
         portno = atoi(portchar);
         strcpy(server.domain_name, fqdn);
         server.port = portno;
-        server.id = freshvar();
 
         db_status = add_cspair(db, client, &server);
         check_db_status(db_status, loc);
@@ -340,9 +325,8 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn_port, char *loc)
  * returns NULL. Otherwise, it malloc's and returns a Server struct which must
  * be free'd by the caller.
  */
-struct Server * get_server_from_client_wrapper(db_t *db, char *client,
-                                               char *loc)
-{
+struct Server *get_server_from_client_wrapper(db_t *db, char *client,
+                                              char *loc) {
     enum DB_STATUS db_status;
     struct db_return db_return;
     struct server_addr *server;
@@ -416,9 +400,8 @@ struct Server * get_server_from_client_wrapper(db_t *db, char *client,
  * returns a malloc'd Server struct containing the fqdn and port of the
  * file owner that the caller is responsible for freeing
  */
-struct Server *  send_recv_user_req(int sockfd, char *user, char *password,
-                                    char *file_owner)
-{
+struct Server *send_recv_user_req(int sockfd, char *user, char *password,
+                                  char *file_owner) {
     int n, m, length;
     struct Header header;
     char buffer[HEADER_LENGTH];
@@ -491,8 +474,7 @@ struct Server *  send_recv_user_req(int sockfd, char *user, char *password,
 } */
 
 void read_new_client_ack_payload(int sockfd, struct Header *message_header,
-                                 char *client, db_t *db)
-{
+                                 char *client, db_t *db) {
     int length = message_header->length;
     int n, m;
     char *buffer = malloc(length + 1);
@@ -515,8 +497,8 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
 }
 
 
-char * read_error_client_exists_payload(int sockfd, struct Header *message_header)
-{
+char *read_error_client_exists_payload(int sockfd,
+                                       struct Header *message_header) {
     int n, m;
     int length = message_header->length;
     char *client_name = malloc(length + 1);
@@ -542,7 +524,7 @@ char * read_error_client_exists_payload(int sockfd, struct Header *message_heade
  * Takes the owner name and fname as cstrings as arguments
  * Returns the malloced full filename
  */
-char *make_full_fname(char* owner, char *fname){
+char *make_full_fname(char* owner, char *fname) {
     int len_owner = strlen(owner);
     int len_fname = strlen(fname);
     //2 extra bytes for the "/" and the "\0"

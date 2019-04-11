@@ -15,7 +15,7 @@ enum DB_STATUS add_server(db_t *db, struct server_addr *addr) {
     //TODO: check if port-domain pair is in db
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "INSERT INTO servers VALUES(%s, %d, '%s', 0, 0)",
+    sprintf(stm, "INSERT INTO servers VALUES('%s', %d, '%s', 0, 0)",
             addr->name, addr->port, addr->domain_name);
 
     return exec_command(db, stm);
@@ -46,13 +46,12 @@ struct db_return clients_served_by(db_t *db, struct server_addr *addr) {
 }
 
 struct db_return least_populated_server(db_t *db) {
-    if (check_connection(db))
+    if (check_connection(db)) {
         return generate_dbr(CORRUPTED, NULL);
+    }
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm,
-        "SELECT port, domain, COUNT(*) FROM cspairs \
-         GROUP BY port, domain ORDER BY 2 ASC;");
+    sprintf(stm, "SELECT port, domain, clients FROM servers ORDER BY 2 ASC");
 
     PGresult *res = PQexec(db, stm);
 
@@ -112,7 +111,7 @@ enum DB_STATUS get_server_name(db_t *db, struct server_addr *addr) {
         return CORRUPTED;
 
     stm = calloc(350, sizeof (char));
-    sprintf(stm, "SELECT id FROM servers WHERE port=%d AND domain='%s'",
+    sprintf(stm, "SELECT name FROM servers WHERE port=%d AND domain='%s'",
             addr->port, addr->domain_name);
     res = PQexec(db, stm);
     free(stm);
