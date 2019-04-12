@@ -243,6 +243,9 @@ char update_file(int sockfd, struct Header *msgHeader,
 int handle_file_request(int sockfd, struct Header *msgHeader) {
 
     struct stat sb;
+    char *token;
+    char buffer[FILENAME_FIELD_LENGTH * 2];
+    bzero(buffer, FILENAME_FIELD_LENGTH * 2);
 
     if (stat(msgHeader->filename, &sb) == -1) {
         fprintf(stderr, "client requested file that does not exist\n" );
@@ -251,9 +254,21 @@ int handle_file_request(int sockfd, struct Header *msgHeader) {
         return DISCONNECT;
     }
 
+    if (valid_fname(msgHeader->filename) == 0){
+        return DISCONNECT;
+    }
+    memcpy(buffer, msgHeader->filename, FILENAME_FIELD_LENGTH);
     //TODO: check permissions
+    token = strtok(buffer, "/");
+    if (token == NULL){
+        fprintf(stderr, "malformed file name\n" );
+        return DISCONNECT;
+    }
+    token = strtok(NULL, "");
 
-    sendHeader(RETURN_FILE, NULL, NULL, msgHeader->filename, sb.st_size, sockfd);
+
+
+    sendHeader(RETURN_FILE, NULL, NULL, token, sb.st_size, sockfd);
     if (write_file(sockfd, msgHeader->filename))
         error("ERROR sending file");
     return DISCONNECT;
