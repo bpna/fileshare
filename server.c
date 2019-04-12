@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <sys/types.h>
+#include <errno.h>
 #include "partial_message_handler.h"
 #include "database/cppairs.h"
 #include "io.h"
@@ -381,9 +382,7 @@ int create_client(int sockfd, struct Header *msgHeader,
     if (dbs)
         return DISCONNECT;
 
-    n = mkdir(username);
-    if (n < 0)
-        error("ERROR making folder %s", username);
+    mkdir(username, S_IRWXU);
 
     sendHeader(CREATE_CLIENT_ACK, NULL, NULL, NULL, 0, sockfd);
     return DISCONNECT;
