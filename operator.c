@@ -129,7 +129,7 @@ int read_handler(int sockfd, struct PartialMessageHandler *handler) {
 
     if (header_bytes_read < HEADER_LENGTH){
         n = read(sockfd, buffer, HEADER_LENGTH - header_bytes_read);
-        if (n < 0){
+        if (n < 1){
             return DISCONNECTED;
         }
         if (n < HEADER_LENGTH - header_bytes_read){
@@ -257,26 +257,19 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
 int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm) {
     db_t *db;
     struct db_return dbr;
-    char buffer[INIT_BUFFER_LENGTH];
     struct server_addr *server;
     int n, len;
     struct Header outgoing_message;
+    bzero(&outgoing_message, HEADER_LENGTH);
+    char buffer[INIT_BUFFER_LENGTH];
     bzero(buffer, INIT_BUFFER_LENGTH);
 
-    n = read(sockfd, buffer, h->length);
-    if (n < 1){
-        fprintf(stderr, "Error writing to socket in function request_user\n" );
-        return DISCONNECTED;
-    }
-    if (add_partial(pm, buffer, sockfd, n, 0) == 0){
-        return 1;
-    }
 
     db = connect_to_db(DB_OWNER, DB_NAME);
-    dbr = get_server_from_client(db, buffer);
+    dbr = get_server_from_client(db, h->filename);
     close_db_connection(db);
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
-    bzero(buffer, INIT_BUFFER_LENGTH);
+    
 
     if (dbr.status == ELEMENT_NOT_FOUND) {
         outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
