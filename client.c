@@ -137,12 +137,13 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
     char *full_filename = NULL;
 
     bzero(&message_header, sizeof(message_header));
-    strcpy(message_header.source, argv[4]);
-    strcpy(message_header.password, argv[5]);
+    strcpy(message_header.source, argv[USERNAME_ARG]);
+    strcpy(message_header.password, argv[PASSWORD_ARG]);
 
     switch (message_id) {
         case NEW_CLIENT:
-            sockfd = connect_to_server(argv[2], atoi(argv[3]));
+            sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG],
+                                       atoi(argv[OPERATOR_PORT_ARG]));
             message_header.id = NEW_CLIENT;
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             break;
@@ -325,7 +326,8 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     if (m <= 0) {
                         error("ERROR reading from socket");
                     }
-                } while(save_buffer(message_header.filename, file_buffer, m, message_header.length) == 0);
+                } while(save_buffer(message_header.filename, file_buffer, m, 
+                                    message_header.length) == 0);
 
             }
             else
@@ -472,7 +474,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
                                   char *file_owner) {
     int n, m, length;
     struct Header header;
-    char buffer[HEADER_LENGTH];
+    char buffer[FQDN_PORT_MAX_LENGTH];
     char *token;
     struct Server *server = malloc(sizeof(*server));
     if (server == NULL) {
@@ -483,11 +485,11 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     header.id = REQUEST_USER;
     strcpy(header.source, user);
     strcpy(header.password, password);
-    header.length = strlen(file_owner);
+    strcpy(header.filename, file_owner);
 
     write_message(sockfd, (char *) &header, HEADER_LENGTH);
-    write_message(sockfd, file_owner, strlen(file_owner));
 
+    bzer(buffer, FQDN_PORT_MAX_LENGTH);
     n = 0;
     while (n < HEADER_LENGTH) {
         m = read(sockfd, &buffer[n], HEADER_LENGTH - n);
@@ -501,7 +503,9 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     if (header.id == REQUEST_USER_ACK) {
         length = ntohl(header.length);
         n = 0;
-        bzero(buffer, HEADER_LENGTH);
+        if (length < FQDN_PORT_MAX_LENGTH)
+            error("ERROR payload too large, length = %d\n", length);
+        bzero(buffer, FQDN_PORT_MAX_LENGTH);
         while (n < length) {
             m = read(sockfd, &buffer[n], length - n);
             if (m < 0) {
@@ -517,7 +521,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
             exit(1);
         }
         strcpy(server->domain_name, token);
-        token = strtok(NULL, ":");
+        token = strtok(NULL, "");
         if (token == NULL) {
             fprintf(stderr, "malformed payload in REQUEST_USER_ACK from \
                              operator, exiting\n");
