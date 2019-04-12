@@ -20,7 +20,7 @@
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
 #define BAD_FILENAME -76
-#define DB_OWNER "jfeldz"
+#define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
 
 //functions to write
@@ -361,7 +361,7 @@ int create_client(int sockfd, struct Header *msgHeader,
     n = read(sockfd, buffer, msgHeader->length);
     if (n < 1)
         return DISCONNECT;
-    
+
     if (add_partial(handler, buffer, sockfd, n, 0) == 0){
         return 1;
     }
@@ -373,9 +373,8 @@ int create_client(int sockfd, struct Header *msgHeader,
     fprintf(stderr, "password is %s\n", token );
 
     strcpy(password, token);
-    
-    fprintf(stderr, " username of create_client is %s\npassword of create_client is %s\n",username, password );
 
+    fprintf(stderr, " username of create_client is %s\npassword of create_client is %s\n",username, password );
 
     dbs = add_cppair(db, username, password);
     close_db_connection(db);

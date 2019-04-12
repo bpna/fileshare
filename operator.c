@@ -211,9 +211,17 @@ int new_client(struct Header *h, int sockfd) {
     fprintf(stderr, "just finished writing CREATE_CLIENT to server\n" );
 
     dbs = add_cspair(db, h->source, server);
-    close_db_connection(db);
     if (dbs != SUCCESS) {
         fprintf(stderr, "Error: failed to add to cspair\n" );
+        free(server);
+        close_db_connection(db);
+        return DISCONNECTED;
+    }
+
+    dbs = increment_clients(db, server);
+    close_db_connection(db);
+    if (dbs != SUCCESS) {
+        fprintf(stderr, "Error: failed to increment server's clients\n" );
         free(server);
         return DISCONNECTED;
     }
