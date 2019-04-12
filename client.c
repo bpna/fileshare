@@ -193,16 +193,15 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                 /* get server for file owner from operator */
                 server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG], argv[OWNER_ARG]);
+                if (server == NULL) { /* no client/server pairing on operator */
+                    fprintf(stderr, "Server for user %s could not be resolved, \
+                                     exiting\n", argv[OWNER_ARG]);
+                    exit(1);
+                }
                 add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
                                    server->port,
                                    "parse_and_send_request() - REQUEST_FILE");
                 close(sockfd);
-            }
-
-            if (server == NULL) { /* no client/server pairing on operator */
-                fprintf(stderr, "Server for user %s could not be resolved, \
-                                 exiting\n", argv[OWNER_ARG]);
-                exit(1);
             } else { /* request the file */
                 sockfd = connect_to_server(server->domain_name, server->port);
                 message_header.id = REQUEST_FILE;
@@ -489,7 +488,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
 
     write_message(sockfd, (char *) &header, HEADER_LENGTH);
 
-    bzer(buffer, FQDN_PORT_MAX_LENGTH);
+    bzero(buffer, FQDN_PORT_MAX_LENGTH);
     n = 0;
     while (n < HEADER_LENGTH) {
         m = read(sockfd, &buffer[n], HEADER_LENGTH - n);
@@ -504,7 +503,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
         length = ntohl(header.length);
         n = 0;
         if (length < FQDN_PORT_MAX_LENGTH)
-            error("ERROR payload too large, length = %d\n", length);
+            error("ERROR payload too large");
         bzero(buffer, FQDN_PORT_MAX_LENGTH);
         while (n < length) {
             m = read(sockfd, &buffer[n], length - n);
