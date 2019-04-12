@@ -25,10 +25,8 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define DB_OWNER "nathan"
+#define DB_OWNER "jfeldz"
 #define DB_NAME "fileshare"
-#define DB_OWNER "client"
-#define DB_NAME "postgres"
 #define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
@@ -106,6 +104,7 @@ int main(int argc, char *argv[]) {
                         fprintf(stderr, "new message incoming\n" );
                         status = read_handler(sockfd, handler);
                         if (status == DISCONNECTED) {
+                            delete_partial(handler, sockfd);
                             FD_CLR(sockfd, &master_fd_set);
                             close(sockfd);
                         }
@@ -175,6 +174,7 @@ int new_client(struct Header *h, int sockfd) {
     struct server_addr *server;
     int server_sock, n, len;
     struct Header outgoing_message;
+    bzero(&outgoing_message, HEADER_LENGTH);
     char client_info[512];
     bzero(client_info, 512);
 
@@ -201,13 +201,13 @@ int new_client(struct Header *h, int sockfd) {
 
     outgoing_message.id = CREATE_CLIENT;
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
-    len = strlen(h->source);
+    len = strlen(h->source) + strlen(h->password) + 1;
     outgoing_message.length = htonl(len);
 
     fprintf(stderr, "about to write CREATE_CLIENT to server\n" );
     write_message(server_sock, (void *)&outgoing_message, HEADER_LENGTH);
-    sprintf(client_info, "%s\0%s", h->source, h->password);
-    write_message(server_sock, client_info, strlen(client_info));
+    sprintf(client_info, "%s:%s", h->source, h->password);
+    write_message(server_sock, client_info, len);
     fprintf(stderr, "just finished writing CREATE_CLIENT to server\n" );
 
     dbs = add_cspair(db, h->source, server);
