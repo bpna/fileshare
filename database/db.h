@@ -36,8 +36,6 @@ struct db_return {
 
 db_t *connect_to_db(char *owner, char *database);
 
-void on_db_error(db_t *db, PGresult *res);
-
 int check_connection(db_t *db);
 
 enum DB_STATUS exec_command(db_t *db, char *stm);

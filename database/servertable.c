@@ -95,7 +95,7 @@ enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
     res = PQexec(db, stm);
     free(stm);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        on_db_error(db, res);
+        PQclear(res);
         return COMMAND_FAILED;
     }
 
