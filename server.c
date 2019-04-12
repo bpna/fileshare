@@ -195,8 +195,10 @@ char upload_file(int sockfd, struct Header *msgHeader,
         sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
-    else if (n < 0)
+    else if (n < 0){
+        sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
         return DISCONNECT;
+    }
     
 
     return 0;
