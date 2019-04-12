@@ -53,7 +53,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
 char *make_full_fname(char* owner, char *fname);
 
 int main(int argc, char **argv) {
-    int sockfd, status;
+    int sockfd;
     enum message_type message_id;
     db_t *db;
 
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     if (sockfd == -1) {
         return 1;
     }
-    status = process_reply(sockfd, message_id, argv, db);
+    process_reply(sockfd, message_id, argv, db);
 
     close(sockfd);
     return 0;
@@ -567,7 +567,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
         exit(1);
     }
     if (strlen(fqdn) > SERVER_NAME_MAX_LENGTH) {
-        fprintf(stderr, "server name %s too long, exiting\n");
+        fprintf(stderr, "server name %s too long, exiting\n", fqdn);
         exit(1);
     }
     port = strtok(NULL, "");

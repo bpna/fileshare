@@ -25,6 +25,9 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
 
     unsigned long current_filelen;
     FILE *fp = fopen(temp_fname, "ab");
+    if (fp == NULL)
+        return -1;
+    
     current_filelen = ftell(fp);
 
     fwrite(buffer, 1, buf_len, fp);

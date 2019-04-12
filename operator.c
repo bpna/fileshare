@@ -172,7 +172,7 @@ int new_client(struct Header *h, int sockfd) {
     struct db_return dbr;
     enum DB_STATUS dbs;
     struct server_addr *server;
-    int server_sock, n, len;
+    int server_sock, len;
     struct Header outgoing_message;
     bzero(&outgoing_message, HEADER_LENGTH);
     char client_info[512];
@@ -222,7 +222,7 @@ int new_client(struct Header *h, int sockfd) {
 }
 
 int send_client_exists_ack(int sockfd, char *username) {
-    int n, len;
+    int len, n;
     struct Header outgoing_message;
 
     outgoing_message.id = ERROR_CLIENT_EXISTS;
@@ -237,7 +237,7 @@ int send_client_exists_ack(int sockfd, char *username) {
 
 int send_new_client_ack(int sockfd, struct server_addr *server) {
     struct Header outgoing_message;
-    int n, len;
+    int len;
     char *payload = calloc(275, sizeof (char));
 
     sprintf(payload, "%s:%d", server->domain_name, server->port);
@@ -248,9 +248,8 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
     len = strlen(payload);
     outgoing_message.length = htonl(len);
 
-    n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
-
-    n = write_message(sockfd, payload, len);
+    write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+    write_message(sockfd, payload, len);
 
     return DISCONNECTED;
 }
@@ -307,7 +306,7 @@ int new_server(struct Header *h, int sockfd) {
     db_t *db;
     enum DB_STATUS dbs;
     struct server_addr server;
-    int n, len;
+    int n;
     struct Header outgoing_message;
     char  *token;
     char buffer[512];
@@ -330,7 +329,7 @@ int new_server(struct Header *h, int sockfd) {
     if (dbs == ELEMENT_ALREADY_EXISTS) {
         close_db_connection(db);
         outgoing_message.id = ERROR_SERVER_EXISTS;
-        outgoing_message.length = htonl(len);
+        outgoing_message.length = 0;
     } else if (dbs == SUCCESS) {
         close_db_connection(db);
         outgoing_message.id = NEW_SERVER_ACK;

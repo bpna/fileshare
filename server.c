@@ -9,6 +9,7 @@
 #include <sys/select.h>
 #include <ctype.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <sys/types.h>
 #include "partial_message_handler.h"
@@ -38,8 +39,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
-int handle_file_request(int sockfd, struct Header *msgHeader,
-                        struct PartialMessageHandler* handler);
+int handle_file_request(int sockfd, struct Header *msgHeader);
 int handle_request(int sockfd, struct PartialMessageHandler *handler);
 void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername);
 int create_client(int sockfd, struct Header *msgHeader,
@@ -240,22 +240,20 @@ char update_file(int sockfd, struct Header *msgHeader,
  *  and the request is valid, sends back the RETURN_FILE header and file
  * Returns DISCONNECT in every case
  */
-int handle_file_request(int sockfd, struct Header *msgHeader,
-                        struct PartialMessageHandler* handler) {
-    //if file does not exist, send ERROR_CODE and disconnect
-    FILE *fp = fopen(msgHeader->filename, "rb");
-    int length, n, m;
-    char buffer[FILE_BUFFER_MAX_LEN];
+int handle_file_request(int sockfd, struct Header *msgHeader) {
 
-    if (fp == NULL) {
-        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL, msgHeader->filename,
-                   0, sockfd);
+    struct stat sb;
+
+    if (stat(msgHeader->filename, &sb) == -1) {
+        fprintf(stderr, "client requested file that does not exist\n" );
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
 
     //TODO: check permissions
 
-    sendHeader(RETURN_FILE, NULL, NULL, msgHeader->filename, length, sockfd);
+    sendHeader(RETURN_FILE, NULL, NULL, msgHeader->filename, sb.st_size, sockfd);
     if (write_file(sockfd, msgHeader->filename))
         error("ERROR sending file");
     return DISCONNECT;
@@ -310,7 +308,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
         case REQUEST_FILE:
             fprintf(stderr, "requesting file\n");
-            return handle_file_request(sockfd, msgHeader, handler);
+            return handle_file_request(sockfd, msgHeader);
             //verify creds, verify file exists, send back file
         case UPDATE_FILE:
             fprintf(stderr, "updating file\n");
@@ -322,11 +320,8 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
         case NEW_SERVER_ACK:
             fprintf(stderr, "new server ack\n");
             return DISCONNECT;
-        case ERROR_SERVER_EXISTS:
-            fprintf(stderr, "server exists\n");
-            error("ERROR server exists in operator");
         default:
-            return 1;
+            return DISCONNECT;
     }
     return DISCONNECT;
 }
@@ -348,8 +343,13 @@ int create_client(int sockfd, struct Header *msgHeader,
     // TODO: get user info
 
     n = read(sockfd, buffer, msgHeader->length);
-    if (n < msgHeader->length)
+    if (n < 1)
+        return DISCONNECT;
+    
+    if (add_partial(handler, buffer, sockfd, n, 0) == 0){
         return 1;
+    }
+
     token = strtok(buffer, ":");
     fprintf(stderr, "username is %s\n", token );
     strcpy(username, token);
