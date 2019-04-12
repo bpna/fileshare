@@ -366,6 +366,10 @@ int create_client(int sockfd, struct Header *msgHeader,
     if (dbs)
         return DISCONNECT;
 
+    n = mkdir(username);
+    if (n < 0)
+        error("ERROR making folder %s", username);
+
     sendHeader(CREATE_CLIENT_ACK, NULL, NULL, NULL, 0, sockfd);
     return DISCONNECT;
 }
