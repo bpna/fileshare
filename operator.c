@@ -25,7 +25,7 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define DB_OWNER "jfeldz"
+#define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
 #define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
@@ -71,8 +71,8 @@ int main(int argc, char *argv[]) {
                                      PORT SMALLINT, Domain VARCHAR(255), \
                                      Clients INT, Stored_Bytes BIGINT"))
         error("ERROR creating server table");
-    if (create_table(db, "cspairs", "Name VARCHAR(20), Port SMALLINT, \
-                                     Domain VARCHAR(255)"))
+    if (create_table(db, "cspairs", "Name VARCHAR(20) PRIMARY KEY, \
+                                     Port SMALLINT, Domain VARCHAR(255)"))
         error("ERROR creating cspairs table");
 
     while (1) {
