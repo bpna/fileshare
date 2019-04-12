@@ -28,7 +28,7 @@ enum DB_STATUS add_file(db_t *db, char *client, char *pass,
     PGresult *res = PQexec(db, stm);
     free(stm);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        on_db_error(db, res);
+        PQclear(res);
         return COMMAND_FAILED;
     }
 

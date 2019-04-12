@@ -15,8 +15,8 @@
 #define RW_LENGTH 10000
 #define DISCONNECTED 0
 #define MAX_MSG_SIZE 450
-#define DB_OWNER "client"
-#define DB_NAME "postgres"
+#define DB_OWNER "nathan"
+#define DB_NAME "fileshare"
 #define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
@@ -42,7 +42,7 @@ char *read_error_client_exists_payload(int sockfd,
 int check_input_get_msg_id(int argc, char **argv);
 int parse_and_send_request(const enum message_type message_id, char **argv,
                            db_t *db);
-void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port, 
+void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
                         char *loc);
 struct Server * get_server_from_client_wrapper(db_t *db, char *client,
                                                char *loc);
@@ -146,23 +146,23 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             message_header.id = NEW_CLIENT;
             write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
             break;
-        case UPLOAD_FILE: 
+        case UPLOAD_FILE:
             if (stat(argv[UPLOAD_FNAME_ARG], &sb) == -1) {
                 fprintf(stderr, "Named file does not exist, exiting\n");
                 exit(1);
             }
-            server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
+            server = get_server_from_client_wrapper(db, argv[USERNAME_ARG],
                                      "parse_and_send_request() - UPLOAD_FILE");
             if (server == NULL) { /* no client/server pairing on client */
                 sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG],
                                            atoi(argv[OPERATOR_PORT_ARG]));
                 /* get server for self from operator */
                 server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
-                                            argv[PASSWORD_ARG], 
+                                            argv[PASSWORD_ARG],
                                             argv[USERNAME_ARG]);
                 add_cspair_wrapper(db, argv[USERNAME_ARG], server->domain_name,
-                                   server->port, 
-                                   "parse_and_send_request() - UPLOAD_FILE"); 
+                                   server->port,
+                                   "parse_and_send_request() - UPLOAD_FILE");
                 close(sockfd);
             }
 
@@ -171,9 +171,9 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                  exiting\n", argv[USERNAME_ARG]);
                 exit(1);
             } else { /* upload the file */
-                sockfd = connect_to_server(server->domain_name, server->port); 
+                sockfd = connect_to_server(server->domain_name, server->port);
                 message_header.id = UPLOAD_FILE;
-                full_filename = make_full_fname(argv[USERNAME_ARG], 
+                full_filename = make_full_fname(argv[USERNAME_ARG],
                                                 argv[UPLOAD_FNAME_ARG]);
                 strcpy(message_header.filename, full_filename);
                 message_header.length = htonl(sb.st_size);
@@ -187,14 +187,14 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
                                     "parse_and_send_request() - REQUEST_FILE");
             if (server == NULL) { /* no client/server pairing on client */
-                sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG], 
+                sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG],
                                            atoi(argv[OPERATOR_PORT_ARG]));
                 /* get server for file owner from operator */
-                server = send_recv_user_req(sockfd, argv[USERNAME_ARG], 
+                server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG], argv[OWNER_ARG]);
                 add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
-                                   server->port, 
-                                   "parse_and_send_request() - REQUEST_FILE"); 
+                                   server->port,
+                                   "parse_and_send_request() - REQUEST_FILE");
                 close(sockfd);
             }
 
@@ -225,11 +225,11 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                            atoi(argv[OPERATOR_PORT_ARG]));
                 /* get server for owner from operator */
                 server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
-                                            argv[PASSWORD_ARG], 
+                                            argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
                 add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
                                    server->port,
-                                   "parse_and_send_request() - UPLOAD_FILE"); 
+                                   "parse_and_send_request() - UPLOAD_FILE");
                 close(sockfd);
             }
 
@@ -238,15 +238,15 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                  exiting\n", argv[USERNAME_ARG]);
                 exit(1);
             } else { /* upload the file */
-                sockfd = connect_to_server(server->domain_name, server->port); 
+                sockfd = connect_to_server(server->domain_name, server->port);
                 message_header.id = UPDATE_FILE;
-                full_filename = make_full_fname(message_header.source, 
+                full_filename = make_full_fname(message_header.source,
                                                 argv[UPDATE_FNAME_ARG]);
                 strcpy(message_header.filename, full_filename);
                 message_header.length = htonl(sb.st_size);
                 write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
                 write_file(sockfd, argv[UPDATE_FNAME_ARG]);
-            }    
+            }
 
             free(server);
             break;
@@ -412,7 +412,7 @@ struct Server *get_server_from_client_wrapper(db_t *db, char *client,
             return NULL;
         }
 
-        server = (struct server_addr *)db_return.result;
+        server = (struct server_addr *) db_return.result;
         retval->port = server->port;
         strcpy(retval->domain_name, server->domain_name);
     } else {

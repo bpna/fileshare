@@ -18,11 +18,6 @@ db_t *connect_to_db(char *owner, char *database) {
     return conn;
 }
 
-void on_db_error(db_t *db, PGresult *res) {
-    PQclear(res);
-    PQfinish(db);
-}
-
 int check_connection(db_t *db) {
     if (PQstatus(db) == CONNECTION_BAD) {
         PQfinish(db);
@@ -38,7 +33,7 @@ enum DB_STATUS exec_command(db_t *db, char *stm) {
     PGresult *res = PQexec(db, stm);
     free(stm);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        on_db_error(db, res);
+        PQclear(res);
         return COMMAND_FAILED;
     }
     PQclear(res);
@@ -55,9 +50,8 @@ enum DB_STATUS create_table(db_t *db, char *tablename, char *columns) {
     PGresult *res = PQexec(db, stm);
     if (PQresultStatus(res) != PGRES_COMMAND_OK &&
         PQresultStatus(res) != PGRES_EMPTY_QUERY) {
-        printf("%d\n", PQresultStatus(res));
         free(stm);
-        on_db_error(db, res);
+        PQclear(res);
         return COMMAND_FAILED;
     }
     PQclear(res);
@@ -68,7 +62,7 @@ enum DB_STATUS create_table(db_t *db, char *tablename, char *columns) {
     res = PQexec(db, stm);
     free(stm);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        on_db_error(db, res);
+        PQclear(res);
         return COMMAND_FAILED;
     }
 
