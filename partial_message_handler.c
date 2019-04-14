@@ -14,7 +14,7 @@ struct PartialMessage {
     struct Header *h;
     int sockfd;
     char data[INIT_BUFFER_LENGTH];
-    int bytes_read;
+    unsigned int bytes_read;
     long last_modified;
     struct PartialMessage *next;
 };
@@ -57,7 +57,6 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
                 int length, char is_file_input) {
     assert(p != NULL);
     assert(length <=FILE_BUFFER_MAX_LEN);
-    int n;
     struct PartialMessage *temp;
 
     if ((temp = find_partial(p, sockfd)) == NULL) {
@@ -96,7 +95,7 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
         temp->last_modified = time(NULL);
         temp->bytes_read += length;
         if (is_file_input == 0){
-            assert(length <=INIT_BUFFER_LENGTH);
+            assert(length <=INIT_BUFFER_LENGTH - temp->bytes_read);
             memcpy(&(temp->data[temp->bytes_read - length]), buffer, length);
             if (temp->bytes_read == temp->h->length){
                 bzero(buffer, length);
@@ -109,6 +108,7 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
         else
             return save_buffer(temp->h->filename, buffer, length, temp->h->length);
     }
+    return 0;
 }
 
 

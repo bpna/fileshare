@@ -9,8 +9,6 @@
 #include "cspairs.h"
 #include "servertable.h"
 
-struct server_addr *find_server(db_t *db, char *client);
-
 struct db_return get_server_from_client(db_t *db, char *client) {
     if (check_connection(db))
         return generate_dbr(CORRUPTED, NULL);
@@ -23,7 +21,7 @@ struct db_return get_server_from_client(db_t *db, char *client) {
     free(stm);
 
     if (PQntuples(res) == 0)
-        return generate_dbr(SUCCESS, find_server(db, client));
+        return generate_dbr(ELEMENT_NOT_FOUND, NULL);
 
     struct server_addr *addr =
         (struct server_addr *) malloc(sizeof (struct server_addr));
@@ -59,9 +57,4 @@ int client_exists(db_t *db, char *client) {
     PQclear(res);
 
     return result;
-}
-
-struct server_addr *find_server(db_t *db, char *client) {
-    // TODO: write to operator asking for server info and receive info
-    return NULL;
 }

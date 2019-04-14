@@ -15,8 +15,8 @@ enum DB_STATUS add_server(db_t *db, struct server_addr *addr) {
     //TODO: check if port-domain pair is in db
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "INSERT INTO servers VALUES(%d, %d, '%s', 0, 0)",
-            addr->id, addr->port, addr->domain_name);
+    sprintf(stm, "INSERT INTO servers VALUES('%s', %d, '%s', 0, 0)",
+            addr->name, addr->port, addr->domain_name);
 
     return exec_command(db, stm);
 }
@@ -46,13 +46,12 @@ struct db_return clients_served_by(db_t *db, struct server_addr *addr) {
 }
 
 struct db_return least_populated_server(db_t *db) {
-    if (check_connection(db))
+    if (check_connection(db)) {
         return generate_dbr(CORRUPTED, NULL);
+    }
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm,
-        "SELECT port, domain, COUNT(*) FROM cspairs \
-         GROUP BY port, domain ORDER BY 2 ASC;");
+    sprintf(stm, "SELECT port, domain, clients FROM servers ORDER BY 2 ASC");
 
     PGresult *res = PQexec(db, stm);
 
@@ -70,7 +69,7 @@ struct db_return least_populated_server(db_t *db) {
     free(stm);
     PQclear(res);
 
-    return generate_dbr(get_server_id(db, addr), addr);
+    return generate_dbr(get_server_name(db, addr), addr);
 }
 
 enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
@@ -96,7 +95,7 @@ enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
     res = PQexec(db, stm);
     free(stm);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-        on_db_error(db, res);
+        PQclear(res);
         return COMMAND_FAILED;
     }
 
@@ -105,14 +104,14 @@ enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
     return SUCCESS;
 }
 
-enum DB_STATUS get_server_id(db_t *db, struct server_addr *addr) {
+enum DB_STATUS get_server_name(db_t *db, struct server_addr *addr) {
     char *stm;
     PGresult *res;
     if (check_connection(db))
         return CORRUPTED;
 
     stm = calloc(350, sizeof (char));
-    sprintf(stm, "SELECT id FROM servers WHERE port=%d AND domain='%s'",
+    sprintf(stm, "SELECT name FROM servers WHERE port=%d AND domain='%s'",
             addr->port, addr->domain_name);
     res = PQexec(db, stm);
     free(stm);
@@ -120,8 +119,7 @@ enum DB_STATUS get_server_id(db_t *db, struct server_addr *addr) {
     if (PQntuples(res) == 0)
         return ELEMENT_NOT_FOUND;
 
-    addr->id = atoi(PQgetvalue(res, 0, 0));
-
+    strcpy(addr->name, PQgetvalue(res, 0, 0));
     PQclear(res);
 
     return SUCCESS;

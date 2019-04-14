@@ -15,8 +15,10 @@
 */
 int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long filelen){
 
-    if (buf_len > FILE_BUFFER_MAX_LEN)
+    if (buf_len > FILE_BUFFER_MAX_LEN){
+        fprintf(stderr, "ERROR: too many bytes passed to save_buffer function\n" );
         return -1;
+    }
     //creates temporary fname
     char temp_fname[strlen(fname) + 2];
     strcpy(temp_fname, fname);
@@ -25,14 +27,17 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
 
     unsigned long current_filelen;
     FILE *fp = fopen(temp_fname, "ab");
+    if (fp == NULL){
+        fprintf(stderr, "Error: could not open file pointer in save_buffer. THis is likely bc the folder was not created\n", );
+
+        return -1;
+    }
+    
     current_filelen = ftell(fp);
-    // fprintf(stderr, "file length is %lu\n", current_filelen);
 
     fwrite(buffer, 1, buf_len, fp);
     fclose(fp);
 
-//    fprintf(stderr, "current_filelen is %lu\nbuf_len is %d\n", current_filelen, buf_len);
-  //  fprintf(stderr, "filelen is %lu\n", filelen);
     if (current_filelen + buf_len == filelen){
         remove(fname);
         rename(temp_fname, fname);

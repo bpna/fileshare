@@ -5,6 +5,8 @@
 #include <strings.h>
 #include <netdb.h>
 
+#define FILE_BUFFER_MAX_LEN 10000
+
 void error(const char *msg) {
     perror(msg);
     exit(0);
@@ -49,7 +51,7 @@ int connect_to_server(char *fqdn, int portno) {
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr,
+    bcopy((char *)server->h_addr_list[0],
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(portno);
@@ -76,7 +78,7 @@ int write_message(int csock, char *data, int length) {
 int write_file(int csock, char *filename)
 {
     FILE *fp = fopen(filename, "rb");
-    char bytes[RW_LENGTH];
+    char bytes[FILE_BUFFER_MAX_LEN];
     long filelen;
     int to_write, bytes_written = 0;
 
@@ -85,16 +87,17 @@ int write_file(int csock, char *filename)
     rewind(fp);
 
     while (bytes_written < filelen) {
-        if (filelen - bytes_written < RW_LENGTH) {
+        if (filelen - bytes_written < FILE_BUFFER_MAX_LEN) {
             to_write = filelen - bytes_written;
         } else {
-            to_write = RW_LENGTH;
+            to_write = FILE_BUFFER_MAX_LEN;
         }
 
         fread(bytes, 1, to_write, fp);
         write_message(csock, bytes, to_write);
         bytes_written += to_write;
     }
+    fclose(fp);
 
     return 0;
 }

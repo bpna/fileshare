@@ -7,14 +7,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <postgresql/libpq-fe.h>
+#include <libpq-fe.h>
 
 #define db_t PGconn
 
 #ifndef DB_STRUCTS
 #define DB_STRUCTS
 struct server_addr {
-    int id;
+    char name[20];
     short port;
     char domain_name[64];
 };
@@ -35,8 +35,6 @@ struct db_return {
 #endif
 
 db_t *connect_to_db(char *owner, char *database);
-
-void on_db_error(db_t *db, PGresult *res);
 
 int check_connection(db_t *db);
 
