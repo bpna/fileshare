@@ -28,7 +28,7 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
     unsigned long current_filelen;
     FILE *fp = fopen(temp_fname, "ab");
     if (fp == NULL){
-        fprintf(stderr, "Error: could not open file pointer in save_buffer. THis is likely bc the folder was not created\n", );
+        fprintf(stderr, "Error: could not open file pointer in save_buffer. THis is likely bc the folder was not created\n");
 
         return -1;
     }

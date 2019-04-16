@@ -97,7 +97,7 @@ int write_file(int csock, char *filename)
         write_message(csock, bytes, to_write);
         bytes_written += to_write;
     }
-    fclose(fp);
 
+    fclose(fp);
     return 0;
 }

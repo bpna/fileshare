@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
     timeout.tv_sec = 3600;
     timeout.tv_usec = 0;
 
+    //if (USE_DB) {
     db = connect_to_db(DB_OWNER, DB_NAME);
     if (create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, \
                                      PORT SMALLINT, Domain VARCHAR(255), \
