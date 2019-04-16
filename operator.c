@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     int master_socket, csock, max_fd, rv, sockfd, status;
     socklen_t clilen;
     fd_set master_fd_set, copy_fd_set;
-    struct sockaddr_in serv_addr, cli_addr;
+    struct sockaddr_in cli_addr;
     struct timeval timeout;
     struct PartialMessageHandler *handler = init_partials();
     db_t *db = NULL;
@@ -230,16 +230,16 @@ int new_client(struct Header *h, int sockfd) {
 }
 
 int send_client_exists_ack(int sockfd, char *username) {
-    int len, n;
+    int len;
     struct Header outgoing_message;
 
     outgoing_message.id = ERROR_CLIENT_EXISTS;
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     len = strlen(username);
     outgoing_message.length = htonl(len);
-    n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+    write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
 
-    n = write_message(sockfd, username, len);
+    write_message(sockfd, username, len);
     return DISCONNECTED;
 }
 
@@ -263,6 +263,7 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
 }
 
 int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm) {
+    (void) pm;
     db_t *db;
     struct db_return dbr;
     struct server_addr *server;
@@ -277,7 +278,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
     dbr = get_server_from_client(db, h->filename);
     close_db_connection(db);
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
-    
+
 
     if (dbr.status == ELEMENT_NOT_FOUND) {
         outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
@@ -307,7 +308,7 @@ int new_server(struct Header *h, int sockfd) {
     db_t *db;
     enum DB_STATUS dbs;
     struct server_addr server;
-    int n;
+    uint32_t n;
     struct Header outgoing_message;
     char  *token;
     char buffer[512];

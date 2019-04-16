@@ -158,7 +158,7 @@ char valid_fname(char *fname) {
 //returns DISCONNECT on succesfull read OR Error, returns 0 on partial read
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
-    int bytesToRead = FILE_BUFFER_MAX_LEN;
+    uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
 
     int bytesRead = get_bytes_read(handler, sockfd);
@@ -199,7 +199,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
         sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
         return DISCONNECT;
     }
-    
+
 
     return 0;
 }
@@ -208,7 +208,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 // overwrites current file and sends an ACK
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
-    int bytesToRead = FILE_BUFFER_MAX_LEN;
+    uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
     int bytesRead = get_bytes_read(handler, sockfd);
 
