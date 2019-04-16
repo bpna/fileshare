@@ -309,7 +309,7 @@ int new_server(struct Header *h, int sockfd) {
     db_t *db;
     enum DB_STATUS dbs;
     struct server_addr server;
-    uint32_t n;
+    int n;
     struct Header outgoing_message;
     char  *token;
     char buffer[512];
@@ -319,7 +319,7 @@ int new_server(struct Header *h, int sockfd) {
     strcpy(server.name, h->source);
 
     n = read(sockfd, buffer, h->length);
-    if (n < h->length)
+    if (n < (int) h->length)
         return 1;
     token = strtok(buffer, ":");
     strcpy(server.domain_name, token);
