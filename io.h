@@ -7,8 +7,8 @@
  * write messages to open sockets
  */
 
+void error(const char *msg);
 int open_and_bind_socket(int portno);
 int connect_to_server(char *fqdn, int portno);
 int write_message(int csock, char *data, int length);
 int write_file(int csock, char *filename);
-void error(const char *msg);
