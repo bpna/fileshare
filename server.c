@@ -45,6 +45,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler);
 void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername);
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler* handler);
+char has_permissions(enum message_type message_id, struct Header *h);
 
 //ARGV arguments
 //      port number to run on
@@ -178,6 +179,14 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
+    if (!has_permissions(UPLOAD_FILE, msgHeader)){
+        fprintf(stderr, "tried to uplaod file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
+
     //if number of bytes left to read < 100000
     if (msgHeader->length  - bytesRead < bytesToRead)
         bytesToRead = msgHeader->length  - bytesRead;
@@ -220,6 +229,13 @@ char update_file(int sockfd, struct Header *msgHeader,
     if (access( msgHeader->filename, F_OK ) == -1) {
         fprintf(stderr, "tried to upload file that existed\n");
         sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
+    if (!has_permissions(UPDATE_FILE, msgHeader)){
+        fprintf(stderr, "tried to update file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -423,4 +439,30 @@ void connect_to_operator(char *domainName, int operator_portno, int server_portn
         error("unknown error connecting operator, please try again");
 
     return;
+}
+
+/*
+ * A function that determines if a client has proper read/write access to the file
+ * he is reqesting to download, upload, or modify.
+ *
+ * Arguments: 
+ *      message_id: the action the client is performing
+ *      h: the request header
+ *
+ * Returns 1 if client has correct permissions, 0 elsewhere
+ */
+char has_permissions(enum message_type message_id, struct Header *h){
+    char file_owner[SOURCE_FIELD_LENGTH];
+    char fname[FILENAME_FIELD_LENGTH];
+    char *file_owner;
+
+    memcpy(fname, h->filename, FILENAME_FIELD_LENGTH);
+    file_owner = strtok(fname, "/");
+
+    if (message_id == REQUEST_FILE)
+        return 1;
+
+    //if the file owner is the
+    strcmp(file_owner, h->source) ? return 0 : return 1;
+
 }
