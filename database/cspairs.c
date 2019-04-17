@@ -9,6 +9,11 @@
 #include "cspairs.h"
 #include "servertable.h"
 
+enum DB_STATUS create_cspairs_table(db_t *db, char drop_existing) {
+    return create_table(db, "cspairs", "Name VARCHAR(20), Port SMALLINT, \
+                                        Domain VARCHAR(255)", drop_existing);
+}
+
 struct db_return get_server_from_client(db_t *db, char *client) {
     if (check_connection(db))
         return generate_dbr(CORRUPTED, NULL);

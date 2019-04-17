@@ -8,6 +8,13 @@
 #include <string.h>
 #include "servertable.h"
 
+enum DB_STATUS create_server_table(db_t *db, char drop_existing) {
+    return create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, \
+                                       PORT SMALLINT, Domain VARCHAR(255), \
+                                       Clients INT, Stored_Bytes BIGINT",
+                        drop_existing);
+}
+
 enum DB_STATUS add_server(db_t *db, struct server_addr *addr) {
     if (check_connection(db))
         return CORRUPTED;

@@ -19,6 +19,8 @@ struct file_info {
 };
 #endif
 
+enum DB_STATUS create_file_table(db_t *db, char drop_existing);
+
 enum DB_STATUS add_file(db_t *db, char *client, char *pass,
                         struct file_info file);
 

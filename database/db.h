@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <libpq-fe.h>
+#include "../io.h"
 
 #define db_t PGconn
 
@@ -40,7 +41,8 @@ int check_connection(db_t *db);
 
 enum DB_STATUS exec_command(db_t *db, char *stm);
 
-enum DB_STATUS create_table(db_t *db, char *tablename, char *columns);
+enum DB_STATUS create_table(db_t *db, char *tablename, char *columns,
+                            char drop_existing);
 
 enum DB_STATUS drop_table(db_t *db, char *tablename);
 

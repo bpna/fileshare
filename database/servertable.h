@@ -7,6 +7,8 @@
 
 #include "db.h"
 
+enum DB_STATUS create_server_table(db_t *db, char drop_existing);
+
 enum DB_STATUS add_server(db_t *db, struct server_addr *addr);
 
 struct db_return clients_served_by(db_t *db, struct server_addr *addr);

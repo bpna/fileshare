@@ -49,6 +49,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in cli_addr;
     struct timeval timeout;
     struct PartialMessageHandler *handler = init_partials();
+    enum DB_STATUS dbs;
     db_t *db = NULL;
 
     if (argc < 2) {
@@ -68,12 +69,11 @@ int main(int argc, char *argv[]) {
 
     //if (USE_DB) {
     db = connect_to_db(DB_OWNER, DB_NAME);
-    if (create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, \
-                                     PORT SMALLINT, Domain VARCHAR(255), \
-                                     Clients INT, Stored_Bytes BIGINT"))
+    dbs = create_server_table(db, 1);
+    if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
         error("ERROR creating server table");
-    if (create_table(db, "cspairs", "Name VARCHAR(20) PRIMARY KEY, \
-                                     Port SMALLINT, Domain VARCHAR(255)"))
+    dbs = create_cspairs_table(db, 1);
+    if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
         error("ERROR creating cspairs table");
 
     while (1) {

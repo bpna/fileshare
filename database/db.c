@@ -40,28 +40,48 @@ enum DB_STATUS exec_command(db_t *db, char *stm) {
     return SUCCESS;
 }
 
-enum DB_STATUS create_table(db_t *db, char *tablename, char *columns) {
+enum DB_STATUS create_table(db_t *db, char *tablename, char *columns,
+                            char drop_existing) {
+    PGresult *res;
+    char *stm;
     if (check_connection(db))
         return CORRUPTED;
 
-    char *stm = calloc(22 + strlen(tablename), sizeof (char));
-    sprintf(stm, "DROP TABLE IF EXISTS %s", tablename);
-
-    PGresult *res = PQexec(db, stm);
-    if (PQresultStatus(res) != PGRES_COMMAND_OK &&
-        PQresultStatus(res) != PGRES_EMPTY_QUERY) {
+    if (drop_existing && drop_table(db, tablename))
+        error("ERROR dropping table");
+    else if (!drop_existing) {
+        stm = calloc(6 + strlen(tablename), sizeof (char));
+        sprintf(stm, "TABLE %s", tablename);
+        res = PQexec(db, stm);
         free(stm);
+        if (PQresultStatus(res) == PGRES_TUPLES_OK) {
+            PQclear(res);
+            return ELEMENT_ALREADY_EXISTS;
+        }
         PQclear(res);
-        return COMMAND_FAILED;
     }
-    PQclear(res);
 
-    stm = realloc(stm,
-                  sizeof (char) * ((16 + strlen(tablename) + strlen(columns))));
+    stm = calloc(16 + strlen(tablename) + strlen(columns), sizeof (char));
     sprintf(stm, "CREATE TABLE %s(%s)", tablename, columns);
     res = PQexec(db, stm);
     free(stm);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        PQclear(res);
+        return COMMAND_FAILED;
+    }
+
+    PQclear(res);
+    return SUCCESS;
+}
+
+enum DB_STATUS drop_table(db_t *db, char *tablename) {
+    char *stm = calloc(22 + strlen(tablename), sizeof (char));
+    sprintf(stm, "DROP TABLE IF EXISTS %s", tablename);
+
+    PGresult *res = PQexec(db, stm);
+    free(stm);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK &&
+        PQresultStatus(res) != PGRES_EMPTY_QUERY) {
         PQclear(res);
         return COMMAND_FAILED;
     }

@@ -7,6 +7,8 @@
 
 #include "db.h"
 
+enum DB_STATUS create_cspairs_table(db_t *db, char drop_existing);
+
 struct db_return get_server_from_client(db_t *db, char *client);
 
 enum DB_STATUS add_cspair(db_t *db, char *client, struct server_addr *server);
