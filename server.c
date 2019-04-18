@@ -431,8 +431,10 @@ void connect_to_operator(char *domainName, int operator_portno, int server_portn
 
     struct Header *headerBuf = (void *) buffer;
     enum message_type message_id = headerBuf->id;
-    if (message_id == NEW_SERVER_ACK)
+    if (message_id == NEW_SERVER_ACK){
+        fprintf(stderr, "successfully connected to operator\n" );
         return;
+    }
     else if (message_id == ERROR_SERVER_EXISTS)
         error("inputted servername already exists");
     else
@@ -452,9 +454,8 @@ void connect_to_operator(char *domainName, int operator_portno, int server_portn
  * Returns 1 if client has correct permissions, 0 elsewhere
  */
 char has_permissions(enum message_type message_id, struct Header *h){
-    char file_owner[SOURCE_FIELD_LENGTH];
-    char fname[FILENAME_FIELD_LENGTH];
     char *file_owner;
+    char fname[FILENAME_FIELD_LENGTH];
 
     memcpy(fname, h->filename, FILENAME_FIELD_LENGTH);
     file_owner = strtok(fname, "/");
@@ -462,7 +463,6 @@ char has_permissions(enum message_type message_id, struct Header *h){
     if (message_id == REQUEST_FILE)
         return 1;
 
-    //if the file owner is the
-    strcmp(file_owner, h->source) ? return 0 : return 1;
-
+    //if the file owner is the person making the changes
+    return (strcmp(file_owner, h->source) == 0)?  1 : 0;
 }

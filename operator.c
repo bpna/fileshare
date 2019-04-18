@@ -25,7 +25,7 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define DB_OWNER "nathan"
+#define DB_OWNER "jfeldz"
 #define DB_NAME "fileshare"
 #define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
