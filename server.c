@@ -188,7 +188,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
 
     //if number of bytes left to read < 100000
-    if (msgHeader->length  - bytesRead < bytesToRead)
+    if (msgHeader->length - bytesRead < bytesToRead)
         bytesToRead = msgHeader->length  - bytesRead;
 
     int n = read(sockfd, buffer, bytesToRead);
@@ -222,7 +222,7 @@ char update_file(int sockfd, struct Header *msgHeader,
     int bytesRead = get_bytes_read(handler, sockfd);
 
     //if number of bytes left to read < 100000
-    if (msgHeader->length  - bytesRead < bytesToRead)
+    if (msgHeader->length - bytesRead < bytesToRead)
         bytesToRead = msgHeader->length  - bytesRead;
 
     //if file does not exist, send ERROR_CODE and disconnect

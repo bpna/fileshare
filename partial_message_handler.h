@@ -45,7 +45,7 @@ struct PartialMessageHandler * init_partials();
  * if is_file_input != 0, the buffer is written to disk.
  */
 int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
-                uint32_t length, char is_file_inpnut);
+                int length, char is_file_inpnut);
 
 int get_partial_header(struct PartialMessageHandler *p, int sockfd,
                      char *headerBuf);

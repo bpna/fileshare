@@ -9,6 +9,11 @@
 #include "filetable.h"
 #include "cppairs.h"
 
+enum DB_STATUS create_file_table(db_t *db, char drop_existing) {
+    return create_table(db, "files", "Filename VARCHAR(100), Owner VARCHAR(20), \
+                                      Size INT", drop_existing);
+}
+
 enum DB_STATUS add_file(db_t *db, char *client, char *pass,
                         struct file_info file) {
     if (check_connection(db))

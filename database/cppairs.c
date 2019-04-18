@@ -8,6 +8,11 @@
 #include <string.h>
 #include "cppairs.h"
 
+enum DB_STATUS create_cppairs_table(db_t *db, char drop_existing) {
+    return create_table(db, "cppairs", "Client VARCHAR(20) PRIMARY KEY, \
+                                        Password VARCHAR(20)", drop_existing);
+}
+
 enum DB_STATUS add_cppair(db_t *db, char *client, char *pass) {
     if (check_connection(db))
         return CORRUPTED;
