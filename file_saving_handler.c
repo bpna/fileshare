@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "file_saving_handler.h"
 
-/* purpose: right a file to disk of filename "fname", appended by a ~ to 
+/* purpose: right a file to disk of filename "fname", appended by a ~ to
 *   indicate it is a temporary file. If the function writes the last buffer for that
 *   file, it removes the ~ from the filename and returns 1. -1 is returned on failure. Else, it returns 0
 * Arguments:
@@ -28,11 +28,11 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
     unsigned long current_filelen;
     FILE *fp = fopen(temp_fname, "ab");
     if (fp == NULL){
-        fprintf(stderr, "Error: could not open file pointer in save_buffer. THis is likely bc the folder was not created\n", );
+        fprintf(stderr, "Error: could not open file pointer in save_buffer. This is likely bc the folder was not created\n");
 
         return -1;
     }
-    
+
     current_filelen = ftell(fp);
 
     fwrite(buffer, 1, buf_len, fp);
