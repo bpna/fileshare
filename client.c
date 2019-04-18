@@ -17,7 +17,7 @@
 #define MAX_MSG_SIZE 450
 #define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
-#define USE_DB 0
+#define USE_DB 1
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 #define REQUEST_TYPE_ARG 1
@@ -325,7 +325,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     if (m <= 0) {
                         error("ERROR reading from socket");
                     }
-                } while(save_buffer(message_header.filename, file_buffer, m, 
+                } while(save_buffer(message_header.filename, file_buffer, m,
                                     message_header.length) == 0);
 
             }
