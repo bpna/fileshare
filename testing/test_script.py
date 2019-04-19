@@ -7,11 +7,8 @@ import threading
 operator_port = '9054'
 
 def pre_process():
-    subprocess.run(['rm', '-vrf', '!("test_script.py")'])
+    subprocess.run(['rm', '-vrf', '!("test_script.py"|"test_init.py")'])
     subprocess.run(['mkdir', 'serv_one'])
-    #BELOW LINE IS TEMPORARY: TAKE OUT ONCE YOU GET MKDIR FUNCTION IN C RUNNING
-    subprocess.run(['mkdir', 'serv_one/cli_one'])
-    #ABOVE LINE IS TEMP
 
     subprocess.run(['mkdir', 'serv_two'])
     subprocess.run(['mkdir', 'cli_one'])
@@ -33,13 +30,13 @@ def run_operator():
 
 def run_server(server_name, portno):
     file = open("./output/{0}_output.txt".format(server_name), "w")
-    subprocess.run(['{0}/server'.format(server_name), portno,server_name,'localhost', operator_port], stderr=subprocess.STDOUT, stdout=file)
+    subprocess.run(['./server'.format(server_name), portno,server_name,'localhost', operator_port], stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(server_name))
     file.close()
 
 def client_command(client_name):
-    input_arr = ['{0}/client'.format(client_name), 'new_client', 'localhost', operator_port, client_name, 'password' ]
+    input_arr = ['./client', 'new_client', 'localhost', operator_port, client_name + 'r', 'password' ]
     file = open("./output/{0}_output.txt".format(client_name), "a")
-    subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file)
+    subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
 
     input_arr[1] = 'upload_file'
@@ -47,7 +44,7 @@ def client_command(client_name):
     #cli one uploads
     if (client_name == 'cli_one'):
         file = open("./output/{0}_output.txt".format(client_name), "a")
-        subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file)
+        subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
         file.close()
         
         #cli one downloads, diffs
