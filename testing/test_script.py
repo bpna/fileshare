@@ -9,6 +9,10 @@ operator_port = '9054'
 def pre_process():
     subprocess.run(['rm', '-vrf', '!("test_script.py")'])
     subprocess.run(['mkdir', 'serv_one'])
+    #BELOW LINE IS TEMPORARY: TAKE OUT ONCE YOU GET MKDIR FUNCTION IN C RUNNING
+    subprocess.run(['mkdir', 'serv_one/cli_one'])
+    #ABOVE LINE IS TEMP
+
     subprocess.run(['mkdir', 'serv_two'])
     subprocess.run(['mkdir', 'cli_one'])
     subprocess.run(['mkdir', 'cli_two'])
@@ -32,10 +36,25 @@ def run_server(server_name, portno):
     subprocess.run(['{0}/server'.format(server_name), portno,server_name,'localhost', operator_port], stderr=subprocess.STDOUT, stdout=file)
     file.close()
 
-def client_command(client_name, input_arr):
+def client_command(client_name):
+    input_arr = ['{0}/client'.format(client_name), 'new_client', 'localhost', operator_port, client_name, 'password' ]
     file = open("./output/{0}_output.txt".format(client_name), "a")
     subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file)
     file.close()
+
+    input_arr[1] = 'upload_file'
+    input_arr.append('file.file')
+    #cli one uploads
+    if (client_name == 'cli_one'):
+        file = open("./output/{0}_output.txt".format(client_name), "a")
+        subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file)
+        file.close()
+        
+        #cli one downloads, diffs
+        #cli two downloads, diffs
+        #cli one modifies
+        #cli two downloads, diffs
+
 
 
 
@@ -45,34 +64,14 @@ serv1 = threading.Thread(target=run_server, kwargs = {'server_name': 'serv_one',
 serv2 = threading.Thread(target=run_server, kwargs = {'server_name': 'serv_two', 'portno': '9061'})
 
 #new_client commands
-cli_name = 'cli_one'
-cli_arr = ['{0}/client'.format(cli_name), 'new_client', 'localhost', operator_port, cli_name, 'password' ]
-temp_arr = cli_arr[:]
-cli1_start = threading.Thread(target=client_command, kwargs = {'client_name': 'cli_one', 'input_arr': temp_arr})
-cli_name = 'cli_two'
-cli_arr[0] = '{0}/client'.format(cli_name)
-cli_arr[4] = cli_name
-temp_arr = cli_arr[:]
-cli2_start = threading.Thread(target=client_command, kwargs = {'client_name': 'cli_two', 'input_arr': temp_arr})
-
-
-#cli one uploads
-cli_name = 'cli_one'
-cli_arr[0] = '{0}/client'.format(cli_name)
-cli_arr[4] = cli_name
-cli_arr[1] = 'upload_file'
-cli_arr.append('file.file')
-temp_arr = cli_arr[:]
-cli_one_upload = threading.Thread(target=client_command, kwargs = {'client_name': 'cli_one', 'input_arr': temp_arr})
-
-#cli one downloads, diffs
-#cli two downloads, diffs
-#cli one modifies
-#cli two downloads, diffs
+cli1 = threading.Thread(target=client_command, kwargs = {'client_name': 'cli_one'})
+cli2 = threading.Thread(target=client_command, kwargs = {'client_name': 'cli_two'})
 
 
 
-threads = [op, serv1, serv2, cli1_start, cli2_start, cli_one_upload]
+
+
+threads = [op, serv1, serv2, cli1, cli2]
 
 for thread in threads:
     thread.start()

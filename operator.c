@@ -283,16 +283,19 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
 
     if (dbr.status == ELEMENT_NOT_FOUND) {
         outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
+        outgoing_message.length = 0;
     } else if (dbr.status == SUCCESS) {
         outgoing_message.id = REQUEST_USER_ACK;
         server = (struct server_addr *) dbr.result;
         sprintf(buffer, "%s:%d", server->domain_name, server->port);
+        fprintf(stderr, "in request_user, buffer is  %s\n", buffer);
         len = strlen(buffer);
         outgoing_message.length = htonl(len);
     } else {
         fprintf(stderr, "Error accessing database in function request_user\n" );
     }
 
+    fprintf(stderr, "in request_user, length is %d\n", len);
     n = write(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
     if (n < HEADER_LENGTH){
         fprintf(stderr, "Error writing to socket in function request_user\n" );

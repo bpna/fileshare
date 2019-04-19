@@ -146,7 +146,7 @@ char valid_fname(char *fname) {
         //if NULL character
         if (fname[i] == '\0' && i != 0)
             return 1;
-        if (fname[i] != '-' && fname[i] != '.' &&
+        if (fname[i] != '-' && fname[i] != '_' && fname[i] != '.' &&
             fname[i] != '/' && isalnum(fname[i]) == 0)
             return 0;
     }
@@ -164,7 +164,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     int bytesRead = get_bytes_read(handler, sockfd);
 
-    //if file already exists, send ERROR_CODE and disconnect
+    if file already exists, send ERROR_CODE and disconnect
     if (access(msgHeader->filename, F_OK) != -1) {
         fprintf(stderr, "tried to upload file that existed\n");
         sendHeader(ERROR_FILE_EXISTS, NULL, NULL,
@@ -174,6 +174,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     //TODO: make an error code for "bad filename"
     if (valid_fname(msgHeader->filename) == 0) {
+        fprintf(stderr, "invalid fname led to upload failure\n" );
         sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
@@ -205,6 +206,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
     else if (n < 0){
+        fprintf(stderr, "problem in add_partial led to upload_failure\n" );
         sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
         return DISCONNECT;
     }
