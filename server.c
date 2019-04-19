@@ -399,10 +399,10 @@ int create_client(int sockfd, struct Header *msgHeader,
 
     fprintf(stderr, " username of create_client is %s\npassword of create_client is %s\n",username, password );
 
-    dbs = add_cppair(db, username, password);
+    // dbs = add_cppair(db, username, password);
     close_db_connection(db);
-    if (dbs)
-        return DISCONNECT;
+    // if (dbs)
+    //     return DISCONNECT;
 
     mkdir(username, S_IRWXU);
 

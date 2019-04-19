@@ -157,8 +157,8 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                    server->port,
                                    "parse_and_send_request() - UPLOAD_FILE");
                 close(sockfd);
-            } 
-            
+            }
+
             /* upload the file */
             sockfd = connect_to_server(server->domain_name, server->port);
             message_header.id = UPLOAD_FILE;
@@ -189,8 +189,8 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                    server->port,
                                    "parse_and_send_request() - REQUEST_FILE");
                 close(sockfd);
-            } 
-            
+            }
+
             /* request the file */
             sockfd = connect_to_server(server->domain_name, server->port);
             message_header.id = REQUEST_FILE;
@@ -224,8 +224,8 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                    server->port,
                                    "parse_and_send_request() - UPLOAD_FILE");
                 close(sockfd);
-            } 
-            
+            }
+
             /* upload the file */
             sockfd = connect_to_server(server->domain_name, server->port);
             message_header.id = UPDATE_FILE;
@@ -313,7 +313,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     if (m <= 0) {
                         error("ERROR reading from socket");
                     }
-                } while(save_buffer(message_header.filename, file_buffer, m, 
+                } while(save_buffer(message_header.filename, file_buffer, m,
                                     message_header.length) == 0);
 
             }
