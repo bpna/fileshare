@@ -20,7 +20,7 @@
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
 #define BAD_FILENAME -76
-#define DB_OWNER "nathan"
+#define DB_OWNER "jfeldz"
 #define DB_NAME "fileshare"
 
 //functions to write
@@ -166,7 +166,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     //if file already exists, send ERROR_CODE and disconnect
     if (access(msgHeader->filename, F_OK) != -1) {
-        fprintf(stderr, "tried to upload file that existed\n");
+        fprintf(stderr, "tried to upload file %s that already exists\n", msgHeader->filename);
         sendHeader(ERROR_FILE_EXISTS, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
@@ -175,7 +175,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
     //TODO: make an error code for "bad filename"
     if (valid_fname(msgHeader->filename) == 0) {
         fprintf(stderr, "invalid fname led to upload failure\n" );
-        sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,
+        sendHeader(ERROR_INVALID_FNAME, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -278,9 +278,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader) {
         return DISCONNECT;
     }
 
-    if (valid_fname(msgHeader->filename) == 0){
-        return DISCONNECT;
-    }
     memcpy(buffer, msgHeader->filename, FILENAME_FIELD_LENGTH);
     //TODO: check permissions
     token = strtok(buffer, "/");
@@ -326,6 +323,9 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
             }
         }
     }
+    
+    if (msgHeader->length > 0 && conflicting_upload(msgHeader->filename))
+        return 1;
 
     fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
