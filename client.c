@@ -93,6 +93,17 @@ int check_input_get_msg_id(int argc, char **argv) {
         }
 
         return REQUEST_FILE;
+
+
+    }  else if (strcmp(argv[REQUEST_TYPE_ARG], "checkout_file") == 0) {
+        if (argc != 8) {
+            fprintf(stderr, "usage: %s checkout_file [username] [password] \
+                    [owner-username] [filename]\n", argv[0]);
+            exit(0);
+        }
+
+        return CHECKOUT_FILE; 
+
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "update_file") == 0) {
         if (argc != 8) {
             fprintf(stderr, "usage: %s update_file [username] [password] \
@@ -209,6 +220,38 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
 
             free(server);
             break;
+        case CHECKOUT_FILE:
+            server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
+                                    "parse_and_send_request() - REQUEST_FILE");
+            if (server == NULL) { /* no client/server pairing on client */
+                sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG],
+                                           atoi(argv[OPERATOR_PORT_ARG]));
+                /* get server for file owner from operator */
+                server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
+                                            argv[PASSWORD_ARG], argv[OWNER_ARG]);
+                if (server == NULL) { /* no client/server pairing on operator */
+                    fprintf(stderr, "Server for user %s could not be resolved, \
+                                     exiting\n", argv[OWNER_ARG]);
+                    exit(1);
+                }
+                add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+                                   server->port,
+                                   "parse_and_send_request() - REQUEST_FILE");
+                close(sockfd);
+            } 
+            
+            /* request the file */
+            sockfd = connect_to_server(server->domain_name, server->port);
+            message_header.id = CHECKOUT_FILE;
+            full_filename = make_full_fname(argv[OWNER_ARG],
+                                            argv[REQUEST_FNAME_ARG]);
+            strcpy(message_header.filename, full_filename);
+            write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+
+            free(server);
+            break;
+
+
         case UPDATE_FILE:
             if (stat(argv[UPDATE_FNAME_ARG], &sb) == -1) {
                 fprintf(stderr, "Named file does not exist, exiting\n");
