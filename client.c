@@ -15,6 +15,10 @@
 #include "partial_message_handler.h"
 
 #define RW_LENGTH 10000
+#define NEW_CLIENT_ARG_COUNT 4
+#define UPLOAD_FILE_ARG_COUNT 5
+#define REQUEST_FILE_ARG_COUNT 6
+#define UPDATE_FILE_ARG_COUNT 6
 #define REQUEST_TYPE_ARG 1
 #define OPERATOR_FQDN_ARG 2
 #define OPERATOR_PORT_ARG 3
@@ -91,7 +95,7 @@ struct Server *get_operator_address(char **argv, db_t *db) {
 
 int check_input_get_msg_id(int argc, char **argv) {
     if (strcmp(argv[REQUEST_TYPE_ARG], "new_client") == 0) {
-        if (argc != 6) {
+        if (argc != NEW_CLIENT_ARG_COUNT) {
             fprintf(stderr, "usage: %s new_client [username] [password]\n", 
                     argv[0]);
             exit(0);
@@ -99,7 +103,7 @@ int check_input_get_msg_id(int argc, char **argv) {
 
         return NEW_CLIENT;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "upload_file") == 0) {
-        if (argc != 7) {
+        if (argc != UPLOAD_FILE_ARG_COUNT) {
             fprintf(stderr, "usage: %s upload_file [username] [password] \
                     [filename]\n", argv[0]);
             exit(0);
@@ -107,7 +111,7 @@ int check_input_get_msg_id(int argc, char **argv) {
 
         return UPLOAD_FILE;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_file") == 0) {
-        if (argc != 8) {
+        if (argc != REQUEST_FILE_ARG_COUNT) {
             fprintf(stderr, "usage: %s request_file [username] [password] \
                     [owner-username] [filename]\n", argv[0]);
             exit(0);
@@ -115,13 +119,15 @@ int check_input_get_msg_id(int argc, char **argv) {
 
         return REQUEST_FILE;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "update_file") == 0) {
-        if (argc != 8) {
+        if (argc != UPDATE_FILE_ARG_COUNT) {
             fprintf(stderr, "usage: %s update_file [username] [password] \
                     [owner-username] [filename]\n", argv[0]);
             exit(0);
         }
 
         return UPDATE_FILE;
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_user_list") == 0) {
+        return REQUEST_USER_LIST;
     } else {
         fprintf(stderr, "unknown message type received: %s\n", 
                 argv[REQUEST_TYPE_ARG]);
@@ -209,8 +215,7 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t *db) {
             exit(1);
         }
         add_cspair_wrapper(db, argv[USERNAME_ARG], server->domain_name,
-                           server->port,
-                           "parse_and_send_request() - UPLOAD_FILE");
+                           server->port, "send_upload_file_request()");
         close(sockfd);
     } 
 
