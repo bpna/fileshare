@@ -14,7 +14,6 @@
 #include "database/cspairs.h"
 #include "partial_message_handler.h"
 
-#define RW_LENGTH 10000
 #define NEW_CLIENT_ARG_COUNT 4
 #define UPLOAD_FILE_ARG_COUNT 5
 #define REQUEST_FILE_ARG_COUNT 6
@@ -30,21 +29,28 @@
 #define UPDATE_FNAME_ARG 5
 
 struct Server *get_operator_address(char **argv, db_t *db);
-void read_new_client_ack_payload(int sockfd, struct Header *message_header,
-                                 char *client, db_t *db);
-char *read_error_client_exists_payload(int sockfd,
-                                       struct Header *message_header);
 int check_input_get_msg_id(int argc, char **argv);
 int parse_and_send_request(const enum message_type message_id, char **argv,
                            struct Server *operator, db_t *db);
 int send_new_client_request(char **argv, struct Server *operator);
 int send_upload_file_request(char **argv, struct Server *operator, db_t *db);
-int send_request_file_request(char **argv, struct Server *operator, db_t *db);
+int send_file_request(char **argv, struct Server *operator, db_t *db);
 int send_update_file_request(char **argv, struct Server *operator, db_t *db);
-int process_reply(int sockfd, const enum message_type message_id, char **argv,
-                  db_t *db);
+int send_user_list_request(struct Server *server);
 struct Server *send_recv_user_req(int sockfd, char *user, char *password,
                                   char *file_owner);
+void process_reply(int sockfd, const enum message_type message_id, char **argv,
+                   db_t *db);
+void read_new_client_reply(int sockfd, char **argv, 
+                           struct Header *message_header, db_t *db);
+void read_new_client_ack_payload(int sockfd, struct Header *message_header,
+                                 char *client, db_t *db);
+char *read_error_client_exists_payload(int sockfd,
+                                       struct Header *message_header);
+void read_upload_file_reply(struct Header *message_header);
+void read_update_file_reply(struct Header *message_header);
+void read_request_file_reply(int sockfd, struct Header *message_header);
+void read_user_list_reply(int sockfd, struct Header *message_header);
 char *make_full_fname(char* owner, char *fname);
 
 int main(int argc, char **argv) {
@@ -67,15 +73,19 @@ int main(int argc, char **argv) {
                            atoi(argv[OPERATOR_PORT_ARG]), "main()");
     } else {
         operator = get_operator_address(argv, db);
+        if (operator == NULL) {
+            fprintf(stderr, "ERROR retreiving operator address from \
+                    cspairs\n");
+            exit(1);
+        }
         message_id = check_input_get_msg_id(argc, argv);
         sockfd = parse_and_send_request(message_id, argv, operator, db);
-        if (sockfd == -1) {
-            return 1;
-        }
         process_reply(sockfd, message_id, argv, db);
 
+        free(operator);
         close(sockfd);
     }
+
     return 0;
 }
 
@@ -162,10 +172,13 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             sockfd = send_upload_file_request(argv, operator, db);
             break;
         case REQUEST_FILE:
-            sockfd = send_request_file_request(argv, operator, db);
+            sockfd = send_file_request(argv, operator, db);
             break;
         case UPDATE_FILE:
             sockfd = send_update_file_request(argv, operator, db);
+            break;
+        case REQUEST_USER_LIST:
+            sockfd = send_user_list_request(operator);
             break;
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
@@ -236,7 +249,7 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t *db) {
     return sockfd;
 }
 
-int send_request_file_request(char **argv, struct Server *operator, db_t *db) {
+int send_file_request(char **argv, struct Server *operator, db_t *db) {
     int sockfd;
     struct Header message_header;
     struct Server *server;
@@ -324,86 +337,16 @@ int send_update_file_request(char **argv, struct Server *operator, db_t *db) {
     return sockfd;
 }
 
-int process_reply(int sockfd, const enum message_type message_id, char **argv,
-        db_t *db) 
-{
-    int n, m;
-    char *clientbuf;
-    char header_buffer[HEADER_LENGTH];
+int send_user_list_request(struct Server *operator) {
+    int sockfd;
     struct Header message_header;
-    char file_buffer[RW_LENGTH];
 
-    n = 0;
-    while (n < HEADER_LENGTH) {
-        m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
-        if (m < 0) {
-            error("ERROR reading from socket");
-        }
-        n += m;
-    }
-    memcpy(&message_header, header_buffer, HEADER_LENGTH);
-    message_header.length = ntohl(message_header.length);
+    sockfd = connect_to_server(operator->domain_name, operator->port);
+    bzero(&message_header, sizeof(message_header));
+    message_header.id = REQUEST_USER_LIST;
+    write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
 
-    switch (message_id) {
-        case NEW_CLIENT:
-            if (message_header.id == NEW_CLIENT_ACK) {
-                read_new_client_ack_payload(sockfd, &message_header, argv[4],
-                                            db);
-                printf("Client %s successfully added\n", argv[4]);
-            } else if (message_header.id == ERROR_CLIENT_EXISTS) {
-                clientbuf = read_error_client_exists_payload(sockfd,
-                                                             &message_header);
-                printf("Client %s already exists\n", clientbuf);
-                free(clientbuf);
-            } else {
-                fprintf(stderr, "Bad response type %d received from router",
-                        message_header.id);
-            }
-
-            break;
-        case UPLOAD_FILE:
-            if (message_header.id == UPLOAD_ACK) {
-                printf("File %s successfully uploaded\n",
-                       message_header.filename);
-            } else if (message_header.id == ERROR_FILE_EXISTS) {
-                printf("File %s already exists\n", message_header.filename);
-            } else if (message_header.id == ERROR_UPLOAD_FAILURE) {
-                printf("File %s failed to upload\n", message_header.filename);
-            }
-
-            break;
-        case UPDATE_FILE:
-            if (message_header.id == UPDATE_ACK)
-                printf("File %s successfully updated\n",
-                       message_header.filename);
-            else if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
-                printf("File %s already exists\n", message_header.filename);
-            else if (message_header.id == ERROR_BAD_PERMISSIONS)
-                printf("Invalid permissions for %s\n",
-                       message_header.filename);
-            break;
-        case REQUEST_FILE:
-
-            if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
-               printf("File %s already exists\n", message_header.filename);
-            else if (message_header.id == RETURN_FILE){
-                do{
-                    m = read(sockfd, file_buffer, RW_LENGTH);
-                    if (m <= 0) {
-                        error("ERROR reading from socket");
-                    }
-                } while(save_buffer(message_header.filename, file_buffer, m, 
-                                    message_header.length) == 0);
-
-            }
-            else
-                printf("Unknown error when requesting file \n");
-
-            break;
-        default:
-            break;
-    }
-    return 0;
+    return sockfd;
 }
 
 /*
@@ -482,6 +425,62 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     }
 }
 
+void process_reply(int sockfd, const enum message_type message_id, char **argv,
+                   db_t *db) {
+    int n, m;
+    char header_buffer[HEADER_LENGTH];
+    struct Header message_header;
+
+    n = 0;
+    while (n < HEADER_LENGTH) {
+        m = read(sockfd, &header_buffer[n], HEADER_LENGTH - n);
+        if (m < 0) {
+            error("ERROR reading from socket");
+        }
+        n += m;
+    }
+    bzero(&message_header, sizeof(message_header));
+    memcpy(&message_header, header_buffer, HEADER_LENGTH);
+    message_header.length = ntohl(message_header.length);
+
+    switch (message_id) {
+        case NEW_CLIENT:
+            read_new_client_reply(sockfd, argv, &message_header, db);
+            break;
+        case UPLOAD_FILE:
+            read_upload_file_reply(&message_header);
+            break;
+        case UPDATE_FILE:
+            read_update_file_reply(&message_header);
+            break;
+        case REQUEST_FILE:
+            read_request_file_reply(sockfd, &message_header);
+            break;
+        case REQUEST_USER_LIST:
+            read_user_list_reply(sockfd, &message_header);
+            break;
+    }
+    return 0;
+}
+
+void read_new_client_reply(int sockfd, char **argv, 
+                           struct Header *message_header, db_t *db) {
+    char *clientbuf;
+
+    if (message_header->id == NEW_CLIENT_ACK) {
+        read_new_client_ack_payload(sockfd, message_header, 
+                                    argv[USERNAME_ARG], db);
+        printf("Client %s successfully added\n", argv[USERNAME_ARG]);
+    } else if (message_header->id == ERROR_CLIENT_EXISTS) {
+        clientbuf = read_error_client_exists_payload(sockfd, message_header);
+        printf("Client %s already exists\n", clientbuf);
+        free(clientbuf);
+    } else {
+        fprintf(stderr, "Bad response type %d received from router",
+                message_header->id);
+    }
+}
+
 void read_new_client_ack_payload(int sockfd, struct Header *message_header,
                                  char *client, db_t *db) {
     int length = message_header->length;
@@ -543,6 +542,75 @@ char *read_error_client_exists_payload(int sockfd,
     client_name[length] = '\0';
 
     return client_name;
+}
+
+void read_upload_file_reply(struct Header *message_header) {
+    if (message_header->id == UPLOAD_ACK)
+        printf("File %s successfully uploaded\n", message_header->filename);
+    else if (message_header->id == ERROR_FILE_EXISTS)
+        printf("File %s already exists\n", message_header->filename);
+    else if (message_header->id == ERROR_UPLOAD_FAILURE)
+        printf("File %s failed to upload\n", message_header->filename);
+    else
+        fprintf(stderr, "Bad response type %d received from router",
+                message_header->id);
+}
+
+void read_update_file_reply(struct Header *message_header) {
+    if (message_header->id == UPDATE_ACK)
+        printf("File %s successfully updated\n", message_header->filename);
+    else if (message_header->id == ERROR_FILE_DOES_NOT_EXIST)
+        printf("File %s already exists\n", message_header->filename);
+    else if (message_header->id == ERROR_BAD_PERMISSIONS)
+        printf("Invalid permissions for %s\n", message_header->filename);
+    else
+        fprintf(stderr, "Bad response type %d received from router",
+                message_header->id);
+}
+
+void read_request_file_reply(int sockfd, struct Header *message_header) {
+    int n;
+    char file_buffer[FILE_BUFFER_MAX_LEN];
+
+    if (message_header->id == ERROR_FILE_DOES_NOT_EXIST)
+        printf("File %s does not exist\n", message_header->filename);
+    else if (message_header->id == RETURN_FILE) {
+        do {
+            n = read(sockfd, file_buffer, FILE_BUFFER_MAX_LEN);
+            if (n < 0)
+                error("ERROR reading from socket");
+            else if (n == 0) {
+                fprintf(stderr, "server closed connection prematurely\n");
+                exit(1);
+            }
+        } while(save_buffer(message_header->filename, file_buffer, n, 
+                    message_header->length) == 0);
+    }
+    else
+        fprintf(stderr, "Bad response type %d received from router",
+                message_header->id);
+}
+
+// TODO: make sure adding partials works here
+void read_user_list_reply(int sockfd, struct Header *message_header) {
+    int n;
+    char file_buffer[RW_LENGTH];
+
+    else if (message_header->id == REQUEST_USER_LIST_ACK) {
+        do {
+            n = read(sockfd, file_buffer, RW_LENGTH);
+            if (n < 0)
+                error("ERROR reading from socket");
+            else if (n == 0) {
+                fprintf(stderr, "server closed connection prematurely\n");
+                exit(1);
+            }
+        } while(add_partial(message_header->filename, file_buffer, n, 
+                            message_header->length) == 0);
+    }
+    else
+        fprintf(stderr, "Bad response type %d received from router",
+                message_header->id);
 }
 
 /* Purpose: creates a filename in format "file-owner/filename" so as to be

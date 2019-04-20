@@ -1,9 +1,3 @@
-#include "file_saving_handler.h"
-#include <sys/select.h>
-#include <strings.h>
-#define INIT_BUFFER_LENGTH 512
-#define MINUTE 60000
-
 /*
  * 03/31/2019
  * COMP 112 Final Project
@@ -21,6 +15,11 @@
  * a NULL PartialMessageHandler * to any function in the interface.
  */
 
+#include "file_saving_handler.h"
+#include <sys/select.h>
+#include <strings.h>
+#define INIT_BUFFER_LENGTH 512
+#define MINUTE 60000
 
 /*
  * Call this function before calling other functions in the interface.
