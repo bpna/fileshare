@@ -326,6 +326,9 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
             }
         }
     }
+    
+    if (msgHeader->length > 0 && conflicting_upload(msgHeader->filename))
+        return 1;
 
     fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
