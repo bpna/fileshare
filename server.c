@@ -40,7 +40,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
-int handle_file_request(int sockfd, struct Header *msgHeader);
+int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
 int handle_request(int sockfd, struct PartialMessageHandler *handler);
 void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername);
 int create_client(int sockfd, struct Header *msgHeader,
@@ -172,7 +172,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    //TODO: make an error code for "bad filename"
     if (valid_fname(msgHeader->filename) == 0) {
         fprintf(stderr, "invalid fname led to upload failure\n" );
         sendHeader(ERROR_INVALID_FNAME, NULL, NULL,
@@ -261,15 +260,17 @@ char update_file(int sockfd, struct Header *msgHeader,
 
 /*
  * purpose: handles a request for a file from a client. If user has proper permissions
- *  and the request is valid, sends back the RETURN_FILE header and file
+ *  and the request is valid, sends back the RETURN_READ_ONLY_FILE header and file
  * Returns DISCONNECT in every case
  */
-int handle_file_request(int sockfd, struct Header *msgHeader) {
+int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request) {
 
     struct stat sb;
     char *token;
     char buffer[FILENAME_FIELD_LENGTH * 2];
     bzero(buffer, FILENAME_FIELD_LENGTH * 2);
+    char file_availible_for_checkout = 0;
+    enum message_type message_id = RETURN_READ_ONLY_FILE;
 
     if (stat(msgHeader->filename, &sb) == -1) {
         fprintf(stderr, "client requested file that does not exist\n" );
@@ -277,9 +278,17 @@ int handle_file_request(int sockfd, struct Header *msgHeader) {
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+    if (is_checkout_request){
+
+        //TEMP: for now, file always availible for checkout
+        file_availible_for_checkout = 1;
+        message_id = RETURN_CHECKEDOUT_FILE;
+        //TODO: DO db operations to help change this stuff
+    }
 
     memcpy(buffer, msgHeader->filename, FILENAME_FIELD_LENGTH);
-    //TODO: check permissions
+
+
     token = strtok(buffer, "/");
     if (token == NULL){
         fprintf(stderr, "malformed file name\n" );
@@ -289,7 +298,7 @@ int handle_file_request(int sockfd, struct Header *msgHeader) {
 
 
 
-    sendHeader(RETURN_FILE, NULL, NULL, token, sb.st_size, sockfd);
+    sendHeader(message_id, NULL, NULL, token, sb.st_size, sockfd);
     if (write_file(sockfd, msgHeader->filename))
         error("ERROR sending file");
     return DISCONNECT;
@@ -347,7 +356,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
         case REQUEST_FILE:
             fprintf(stderr, "requesting file\n");
-            return handle_file_request(sockfd, msgHeader);
+            return handle_file_request(sockfd, msgHeader, 0);
             //verify creds, verify file exists, send back file
         case UPDATE_FILE:
             fprintf(stderr, "updating file\n");
@@ -355,10 +364,9 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
             //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             //TODO in future: add in permision cases
             //TODO: Delete file
-            //TODO:
-        case NEW_SERVER_ACK:
-            fprintf(stderr, "new server ack\n");
-            return DISCONNECT;
+        case CHECKOUT_FILE:
+                fprintf(stderr, "checking out file\n" );
+                return handle_file_request(sockfd, msgHeader, 1);       
         default:
             return DISCONNECT;
     }
@@ -409,6 +417,7 @@ int create_client(int sockfd, struct Header *msgHeader,
     sendHeader(CREATE_CLIENT_ACK, NULL, NULL, NULL, 0, sockfd);
     return DISCONNECT;
 }
+
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
