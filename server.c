@@ -20,7 +20,7 @@
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
 #define BAD_FILENAME -76
-#define DB_OWNER "nathan"
+#define DB_OWNER "jfeldz"
 #define DB_NAME "fileshare"
 
 //functions to write
@@ -164,9 +164,9 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     int bytesRead = get_bytes_read(handler, sockfd);
 
-    if file already exists, send ERROR_CODE and disconnect
+   // if file already exists, send ERROR_CODE and disconnect
     if (access(msgHeader->filename, F_OK) != -1) {
-        fprintf(stderr, "tried to upload file that existed\n");
+        fprintf(stderr, "tried to upload file %s that already exists\n", msgHeader->filename);
         sendHeader(ERROR_FILE_EXISTS, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
