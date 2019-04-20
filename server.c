@@ -164,7 +164,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     int bytesRead = get_bytes_read(handler, sockfd);
 
-    if file already exists, send ERROR_CODE and disconnect
+    //if file already exists, send ERROR_CODE and disconnect
     if (access(msgHeader->filename, F_OK) != -1) {
         fprintf(stderr, "tried to upload file that existed\n");
         sendHeader(ERROR_FILE_EXISTS, NULL, NULL,
@@ -368,7 +368,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler* handler) {
     db_t *db;
-    enum DB_STATUS dbs;
+    //enum DB_STATUS dbs;
     char buffer[512];
     char username[SOURCE_FIELD_LENGTH];
     char password[PASSWORD_FIELD_LENGTH];

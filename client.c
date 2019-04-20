@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
@@ -14,17 +15,15 @@
 #include "partial_message_handler.h"
 
 #define RW_LENGTH 10000
-#define DISCONNECTED 0
-#define MAX_MSG_SIZE 450
 #define REQUEST_TYPE_ARG 1
 #define OPERATOR_FQDN_ARG 2
 #define OPERATOR_PORT_ARG 3
-#define USERNAME_ARG 4
-#define PASSWORD_ARG 5
-#define UPLOAD_FNAME_ARG 6
-#define OWNER_ARG 6
-#define REQUEST_FNAME_ARG 7
-#define UPDATE_FNAME_ARG 7
+#define USERNAME_ARG 2
+#define PASSWORD_ARG 3
+#define UPLOAD_FNAME_ARG 4
+#define OWNER_ARG 4
+#define REQUEST_FNAME_ARG 5
+#define UPDATE_FNAME_ARG 5
 
 void read_new_client_ack_payload(int sockfd, struct Header *message_header,
                                  char *client, db_t *db);
@@ -42,64 +41,73 @@ char *make_full_fname(char* owner, char *fname);
 int main(int argc, char **argv) {
     int sockfd;
     enum message_type message_id;
-    db_t *db = NULL;
-
-    if (USE_DB) {
-        db = connect_to_db(DB_OWNER, DB_NAME);
-    } else {
-        db = NULL;
-    }
-    message_id = check_input_get_msg_id(argc, argv);
-    sockfd = parse_and_send_request(message_id, argv, db);
-    if (sockfd == -1) {
-        return 1;
-    }
-    process_reply(sockfd, message_id, argv, db);
-
-    close(sockfd);
-    return 0;
-}
-
-int check_input_get_msg_id(int argc, char **argv) {
+    db_t *db = connect_to_db_wrapper();
+    
     if (argc < 2) {
        fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
        exit(0);
     }
 
-    if (strcmp(argv[1], "new_client") == 0) {
+    if (strcmp(argv[REQUEST_TYPE_ARG], "init") == 0) {
+        if (argc != 4) {
+            fprintf(stderr, "usage: %s init [router-FQDN] [router-portno]", argv[0]);
+            exit(0);
+        }
+        add_cspair_wrapper(db, OPERATOR_SOURCE, argv[OPERATOR_FQDN_ARG],
+                           atoi(argv[OPERATOR_PORT_ARG]), "main()");
+    } else {
+        message_id = check_input_get_msg_id(argc, argv);
+        sockfd = parse_and_send_request(message_id, argv, db);
+        if (sockfd == -1) {
+            return 1;
+        }
+        process_reply(sockfd, message_id, argv, db);
+
+        close(sockfd);
+    }
+    return 0;
+}
+
+int check_input_get_msg_id(int argc, char **argv) {
+    if (strcmp(argv[REQUEST_TYPE_ARG], "new_client") == 0) {
         if (argc != 6) {
-            fprintf(stderr, "usage: %s new_client [router-FQDN] [router-portno] \
-                             [username] [password]\n", argv[0]);
+            fprintf(stderr, "usage: %s new_client [username] [password]\n", 
+                    argv[0]);
             exit(0);
         }
 
         return NEW_CLIENT;
-    } else if (strcmp(argv[1], "upload_file") == 0) {
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "upload_file") == 0) {
         if (argc != 7) {
-            fprintf(stderr, "usage: %s upload_file [router-FQDN] [router-portno] \
-                             [username] [password] [filename]\n", argv[0]);
+            fprintf(stderr, "usage: %s upload_file [username] [password] \
+                    [filename]\n", argv[0]);
+            exit(0);
         }
 
         return UPLOAD_FILE;
-    } else if (strcmp(argv[1], "request_file") == 0) {
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_file") == 0) {
         if (argc != 8) {
-            fprintf(stderr, "usage: %s request_file [router-FQDN] [router-portno] \
-                             [username] [password] [owner-username] [filename]\n",
-                             argv[0]);
+            fprintf(stderr, "usage: %s request_file [username] [password] \
+                    [owner-username] [filename]\n", argv[0]);
+            exit(0);
         }
 
         return REQUEST_FILE;
-    } else if (strcmp(argv[1], "update_file") == 0) {
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "update_file") == 0) {
         if (argc != 8) {
-            fprintf(stderr, "usage: %s update_file [router-FQDN] [router-portno] \
-                             [username] [password] [owner-username] [filename]\n",
-                             argv[0]);
+            fprintf(stderr, "usage: %s update_file [username] [password] \
+                    [owner-username] [filename]\n", argv[0]);
+            exit(0);
         }
 
         return UPDATE_FILE;
+    } else {
+        fprintf(stderr, "unknown message type received: %s\n", 
+                argv[REQUEST_TYPE_ARG]);
+        fprintf(stderr, "accepted message types are:\ninit\nnew_client\n\
+                upload_file\nrequest_file\nupdate_file\n");
+        exit(0);
     }
-
-    return 0;
 }
 
 /*
@@ -157,8 +165,8 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                    server->port,
                                    "parse_and_send_request() - UPLOAD_FILE");
                 close(sockfd);
-            }
-
+            } 
+            
             /* upload the file */
             sockfd = connect_to_server(server->domain_name, server->port);
             message_header.id = UPLOAD_FILE;
@@ -189,8 +197,8 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                    server->port,
                                    "parse_and_send_request() - REQUEST_FILE");
                 close(sockfd);
-            }
-
+            } 
+            
             /* request the file */
             sockfd = connect_to_server(server->domain_name, server->port);
             message_header.id = REQUEST_FILE;
@@ -224,8 +232,8 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
                                    server->port,
                                    "parse_and_send_request() - UPLOAD_FILE");
                 close(sockfd);
-            }
-
+            } 
+            
             /* upload the file */
             sockfd = connect_to_server(server->domain_name, server->port);
             message_header.id = UPDATE_FILE;
@@ -270,11 +278,11 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
             if (message_header.id == NEW_CLIENT_ACK) {
                 read_new_client_ack_payload(sockfd, &message_header, argv[4],
                                             db);
-                fprintf(stderr, "Client %s successfully added\n", argv[4]);
+                printf("Client %s successfully added\n", argv[4]);
             } else if (message_header.id == ERROR_CLIENT_EXISTS) {
                 clientbuf = read_error_client_exists_payload(sockfd,
                                                              &message_header);
-                fprintf(stderr, "Client %s already exists\n", clientbuf);
+                printf("Client %s already exists\n", clientbuf);
                 free(clientbuf);
             } else {
                 fprintf(stderr, "Bad response type %d received from router",
@@ -284,41 +292,41 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
             break;
         case UPLOAD_FILE:
             if (message_header.id == UPLOAD_ACK) {
-                fprintf(stderr, "File %s successfully uploaded\n",
+                printf("File %s successfully uploaded\n",
                        message_header.filename);
             } else if (message_header.id == ERROR_FILE_EXISTS) {
-                fprintf(stderr, "File %s already exists\n", message_header.filename);
+                printf("File %s already exists\n", message_header.filename);
             } else if (message_header.id == ERROR_UPLOAD_FAILURE) {
-                fprintf(stderr, "File %s failed to upload\n", message_header.filename);
+                printf("File %s failed to upload\n", message_header.filename);
             }
 
             break;
         case UPDATE_FILE:
             if (message_header.id == UPDATE_ACK)
-                fprintf(stderr, "File %s successfully updated\n",
+                printf("File %s successfully updated\n",
                        message_header.filename);
             else if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
-                fprintf(stderr, "File %s already exists\n", message_header.filename);
+                printf("File %s already exists\n", message_header.filename);
             else if (message_header.id == ERROR_BAD_PERMISSIONS)
-                fprintf(stderr, "Invalid permissions for %s\n",
+                printf("Invalid permissions for %s\n",
                        message_header.filename);
             break;
         case REQUEST_FILE:
 
             if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
-               fprintf(stderr, "File %s already exists\n", message_header.filename);
+               printf("File %s already exists\n", message_header.filename);
             else if (message_header.id == RETURN_FILE){
                 do{
                     m = read(sockfd, file_buffer, RW_LENGTH);
                     if (m <= 0) {
                         error("ERROR reading from socket");
                     }
-                } while(save_buffer(message_header.filename, file_buffer, m,
+                } while(save_buffer(message_header.filename, file_buffer, m, 
                                     message_header.length) == 0);
 
             }
             else
-                fprintf(stderr, "Unknown error when requesting file \n");
+                printf("Unknown error when requesting file \n");
 
             break;
         default:

@@ -2,10 +2,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include "database/db.h"
 #include "db_wrapper.h"
+#include "database/db.h"
 #include "database/cspairs.h"
+#include "database/servertable.h"
 #include "io.h"
+
+#define USE_DB 0
+#define DB_OWNER "nathan"
+#define DB_NAME "fileshare"
+#define CSPAIRS_FNAME "client_cspairs.txt"
+#define SERVER_LOAD_FNAME "server_nums.txt"
+#define SERVER_FILE_MAX_LENGTH 10000
+#define CSPAIRS_FILE_MAX_LENGTH 10000
 
 void check_db_status(enum DB_STATUS db_status, char *func) {
     switch (db_status) {
@@ -21,6 +30,18 @@ void check_db_status(enum DB_STATUS db_status, char *func) {
         default:
             return;
     }
+}
+
+db_t *connect_to_db_wrapper()
+{
+    db_t *db;
+    if (USE_DB) {
+        db = connect_to_db(DB_OWNER, DB_NAME);
+    } else {
+        db = NULL;
+    }
+
+    return db;
 }
 
 void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
@@ -129,3 +150,20 @@ struct Server *get_server_from_client_wrapper(db_t *db, char *client,
 
     return retval;
 }
+
+/*
+struct server_addr *least_populated_server_wrapper(db_t *db, char *loc)
+{
+    struct db_return dbr;
+    struct server_addr *server = malloc(sizeof(*server));
+
+    if (USE_DB) {
+        dbr = least_populated_server(db);
+        check_db_status(dbr.status, loc);
+        if (dbr.result == NULL) {
+            free 
+    } else {
+
+    }
+
+} */
