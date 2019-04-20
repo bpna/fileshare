@@ -175,7 +175,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
     //TODO: make an error code for "bad filename"
     if (valid_fname(msgHeader->filename) == 0) {
         fprintf(stderr, "invalid fname led to upload failure\n" );
-        sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,
+        sendHeader(ERROR_INVALID_FNAME, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -278,9 +278,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader) {
         return DISCONNECT;
     }
 
-    if (valid_fname(msgHeader->filename) == 0){
-        return DISCONNECT;
-    }
     memcpy(buffer, msgHeader->filename, FILENAME_FIELD_LENGTH);
     //TODO: check permissions
     token = strtok(buffer, "/");
