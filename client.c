@@ -311,11 +311,27 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                 printf("Invalid permissions for %s\n",
                        message_header.filename);
             break;
+
+        case CHECKOUT_FILE:
+                if (message_header.id == RETURN_CHECKEDOUT_FILE){
+                    do{
+                        m = read(sockfd, file_buffer, RW_LENGTH);
+                        if (m <= 0) {
+                            error("ERROR reading from socket");
+                        }
+                    } while(save_buffer(message_header.filename, file_buffer, m, 
+                                        message_header.length) == 0);
+                    fprintf(stderr, "successfully checked out file\n" );
+                    break;
+                }
+                else if (message_header.id == RETURN_READ_ONLY_FILE){
+                    fprintf(stderr, "someone has already checked out this file, you are downloading a read-only copy\n" );
+                }
         case REQUEST_FILE:
 
             if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
-               printf("File %s already exists\n", message_header.filename);
-            else if (message_header.id == RETURN_FILE){
+               printf("File %s does not exist on server\n", message_header.filename);
+            else if (message_header.id == RETURN_READ_ONLY_FILE){
                 do{
                     m = read(sockfd, file_buffer, RW_LENGTH);
                     if (m <= 0) {
@@ -323,7 +339,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     }
                 } while(save_buffer(message_header.filename, file_buffer, m, 
                                     message_header.length) == 0);
-
+                fprintf(stderr, "Read only file successfully retrieved\n" );
             }
             else
                 printf("Unknown error when requesting file \n");

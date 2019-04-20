@@ -269,7 +269,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
     char *token;
     char buffer[FILENAME_FIELD_LENGTH * 2];
     bzero(buffer, FILENAME_FIELD_LENGTH * 2);
-    char file_availible_for_checkout = 0;
     enum message_type message_id = RETURN_READ_ONLY_FILE;
 
     if (stat(msgHeader->filename, &sb) == -1) {
@@ -280,8 +279,9 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
     }
     if (is_checkout_request){
 
-        //TEMP: for now, file always availible for checkout
-        file_availible_for_checkout = 1;
+        //TEMP: for now, file always availible for checkou
+
+        //if file is availible to be checked out
         message_id = RETURN_CHECKEDOUT_FILE;
         //TODO: DO db operations to help change this stuff
     }
