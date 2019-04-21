@@ -3,7 +3,7 @@
 
 struct Server {
     uint16_t port;
-    char domain_name[64];
+    char domain_name[256];
 };
 
 db_t *connect_to_db_wrapper();
