@@ -321,11 +321,11 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
             if (message_header.id == NEW_CLIENT_ACK) {
                 read_new_client_ack_payload(sockfd, &message_header, argv[4],
                                             db);
-                printf("Client %s successfully added\n", argv[4]);
+                fprintf(stderr, "Client %s successfully added\n", argv[4]);
             } else if (message_header.id == ERROR_CLIENT_EXISTS) {
                 clientbuf = read_error_client_exists_payload(sockfd,
                                                              &message_header);
-                printf("Client %s already exists\n", clientbuf);
+                fprintf(stderr, "Client %s already exists\n", clientbuf);
                 free(clientbuf);
             } else {
                 fprintf(stderr, "Bad response type %d received from router",
@@ -335,23 +335,23 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
             break;
         case UPLOAD_FILE:
             if (message_header.id == UPLOAD_ACK) {
-                printf("File %s successfully uploaded\n",
+                fprintf(stderr,"File %s successfully uploaded\n",
                        message_header.filename);
             } else if (message_header.id == ERROR_FILE_EXISTS) {
-                printf("File %s already exists\n", message_header.filename);
+                fprintf(stderr,"File %s already exists\n", message_header.filename);
             } else if (message_header.id == ERROR_UPLOAD_FAILURE) {
-                printf("File %s failed to upload\n", message_header.filename);
+                fprintf(stderr,"File %s failed to upload\n", message_header.filename);
             }
 
             break;
         case UPDATE_FILE:
             if (message_header.id == UPDATE_ACK)
-                printf("File %s successfully updated\n",
+                fprintf(stderr,"File %s successfully updated\n",
                        message_header.filename);
             else if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
-                printf("File %s already exists\n", message_header.filename);
+                fprintf(stderr,"File %s already exists\n", message_header.filename);
             else if (message_header.id == ERROR_BAD_PERMISSIONS)
-                printf("Invalid permissions for %s\n",
+                fprintf(stderr,"Invalid permissions for %s\n",
                        message_header.filename);
             break;
 
@@ -373,7 +373,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
         case REQUEST_FILE:
 
             if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
-               printf("File %s does not exist on server\n", message_header.filename);
+               fprintf(stderr,"File %s does not exist on server\n", message_header.filename);
             else if (message_header.id == RETURN_READ_ONLY_FILE){
                 do{
                     m = read(sockfd, file_buffer, RW_LENGTH);
