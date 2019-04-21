@@ -34,7 +34,14 @@ def run_server(server_name, portno):
     file.close()
 
 def client_command(client_name):
-    input_arr = ['./client', 'new_client', 'localhost', operator_port, client_name + 'r', 'password' ]
+
+    input_arr = ['./client', 'init', 'localhost', operator_port]
+    file = open("./output/{0}_output.txt".format(client_name), "a")
+    subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
+    file.close()
+
+
+    input_arr = ['./client', 'new_client',  client_name, 'password' ]
     file = open("./output/{0}_output.txt".format(client_name), "a")
     subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
