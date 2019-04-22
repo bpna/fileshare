@@ -371,7 +371,7 @@ int send_update_file_request(char **argv, struct Server *operator, db_t *db) {
     message_header.id = UPDATE_FILE;
     strcpy(message_header.source, argv[USERNAME_ARG]);
     strcpy(message_header.password, argv[PASSWORD_ARG]);
-    full_filename = make_full_fname(argv[USERNAME_ARG],
+    full_filename = make_full_fname(argv[OWNER_ARG],
                                     argv[UPDATE_FNAME_ARG]);
     strcpy(message_header.filename, full_filename);
     message_header.length = htonl(sb.st_size);
