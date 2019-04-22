@@ -570,7 +570,6 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
     }
 
     n = 0;
-    fprintf(stderr, "about to read in the ack\n" );
     while (n < length) {
         m = read(sockfd, &buffer[n], length - n);
         if (m < 0) {
@@ -578,7 +577,6 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
         }
         n += m;
     }
-    fprintf(stderr, " ack is all read in \n" );
     buffer[length] = '\0';
 
     fqdn = strtok(buffer, ":");
