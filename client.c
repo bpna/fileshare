@@ -40,6 +40,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
 int send_new_client_request(char **argv, struct Server *operator);
 int send_upload_file_request(char **argv, struct Server *operator, db_t *db);
 int send_request_file_request(char **argv, struct Server *operator, db_t *db);
+int send_checkout_file_request(char **argv, struct Server *operator, db_t *db);
 int send_update_file_request(char **argv, struct Server *operator, db_t *db);
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t *db);
@@ -121,7 +122,7 @@ int check_input_get_msg_id(int argc, char **argv) {
 
 
     }  else if (strcmp(argv[REQUEST_TYPE_ARG], "checkout_file") == 0) {
-        if (argc != 8) {
+        if (argc != REQUEST_FILE_ARG_COUNT) {
             fprintf(stderr, "usage: %s checkout_file [username] [password] \
                     [owner-username] [filename]\n", argv[0]);
             exit(0);
@@ -176,34 +177,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             sockfd = send_request_file_request(argv, operator, db);
             break;
         case CHECKOUT_FILE:
-            server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
-                                    "parse_and_send_request() - REQUEST_FILE");
-            if (server == NULL) { /* no client/server pairing on client */
-                sockfd = connect_to_server(argv[OPERATOR_FQDN_ARG],
-                                           atoi(argv[OPERATOR_PORT_ARG]));
-                /* get server for file owner from operator */
-                server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
-                                            argv[PASSWORD_ARG], argv[OWNER_ARG]);
-                if (server == NULL) { /* no client/server pairing on operator */
-                    fprintf(stderr, "Server for user %s could not be resolved, \
-                                     exiting\n", argv[OWNER_ARG]);
-                    exit(1);
-                }
-                add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
-                                   server->port,
-                                   "parse_and_send_request() - REQUEST_FILE");
-                close(sockfd);
-            } 
-            
-            /* request the file */
-            sockfd = connect_to_server(server->domain_name, server->port);
-            message_header.id = CHECKOUT_FILE;
-            full_filename = make_full_fname(argv[OWNER_ARG],
-                                            argv[REQUEST_FNAME_ARG]);
-            strcpy(message_header.filename, full_filename);
-            write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-
-            free(server);
+            sockfd = send_checkout_file_request(argv, operator, db);
             break;
 
 
@@ -278,6 +252,48 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t *db) {
     free(full_filename);
     return sockfd;
 }
+
+int send_checkout_file_request(char **argv, struct Server *operator, db_t *db) {
+    int sockfd;
+    struct Header message_header;
+    struct Server *server;
+    char *full_filename = NULL;
+
+    server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
+                                            "send_checkout_file_request()");
+    if (server == NULL) { /* no client/server pairing on client */
+        sockfd = connect_to_server(operator->domain_name, operator->port);
+        /* get server for file owner from operator */
+        server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
+                                            argv[PASSWORD_ARG], 
+                                            argv[OWNER_ARG]);
+        if (server == NULL) { /* no client/server pairing on operator */
+            fprintf(stderr, "Server for user %s could not be resolved, \
+                    exiting\n", argv[OWNER_ARG]);
+            exit(1);
+        }
+        add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+                           server->port,
+                           "send_checkout_file_request()");
+        close(sockfd);
+    } 
+
+    /* request the file */
+    sockfd = connect_to_server(server->domain_name, server->port);
+    bzero(&message_header, sizeof(message_header));
+    message_header.id = CHECKOUT_FILE;
+    strcpy(message_header.source, argv[USERNAME_ARG]);
+    strcpy(message_header.password, argv[PASSWORD_ARG]);
+    full_filename = make_full_fname(argv[OWNER_ARG],
+                                    argv[REQUEST_FNAME_ARG]);
+    strcpy(message_header.filename, full_filename);
+    write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+
+    free(server);
+    free(full_filename);
+    return sockfd;
+}
+
 
 int send_request_file_request(char **argv, struct Server *operator, db_t *db) {
     int sockfd;
@@ -390,9 +406,9 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
     switch (message_id) {
         case NEW_CLIENT:
             if (message_header.id == NEW_CLIENT_ACK) {
-                read_new_client_ack_payload(sockfd, &message_header, argv[4],
+                read_new_client_ack_payload(sockfd, &message_header, argv[USERNAME_ARG],
                                             db);
-                fprintf(stderr, "Client %s successfully added\n", argv[4]);
+                fprintf(stderr, "Client %s successfully added\n", argv[USERNAME_ARG]);
             } else if (message_header.id == ERROR_CLIENT_EXISTS) {
                 clientbuf = read_error_client_exists_payload(sockfd,
                                                              &message_header);
@@ -456,7 +472,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                 fprintf(stderr, "Read only file successfully retrieved\n" );
             }
             else
-                printf("Unknown error when requesting file \n");
+                fprintf(stderr,"Unknown error when requesting file \n");
 
             break;
         default:
@@ -505,8 +521,10 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     if (header.id == REQUEST_USER_ACK) {
         length = ntohl(header.length);
         n = 0;
-        if (length < FQDN_PORT_MAX_LENGTH)
+        if (length > FQDN_PORT_MAX_LENGTH){
+            fprintf(stderr, "payload %d was too large\n", length );
             error("ERROR payload too large");
+        }
         bzero(buffer, FQDN_PORT_MAX_LENGTH);
         while (n < length) {
             m = read(sockfd, &buffer[n], length - n);
@@ -552,6 +570,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
     }
 
     n = 0;
+    fprintf(stderr, "about to read in the ack\n" );
     while (n < length) {
         m = read(sockfd, &buffer[n], length - n);
         if (m < 0) {
@@ -559,6 +578,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
         }
         n += m;
     }
+    fprintf(stderr, " ack is all read in \n" );
     buffer[length] = '\0';
 
     fqdn = strtok(buffer, ":");
@@ -575,9 +595,9 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
         fprintf(stderr, "new_client_ack_payload, no port number in payload\n");
         exit(1);
     }
-
     add_cspair_wrapper(db, client, fqdn, atoi(port),
                        "read_new_client_ack_payload()");
+
     free(buffer);
 }
 

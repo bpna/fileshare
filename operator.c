@@ -25,9 +25,6 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define DB_OWNER "jfeldz"
-#define DB_NAME "fileshare"
-#define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
@@ -247,7 +244,8 @@ int send_client_exists_ack(int sockfd, char *username) {
 int send_new_client_ack(int sockfd, struct server_addr *server) {
     struct Header outgoing_message;
     int len;
-    char *payload = calloc(275, sizeof (char));
+    char payload[275];
+    bzero(payload, 275);
 
     sprintf(payload, "%s:%d", server->domain_name, server->port);
     free(server);
@@ -255,6 +253,7 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
     outgoing_message.id = NEW_CLIENT_ACK;
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     len = strlen(payload);
+    fprintf(stderr, "in send_new_client_ack, payload is %s and its length is %d\n", payload, len);
     outgoing_message.length = htonl(len);
 
     write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);

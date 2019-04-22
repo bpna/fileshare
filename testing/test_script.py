@@ -34,6 +34,7 @@ def run_server(server_name, portno):
     file.close()
 
 def client_command(client_name):
+    time.sleep(1)
 
     input_arr = ['./client', 'init', 'localhost', operator_port]
     file = open("./output/{0}_output.txt".format(client_name), "a")
@@ -46,18 +47,26 @@ def client_command(client_name):
     subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
 
-    input_arr[1] = 'upload_file'
-    input_arr.append('file.file')
     #cli one uploads
     if (client_name == 'cli_one'):
+        input_arr[1] = 'upload_file'
+        input_arr.append('file.file')
+
+        file = open("./output/{0}_output.txt".format(client_name), "a")
+        subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
+        file.close()
+    elif (client_name == 'cli_two'):
+        time.sleep(1)
+        input_arr[1] = 'checkout_file'
+        input_arr.append('cli_one')
+        input_arr.append('file.file')
         file = open("./output/{0}_output.txt".format(client_name), "a")
         subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
         file.close()
         
-        #cli one downloads, diffs
-        #cli two downloads, diffs
-        #cli one modifies
-        #cli two downloads, diffs
+        # cli two downloads, diffs
+        # cli one modifies
+        # cli two downloads, diffs
 
 
 

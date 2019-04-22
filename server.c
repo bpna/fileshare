@@ -14,14 +14,13 @@
 #include <sys/types.h>
 #include <errno.h>
 #include "partial_message_handler.h"
+#include "db_wrapper.h"
 #include "database/cppairs.h"
 #include "io.h"
 
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
 #define BAD_FILENAME -76
-#define DB_OWNER "jfeldz"
-#define DB_NAME "fileshare"
 
 //functions to write
 
@@ -179,12 +178,12 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    if (!has_permissions(UPLOAD_FILE, msgHeader)){
-        fprintf(stderr, "tried to uplaod file with bad permissions \n");
-        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
-                   msgHeader->filename, 0, sockfd);
-        return DISCONNECT;
-    }
+    // if (!has_permissions(UPLOAD_FILE, msgHeader)){
+    //     fprintf(stderr, "tried to uplaod file with bad permissions \n");
+    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+    //                msgHeader->filename, 0, sockfd);
+    //     return DISCONNECT;
+    // }
 
 
     //if number of bytes left to read < 100000
@@ -201,6 +200,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
+        add_file_wrapper(msgHeader->filename);
         sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -234,12 +234,12 @@ char update_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    if (!has_permissions(UPDATE_FILE, msgHeader)){
-        fprintf(stderr, "tried to update file with bad permissions \n");
-        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
-                   msgHeader->filename, 0, sockfd);
-        return DISCONNECT;
-    }
+    // if (!has_permissions(UPDATE_FILE, msgHeader)){
+    //     fprintf(stderr, "tried to update file with bad permissions \n");
+    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+    //                msgHeader->filename, 0, sockfd);
+    //     return DISCONNECT;
+    // }
 
     int n = read(sockfd, buffer, bytesToRead);
     fprintf(stderr, "%d bytes read from socket\n", n);
@@ -279,10 +279,11 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
     }
     if (is_checkout_request){
 
+        if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1)
+            message_id = RETURN_CHECKEDOUT_FILE;
         //TEMP: for now, file always availible for checkou
 
         //if file is availible to be checked out
-        message_id = RETURN_CHECKEDOUT_FILE;
         //TODO: DO db operations to help change this stuff
     }
 

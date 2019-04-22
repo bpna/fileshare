@@ -8,11 +8,10 @@
 #include "database/servertable.h"
 #include "io.h"
 
-#define USE_DB 0
-#define DB_OWNER "nathan"
-#define DB_NAME "fileshare"
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define SERVER_LOAD_FNAME "server_nums.txt"
+#define CHECKOUT_FILE "checkouts.txt"
+#define TEMP_CHECKOUT_FILE "checkouts.txt~"
 #define SERVER_FILE_MAX_LENGTH 10000
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
@@ -150,6 +149,34 @@ struct Server *get_server_from_client_wrapper(db_t *db, char *client,
 
     return retval;
 }
+
+
+
+char checkout_file_db_wrapper(char *username, char * filename){
+    char temp_fname[strlen(TEMP_CHECKOUT_FILE)];
+
+    // if (USE_DB){
+    //     //TODO: database stuff
+
+    // }
+    //{
+        //FILE *fp = fopen(CHECKOUT_FILE);
+        return 0;
+
+   // }
+}
+
+void add_file_wrapper(char *filename){
+    FILE *fp = fopen(CHECKOUT_FILE, "a");
+    if (fp == NULL){
+        fprintf(stderr, "error in add_file_wrapper\n" );
+        return;
+    }
+    fwrite(filename, 1, strlen(filename), fp);
+    fwrite(" ~\n", 1, 3, fp);
+    fclose(fp);
+}
+
 
 /*
 struct server_addr *least_populated_server_wrapper(db_t *db, char *loc)
