@@ -228,8 +228,15 @@ char update_file(int sockfd, struct Header *msgHeader,
 
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
-        fprintf(stderr, "tried to upload file that existed\n");
+        fprintf(stderr, "tried to update file that does not existed\n");
         sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
+    if (!is_file_editor(msgHeader->source, msgHeader->filename)){
+        fprintf(stderr, "tried to update file without checking it out \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -251,6 +258,7 @@ char update_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
+        de_checkout_file(msgHeader->filename);
         sendHeader(UPDATE_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -278,13 +286,10 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
         return DISCONNECT;
     }
     if (is_checkout_request){
-
-        if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1)
+        if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1){
+            fprintf(stderr, "in server.c, he got permission to check out file\n" );
             message_id = RETURN_CHECKEDOUT_FILE;
-        //TEMP: for now, file always availible for checkou
-
-        //if file is availible to be checked out
-        //TODO: DO db operations to help change this stuff
+        }
     }
 
     memcpy(buffer, msgHeader->filename, FILENAME_FIELD_LENGTH);
