@@ -25,48 +25,28 @@ def pre_process():
 
 def run_operator():
     file = open("output/op_output.txt", "w")
-    subprocess.run(['./operator', operator_port], stderr=subprocess.STDOUT, stdout=file)
+    subprocess.run(['./operator', operator_port], stderr=file, stdout=file)
     file.close()
 
 def run_server(server_name, portno):
     file = open("./output/{0}_output.txt".format(server_name), "w")
-    subprocess.run(['./server'.format(server_name), portno,server_name,'localhost', operator_port], stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(server_name))
+    subprocess.run(['./server'.format(server_name), portno,server_name,'localhost', operator_port], stderr=file, stdout=file, cwd = '{0}/'.format(server_name))
     file.close()
 
-def client_command(client_name):
+def init_client(client_name):
     time.sleep(1)
 
     input_arr = ['./client', 'init', 'localhost', operator_port]
     file = open("./output/{0}_output.txt".format(client_name), "a")
-    subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
+    subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
 
 
     input_arr = ['./client', 'new_client',  client_name, 'password' ]
     file = open("./output/{0}_output.txt".format(client_name), "a")
-    subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
+    subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
 
-    #cli one uploads
-    if (client_name == 'cli_one'):
-        input_arr[1] = 'upload_file'
-        input_arr.append('file.file')
-
-        file = open("./output/{0}_output.txt".format(client_name), "a")
-        subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
-        file.close()
-    elif (client_name == 'cli_two'):
-        time.sleep(1)
-        input_arr[1] = 'checkout_file'
-        input_arr.append('cli_one')
-        input_arr.append('file.file')
-        file = open("./output/{0}_output.txt".format(client_name), "a")
-        subprocess.run(input_arr, stderr=subprocess.STDOUT, stdout=file, cwd = '{0}/'.format(client_name))
-        file.close()
-        
-        # cli two downloads, diffs
-        # cli one modifies
-        # cli two downloads, diffs
 
 
 
@@ -76,21 +56,64 @@ op = threading.Thread(target=run_operator)
 serv1 = threading.Thread(target=run_server, kwargs = {'server_name': 'serv_one', 'portno': '9060'})
 serv2 = threading.Thread(target=run_server, kwargs = {'server_name': 'serv_two', 'portno': '9061'})
 
-#new_client commands
-cli1 = threading.Thread(target=client_command, kwargs = {'client_name': 'cli_one'})
-cli2 = threading.Thread(target=client_command, kwargs = {'client_name': 'cli_two'})
 
 
 
 
 
-threads = [op, serv1, serv2, cli1, cli2]
+
+threads = [op, serv1, serv2]
 
 for thread in threads:
     thread.start()
 
-for thread in threads:
-    thread.join()
+
+#new_client commands
+init_client('cli_one')
+init_client('cli_two')
+
+#cli one uploads
+client_name = 'cli_one'
+input_arr = ['./client', 'upload_file',  client_name, 'password', 'file.file' ]
+
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
+
+#cli_two checks out file
+client_name = 'cli_two'
+input_arr[2] = client_name
+input_arr[1] = 'checkout_file'
+input_arr[-1] = 'cli_one'
+input_arr.append('file.file')
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
+
+#cli_one checks out file (should fail)
+client_name = 'cli_one'
+input_arr[2] = client_name
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
+
+
+#"modify" file
+subprocess.run(['cp', 'file.file2', './cli_two/file.file'])
+
+#cli_two updates file
+client_name = 'cli_two'
+input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'file.file']
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
+
+
+        
+
+
+#for thread in threads:
+#    thread.join()
 
 #psql commands:
 #       sudo service postgresql start
