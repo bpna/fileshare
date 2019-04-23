@@ -452,6 +452,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     } while(save_buffer(message_header.filename, file_buffer, m,
                                         message_header.length) == 0);
                     fprintf(stderr, "successfully checked out file\n" );
+                    break;
                 } else if (message_header.id == RETURN_READ_ONLY_FILE)
                     fprintf(stderr, "someone has already checked out this \
                                      file, you are downloading a read-only \

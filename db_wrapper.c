@@ -185,6 +185,9 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
                 //if someone has already checked out file
                 if (file_editor[0] != '~'){
                     fclose(fp);
+                    file_editor = strtok(file_editor, "~");
+                    if (strcmp(file_editor, requester) == 0)
+                        return 1;
                     return -1;
                 }
                 else{
@@ -227,7 +230,7 @@ char is_file_editor(char *requester, char *desired_filename){
     //{
         FILE *fp = fopen(CHECKOUT_FILE, "r+");
         if (fp == NULL){
-                fprintf(stderr, "error in checkout_file_db_wrapper\n" );
+                fprintf(stderr, "error in is_file_editor\n" );
                 return -1;
         }
 

@@ -170,6 +170,7 @@ void timeout_sweep(struct PartialMessageHandler *p, fd_set *masterFDSet) {
         if (temp->last_modified - current_time >= MINUTE){
             if (temp->h != NULL){
                 delete_temp_file(temp->h->filename);
+                //TODO: de_checkout file
                 free(temp->h);
             }
             close(temp->sockfd);
