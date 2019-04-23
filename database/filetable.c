@@ -22,14 +22,9 @@ enum DB_STATUS add_file(db_t *db, char *client, char *pass,
     if (valid_authentication(db, client, pass))
         return INVALID_AUTHENTICATION;
 
-    // if (get_file(db, client, file.name).status == ELEMENT_ALREADY_EXISTS)
-    //     return ELEMENT_ALREADY_EXISTS;
-
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "INSERT INTO files VALUES('%s', '%s', %d)",
             file.name, client, file.len);
-
-    // TODO: actually save the file
 
     PGresult *res = PQexec(db, stm);
     free(stm);
@@ -41,27 +36,6 @@ enum DB_STATUS add_file(db_t *db, char *client, char *pass,
     PQclear(res);
     return SUCCESS;
 }
-
-// struct db_return owned_by(db_t *db, char *filename) {
-//     if (check_connection(db))
-//         return generate_dbr(CORRUPTED, NULL);
-
-//     char *stm = calloc(150, sizeof (char));
-//     sprintf(stm, "SELECT owner FROM files WHERE filename='%s'", filename);
-
-//     PGresult *res = PQexec(db, stm);
-//     free(stm);
-//     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-//         on_db_error(db, res);
-//         return generate_dbr(COMMAND_FAILED, NULL);
-//     }
-
-//     char *owner = calloc(20, sizeof (char));
-//     strcpy(owner, PQgetvalue(res, 0, 0));
-
-//     PQclear(res);
-//     return generate_dbr(SUCCESS, owner);
-// }
 
 enum DB_STATUS delete_file(db_t *db, char *client,
                            char *pass, char *filename) {
@@ -86,7 +60,53 @@ enum DB_STATUS update_file(db_t *db, char *client, char *pass,
     sprintf(stm, "UPDATE files SET size=%d WHERE filename='%s'",
             file.len, file.name);
 
-    // TODO: actually update the file
+    return exec_command(db, stm);
+}
+
+enum DB_STATUS checkout_file(db_t *db, char *owner, char *filename,
+                             char *requester) {
+    if (check_connection(db))
+        return CORRUPTED;
+
+    char *stm = calloc(150, sizeof (char));
+    sprintf(stm, "UPDATE files SET checked_out_by='%s' WHERE filename='%s' \
+                  AND owner='%s'",
+            requester, filename, owner);
+
+    return exec_command(db, stm);
+}
+
+struct db_return is_file_editor(db_t *db, char *owner, char *filename,
+                             char *requester) {
+    if (check_connection(db))
+        return generate_dbr(CORRUPTED, NULL);
+
+    char *stm = calloc(100, sizeof (char));
+    sprintf(stm, "SELECT checked_out_by FROM files WHERE filename='%s' AND \
+                  owner='%s'", filename, owner);
+
+    PGresult *res = PQexec(db, stm);
+    free(stm);
+
+    if (PQntuples(res) == 0) {
+        PQclear(res);
+        return generate_dbr(ELEMENT_NOT_FOUND, NULL);
+    }
+
+    long diff = strcmp(PQgetvalue(res, 0, 0), requester);
+
+    PQclear(res);
+
+    return generate_dbr(SUCCESS, (void *) diff);
+}
+
+enum DB_STATUS de_checkout_file(db_t *db, char *owner, char *filename) {
+    if (check_connection(db))
+        return CORRUPTED;
+
+    char *stm = calloc(100, sizeof (char));
+    sprintf(stm, "UPDATE files SET Checked_Out_By='' WHERE filename='%s' \
+                  AND Owner='%s'", filename, owner);
 
     return exec_command(db, stm);
 }

@@ -61,7 +61,7 @@ void cspairs_test_suite(db_t *db) {
         .port = 9010,
         .domain_name = "nathan@allenhub.com"
     };
-    if (add_cspair(db, TEST_CLIENT, &addr, 1))
+    if (add_cspair(db, TEST_CLIENT, &addr, 0))
         error("ERROR adding cspair");
 
     struct db_return result = get_server_from_client(db, TEST_CLIENT);
@@ -80,6 +80,7 @@ void cspairs_test_suite(db_t *db) {
 
 void filetable_test_suite(db_t *db) {
     enum DB_STATUS dbs;
+    struct db_return dbr;
 
     dbs = create_file_table(db, 1);
     if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
@@ -89,18 +90,26 @@ void filetable_test_suite(db_t *db) {
         .owner = TEST_CLIENT,
         .name = "asdf.txt",
         .file = "asdf",
-        .len = 4
+        .len = 4,
+        .checked_out_by = ""
     };
     if (add_file(db, TEST_CLIENT, TEST_PASS, file))
         error("ERROR adding file");
 
     file.file = "asdfg";
     file.len = 5;
-    if (update_file(db, TEST_CLIENT, TEST_PASS ,file))
+    if (update_file(db, TEST_CLIENT, TEST_PASS, file))
         error("ERROR updating file");
 
-    if (delete_file(db, TEST_CLIENT, TEST_PASS, "asdf.txt"))
-        error("ERROR deleting file");
+    if (checkout_file(db, TEST_CLIENT, file.name, TEST_CLIENT))
+        error("ERROR checking out file");
+
+    dbr = is_file_editor(db, TEST_CLIENT, file.name, TEST_CLIENT);
+    if (dbr.status || dbr.result)
+        error("ERROR checking file editor");
+
+    if (de_checkout_file(db, TEST_CLIENT, file.name))
+        error("ERROR de-checking out file");
 
     return;
 }
