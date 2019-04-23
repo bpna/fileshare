@@ -456,7 +456,8 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     fprintf(stderr, "someone has already checked out this \
                                      file, you are downloading a read-only \
                                      copy\n");
-                break;
+
+                //NATHAN ALLEN DO NOT PUT A BREAK STATEMENT HERE
         case REQUEST_FILE:
             if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
                fprintf(stderr,"File %s does not exist on server\n", message_header.filename);

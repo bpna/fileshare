@@ -18,9 +18,10 @@ def pre_process():
     subprocess.run(['cp', '../server', './serv_two/'])
     subprocess.run(['cp', '../client', './cli_one/'])
     subprocess.run(['cp', '../client', './cli_two/'])
-    subprocess.run(['cp', '../file/file.file', './'])
-    subprocess.run(['cp', '../file/file.file2', './'])
-    subprocess.run(['cp', '../file/file.file', './cli_one'])
+    subprocess.run(['cp', '../client.c', './file.file'])
+    # subprocess.run(['cp', '../file/file.file', './'])
+    subprocess.run(['cp', '../client.o', './file.file2'])
+    subprocess.run(['cp', './file.file', './cli_one/'])
     subprocess.run(['cp', '../operator', './'])
 
 def run_operator():
@@ -30,7 +31,7 @@ def run_operator():
 
 def run_server(server_name, portno):
     file = open("./output/{0}_output.txt".format(server_name), "w")
-    subprocess.run(['./server'.format(server_name), portno,server_name,'localhost', operator_port, "0"], stderr=file, stdout=file, cwd = '{0}/'.format(server_name))
+    subprocess.run([ 'valgrind', './server'.format(server_name), portno,server_name,'localhost', operator_port, "0"], stderr=file, stdout=file, cwd = '{0}/'.format(server_name))
     file.close()
 
 def init_client(client_name):
@@ -67,7 +68,7 @@ threads = [op, serv1, serv2]
 for thread in threads:
     thread.start()
 
-
+time.sleep(5)
 #new_client commands
 init_client('cli_one')
 init_client('cli_two')
@@ -93,6 +94,7 @@ file.close()
 #cli_one checks out file (should fail)
 client_name = 'cli_one'
 input_arr[2] = client_name
+input_arr.insert(0, 'valgrind')
 file = open("./output/{0}_output.txt".format(client_name), "a")
 subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 file.close()
@@ -112,7 +114,7 @@ file.close()
         
 
 
-#for thread in threads:
+# for thread in threads:
 #    thread.join()
 
 #psql commands:

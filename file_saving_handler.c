@@ -38,7 +38,6 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
 
     fwrite(buffer, 1, buf_len, fp);
     fclose(fp);
-
     if (current_filelen + buf_len == filelen){
         remove(fname);
         rename(temp_fname, fname);

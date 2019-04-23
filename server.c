@@ -14,7 +14,6 @@
 #include <sys/types.h>
 #include <errno.h>
 #include "partial_message_handler.h"
-#include "db_wrapper.h"
 #include "database/cppairs.h"
 #include "io.h"
 
@@ -109,7 +108,7 @@ int main(int argc, char *argv[]) {
                             maxSock = (newSock > maxSock) ? newSock: maxSock;
                         }
                     } else {
-                        // fprintf(stderr, "new info incoming\n" );
+                         fprintf(stderr, "new info incoming\n" );
                         int status = handle_request(sockfd, handler, personal);
 
                         if (status == DISCONNECT){
@@ -164,6 +163,8 @@ char valid_fname(char *fname) {
 //returns DISCONNECT on succesfull read OR Error, returns 0 on partial read
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
+
+
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
 
@@ -176,6 +177,20 @@ char upload_file(int sockfd, struct Header *msgHeader,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+
+    char owns_file = is_file_editor(msgHeader->source, msgHeader->filename);
+
+    if (owns_file == 0){
+        return 0;
+    }
+    else {
+        if (owns_file == -1)
+            add_file_wrapper(msgHeader->filename);
+        checkout_file_db_wrapper(msgHeader->source, msgHeader->filename);
+    }
+    
+    //if another upload already in progress,
+
 
     if (valid_fname(msgHeader->filename) == 0) {
         fprintf(stderr, "invalid fname led to upload failure\n" );
@@ -206,13 +221,15 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
-        add_file_wrapper(msgHeader->filename);
+        
         sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
+        de_checkout_file(msgHeader->filename);
         return DISCONNECT;
     }
     else if (n < 0){
         fprintf(stderr, "problem in add_partial led to upload_failure\n" );
         sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
+        de_checkout_file(msgHeader->filename);
         return DISCONNECT;
     }
 
@@ -346,8 +363,6 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
         }
     }
 
-    if (msgHeader->length > 0 && conflicting_upload(msgHeader->filename))
-        return 1;
 
     fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
