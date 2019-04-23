@@ -31,7 +31,7 @@ def run_operator():
 
 def run_server(server_name, portno):
     file = open("./output/{0}_output.txt".format(server_name), "w")
-    subprocess.run([ 'valgrind', './server'.format(server_name), portno,server_name,'localhost', operator_port, "0"], stderr=file, stdout=file, cwd = '{0}/'.format(server_name))
+    subprocess.run([ 'valgrind','./server'.format(server_name), portno,server_name,'localhost', operator_port, "0"], stderr=file, stdout=file, cwd = '{0}/'.format(server_name))
     file.close()
 
 def init_client(client_name):
@@ -94,7 +94,11 @@ file.close()
 #cli_one checks out file (should fail)
 client_name = 'cli_one'
 input_arr[2] = client_name
+input_arr.insert(0, '-v')
+input_arr.insert(0, '--leak-check=full')
+
 input_arr.insert(0, 'valgrind')
+print (str(input_arr))
 file = open("./output/{0}_output.txt".format(client_name), "a")
 subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 file.close()
