@@ -7,8 +7,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <libpq-fe.h>
+#include <postgresql/libpq-fe.h>
 #include "../io.h"
+#define DB_OWNER "jfeldz"
+#define DB_NAME "fileshare"
+#define USE_DB 0
 
 #define db_t PGconn
 

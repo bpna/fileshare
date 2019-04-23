@@ -14,14 +14,13 @@
 #include <sys/types.h>
 #include <errno.h>
 #include "partial_message_handler.h"
+#include "db_wrapper.h"
 #include "database/cppairs.h"
 #include "io.h"
 
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
 #define BAD_FILENAME -76
-#define DB_OWNER "jfeldz"
-#define DB_NAME "fileshare"
 
 //functions to write
 
@@ -40,7 +39,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
-int handle_file_request(int sockfd, struct Header *msgHeader);
+int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
 int handle_request(int sockfd, struct PartialMessageHandler *handler);
 void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername);
 int create_client(int sockfd, struct Header *msgHeader,
@@ -172,7 +171,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    //TODO: make an error code for "bad filename"
     if (valid_fname(msgHeader->filename) == 0) {
         fprintf(stderr, "invalid fname led to upload failure\n" );
         sendHeader(ERROR_INVALID_FNAME, NULL, NULL,
@@ -180,12 +178,12 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    if (!has_permissions(UPLOAD_FILE, msgHeader)){
-        fprintf(stderr, "tried to uplaod file with bad permissions \n");
-        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
-                   msgHeader->filename, 0, sockfd);
-        return DISCONNECT;
-    }
+    // if (!has_permissions(UPLOAD_FILE, msgHeader)){
+    //     fprintf(stderr, "tried to uplaod file with bad permissions \n");
+    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+    //                msgHeader->filename, 0, sockfd);
+    //     return DISCONNECT;
+    // }
 
 
     //if number of bytes left to read < 100000
@@ -202,6 +200,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
+        add_file_wrapper(msgHeader->filename);
         sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -229,18 +228,25 @@ char update_file(int sockfd, struct Header *msgHeader,
 
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
-        fprintf(stderr, "tried to upload file that existed\n");
+        fprintf(stderr, "tried to update file that does not existed\n");
         sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
 
-    if (!has_permissions(UPDATE_FILE, msgHeader)){
-        fprintf(stderr, "tried to update file with bad permissions \n");
+    if (!is_file_editor(msgHeader->source, msgHeader->filename)){
+        fprintf(stderr, "tried to update file without checking it out \n");
         sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+
+    // if (!has_permissions(UPDATE_FILE, msgHeader)){
+    //     fprintf(stderr, "tried to update file with bad permissions \n");
+    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+    //                msgHeader->filename, 0, sockfd);
+    //     return DISCONNECT;
+    // }
 
     int n = read(sockfd, buffer, bytesToRead);
     fprintf(stderr, "%d bytes read from socket\n", n);
@@ -252,6 +258,7 @@ char update_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
+        de_checkout_file(msgHeader->filename);
         sendHeader(UPDATE_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
@@ -261,15 +268,16 @@ char update_file(int sockfd, struct Header *msgHeader,
 
 /*
  * purpose: handles a request for a file from a client. If user has proper permissions
- *  and the request is valid, sends back the RETURN_FILE header and file
+ *  and the request is valid, sends back the RETURN_READ_ONLY_FILE header and file
  * Returns DISCONNECT in every case
  */
-int handle_file_request(int sockfd, struct Header *msgHeader) {
+int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request) {
 
     struct stat sb;
     char *token;
     char buffer[FILENAME_FIELD_LENGTH * 2];
     bzero(buffer, FILENAME_FIELD_LENGTH * 2);
+    enum message_type message_id = RETURN_READ_ONLY_FILE;
 
     if (stat(msgHeader->filename, &sb) == -1) {
         fprintf(stderr, "client requested file that does not exist\n" );
@@ -277,9 +285,16 @@ int handle_file_request(int sockfd, struct Header *msgHeader) {
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+    if (is_checkout_request){
+        if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1){
+            fprintf(stderr, "in server.c, he got permission to check out file\n" );
+            message_id = RETURN_CHECKEDOUT_FILE;
+        }
+    }
 
     memcpy(buffer, msgHeader->filename, FILENAME_FIELD_LENGTH);
-    //TODO: check permissions
+
+
     token = strtok(buffer, "/");
     if (token == NULL){
         fprintf(stderr, "malformed file name\n" );
@@ -289,7 +304,7 @@ int handle_file_request(int sockfd, struct Header *msgHeader) {
 
 
 
-    sendHeader(RETURN_FILE, NULL, NULL, token, sb.st_size, sockfd);
+    sendHeader(message_id, NULL, NULL, token, sb.st_size, sockfd);
     if (write_file(sockfd, msgHeader->filename))
         error("ERROR sending file");
     return DISCONNECT;
@@ -347,7 +362,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
                 //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
         case REQUEST_FILE:
             fprintf(stderr, "requesting file\n");
-            return handle_file_request(sockfd, msgHeader);
+            return handle_file_request(sockfd, msgHeader, 0);
             //verify creds, verify file exists, send back file
         case UPDATE_FILE:
             fprintf(stderr, "updating file\n");
@@ -355,10 +370,9 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
             //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
             //TODO in future: add in permision cases
             //TODO: Delete file
-            //TODO:
-        case NEW_SERVER_ACK:
-            fprintf(stderr, "new server ack\n");
-            return DISCONNECT;
+        case CHECKOUT_FILE:
+                fprintf(stderr, "checking out file\n" );
+                return handle_file_request(sockfd, msgHeader, 1);       
         default:
             return DISCONNECT;
     }
@@ -409,6 +423,7 @@ int create_client(int sockfd, struct Header *msgHeader,
     sendHeader(CREATE_CLIENT_ACK, NULL, NULL, NULL, 0, sockfd);
     return DISCONNECT;
 }
+
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file

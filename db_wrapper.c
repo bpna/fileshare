@@ -8,11 +8,10 @@
 #include "database/servertable.h"
 #include "io.h"
 
-#define USE_DB 0
-#define DB_OWNER "nathan"
-#define DB_NAME "fileshare"
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define SERVER_LOAD_FNAME "server_nums.txt"
+#define CHECKOUT_FILE "checkouts.txt"
+#define TEMP_CHECKOUT_FILE "checkouts.txt~"
 #define SERVER_FILE_MAX_LENGTH 10000
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
@@ -150,6 +149,180 @@ struct Server *get_server_from_client_wrapper(db_t *db, char *client,
 
     return retval;
 }
+
+
+
+char checkout_file_db_wrapper(char *requester, char * desired_filename){
+    int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
+    char buffer[buflen];
+    bzero(buffer, buflen);
+    char *file;
+    char *file_editor;
+
+    // if (USE_DB){
+    //     //TODO: database stuff
+
+    // }
+    //{
+        FILE *fp = fopen(CHECKOUT_FILE, "r+");
+        if (fp == NULL){
+                fprintf(stderr, "error in checkout_file_db_wrapper\n" );
+                return -1;
+        }
+
+        fseek(fp, 0, SEEK_SET);
+
+        //loops through file line by line
+        while(fgets(buffer, buflen, fp) != NULL){
+            file = strtok(buffer, " ");
+            fprintf(stderr, "strtoked filename is %s\n", file);
+            file_editor = strtok(NULL, "\n");
+            fprintf(stderr, "raw file editor is %s\n", file_editor);
+
+            if (strcmp(desired_filename, file) == 0){
+
+                //if someone has already checked out file
+                if (file_editor[0] != '~'){
+                    fclose(fp);
+                    return -1;
+                }
+                else{
+
+                    //rest File pointer to before string of tildas
+                    fseek(fp, (SOURCE_FIELD_LENGTH + 1) * -1, SEEK_CUR);
+                    fwrite(requester,1, strlen(requester), fp);
+                    memset(buffer, '~', buflen);
+                    fwrite(buffer, 1, SOURCE_FIELD_LENGTH - strlen(requester), fp);
+                    fwrite("\n", 1, 1, fp);
+                    fclose(fp);
+                    return 0;
+                }
+
+            }
+
+        }
+        fclose(fp);
+        return -1;
+        
+        
+
+
+   // }
+}
+
+
+char is_file_editor(char *requester, char *desired_filename){
+
+    int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
+    char buffer[buflen];
+    bzero(buffer, buflen);
+    char *file;
+    char *file_editor;
+
+    // if (USE_DB){
+    //     //TODO: database stuff
+
+    // }
+    //{
+        FILE *fp = fopen(CHECKOUT_FILE, "r+");
+        if (fp == NULL){
+                fprintf(stderr, "error in checkout_file_db_wrapper\n" );
+                return -1;
+        }
+
+        fseek(fp, 0, SEEK_SET);
+
+        //loops through file line by line
+        while(fgets(buffer, buflen, fp) != NULL){
+            file = strtok(buffer, " ");
+            fprintf(stderr, "strtoked filename is %s\n", file);
+            file_editor = strtok(NULL, "\n");
+            fprintf(stderr, "raw file editor is %s\n", file_editor);
+
+            if (strcmp(desired_filename, file) == 0){
+
+                //if someone has already checked out file
+                if (file_editor[0] != '~'){
+                    file_editor = strtok(file_editor, "~");
+                    fclose(fp);
+                    if (strcmp(file_editor, requester) == 0)
+                        return 1;
+                    return 0;
+                }
+                else{
+                    fclose(fp);
+                    return 0;                
+                }
+
+            }
+
+        }
+        fclose(fp);
+        return 0;
+
+
+}
+
+
+void add_file_wrapper(char *filename){
+    char buffer[SOURCE_FIELD_LENGTH];
+    memset(buffer, '~', SOURCE_FIELD_LENGTH);
+
+    FILE *fp = fopen(CHECKOUT_FILE, "a");
+    if (fp == NULL){
+        fprintf(stderr, "error in add_file_wrapper\n" );
+        return;
+    }
+    fwrite(filename, 1, strlen(filename), fp);
+    fwrite(" ", 1, 1, fp);
+    fwrite(buffer, 1, SOURCE_FIELD_LENGTH, fp);
+    fwrite("\n", 1, 1, fp);
+    fclose(fp);
+}
+
+void de_checkout_file(char *desired_filename){
+
+    int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
+    char buffer[buflen];
+    bzero(buffer, buflen);
+    char *file;
+
+    // if (USE_DB){
+    //     //TODO: database stuff
+
+    // }
+    //{
+        FILE *fp = fopen(CHECKOUT_FILE, "r+");
+        if (fp == NULL){
+                fprintf(stderr, "error in checkout_file_db_wrapper\n" );
+                return;
+        }
+
+        fseek(fp, 0, SEEK_SET);
+
+        //loops through file line by line
+        while(fgets(buffer, buflen, fp) != NULL){
+            file = strtok(buffer, " ");
+            fprintf(stderr, "strtoked filename is %s\n", file);
+
+            if (strcmp(desired_filename, file) == 0){
+                fseek(fp, (SOURCE_FIELD_LENGTH + 1) * -1, SEEK_CUR);
+                memset(buffer, '~', buflen);
+                fwrite(buffer, 1, SOURCE_FIELD_LENGTH, fp);
+                fwrite("\n", 1, 1, fp);
+                break;
+            }
+
+        }
+        fclose(fp);
+
+
+
+}
+
+
+
+
 
 /*
 struct server_addr *least_populated_server_wrapper(db_t *db, char *loc)
