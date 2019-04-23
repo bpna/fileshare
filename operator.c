@@ -159,13 +159,13 @@ int handle_header(struct Header *h, int sockfd,
         case NEW_CLIENT:
         fprintf(stderr, "about to go to return new_client\n" );
             return new_client(h, sockfd);
-        case REQUEST_USER:
+        case USER:
             return request_user(h, sockfd, pm);
         case CREATE_CLIENT_ACK:
             return DISCONNECTED;
         case NEW_SERVER:
             return new_server(h, sockfd);
-        case REQUEST_USER_LIST:
+        case USER_LIST:
             return user_list(sockfd);
         default:
             return DISCONNECTED;
@@ -289,7 +289,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
         outgoing_message.length = 0;
     } else if (dbr.status == SUCCESS) {
-        outgoing_message.id = REQUEST_USER_ACK;
+        outgoing_message.id = USER_ACK;
         server = (struct server_addr *) dbr.result;
         sprintf(buffer, "%s:%d", server->domain_name, server->port);
         fprintf(stderr, "in request_user, buffer is  %s\n", buffer);
@@ -306,7 +306,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         return DISCONNECTED;
     }
 
-    if (outgoing_message.id == REQUEST_USER_ACK)
+    if (outgoing_message.id == USER_ACK)
         n = write_message(sockfd, buffer, len);
 
     return DISCONNECTED;
@@ -356,14 +356,14 @@ int new_server(struct Header *h, int sockfd) {
 }
 
 int user_list(int sockfd) {
-    int n, length;
+    int length;
     struct Header reply_header;
     char *user_list;
     
     length = get_user_list_wrapper(&user_list);
 
     bzero(&reply_header, HEADER_LENGTH);
-    reply_header.id = REQUEST_USER_LIST_ACK;
+    reply_header.id = USER_LIST_ACK;
     strcpy(reply_header.source, OPERATOR_SOURCE);
     reply_header.length = length;
 
