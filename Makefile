@@ -14,7 +14,7 @@ all: client operator server
 %.o: %.c $(INCLUDES)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-client: client.o $(DEPS) database/cspairs.o db_wrapper.o
+client: client.o $(DEPS) database/cspairs.o db_wrapper.o database/servertable.o
 	$(CC) -g -o $@ $^ $(DB_INCLUDES)
 
 operator: operator.o $(DEPS) database/servertable.o database/cspairs.o db_wrapper.o

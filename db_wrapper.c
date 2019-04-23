@@ -8,6 +8,7 @@
 #include "database/servertable.h"
 #include "io.h"
 
+#define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define SERVER_LOAD_FNAME "server_nums.txt"
 #define CHECKOUT_FILE "checkouts.txt"
@@ -44,9 +45,9 @@ db_t *connect_to_db_wrapper()
 }
 
 void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
-                        char *loc) {
+                        char *loc, int increment_client) {
     enum DB_STATUS db_status;
-    struct server_addr server;
+    struct Server server;
     char portno[6];
     int portno_length;
     FILE *fp;
@@ -60,7 +61,7 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
         strcpy(server.domain_name, fqdn);
         server.port = port;
 
-        db_status = add_cspair(db, client, &server);
+        db_status = add_cspair(db, client, &server, increment_client);
         check_db_status(db_status, loc);
     } else {
         portno_length = sprintf(portno, "%u", port);
@@ -86,7 +87,7 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
 struct Server *get_server_from_client_wrapper(db_t *db, char *client,
                                               char *loc) {
     struct db_return db_return;
-    struct server_addr *server;
+    struct Server *server;
     struct Server *retval = malloc(sizeof(*retval));
     FILE *fp = NULL;
     char buffer[CSPAIRS_FILE_MAX_LENGTH];
@@ -101,7 +102,7 @@ struct Server *get_server_from_client_wrapper(db_t *db, char *client,
             return NULL;
         }
 
-        server = (struct server_addr *) db_return.result;
+        server = (struct Server *) db_return.result;
         retval->port = server->port;
         strcpy(retval->domain_name, server->domain_name);
     } else {
@@ -203,8 +204,8 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
         }
         fclose(fp);
         return -1;
-        
-        
+
+
 
 
    // }
@@ -251,7 +252,7 @@ char is_file_editor(char *requester, char *desired_filename){
                 }
                 else{
                     fclose(fp);
-                    return 0;                
+                    return 0;
                 }
 
             }
@@ -325,16 +326,16 @@ void de_checkout_file(char *desired_filename){
 
 
 /*
-struct server_addr *least_populated_server_wrapper(db_t *db, char *loc)
+struct Server *least_populated_server_wrapper(db_t *db, char *loc)
 {
     struct db_return dbr;
-    struct server_addr *server = malloc(sizeof(*server));
+    struct Server *server = malloc(sizeof(*server));
 
     if (USE_DB) {
         dbr = least_populated_server(db);
         check_db_status(dbr.status, loc);
         if (dbr.result == NULL) {
-            free 
+            free
     } else {
 
     }

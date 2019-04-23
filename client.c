@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     enum message_type message_id;
     struct Server *operator;
     db_t *db = connect_to_db_wrapper();
-    
+
     if (argc < 2) {
        fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
        exit(0);
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
             exit(0);
         }
         add_cspair_wrapper(db, OPERATOR_SOURCE, argv[OPERATOR_FQDN_ARG],
-                           atoi(argv[OPERATOR_PORT_ARG]), "main()");
+                           atoi(argv[OPERATOR_PORT_ARG]), "main()", 0);
     } else {
         operator = get_operator_address(argv, db);
         message_id = check_input_get_msg_id(argc, argv);
@@ -97,7 +97,7 @@ struct Server *get_operator_address(char **argv, db_t *db) {
 int check_input_get_msg_id(int argc, char **argv) {
     if (strcmp(argv[REQUEST_TYPE_ARG], "new_client") == 0) {
         if (argc != NEW_CLIENT_ARG_COUNT) {
-            fprintf(stderr, "usage: %s new_client [username] [password]\n", 
+            fprintf(stderr, "usage: %s new_client [username] [password]\n",
                     argv[0]);
             exit(0);
         }
@@ -128,7 +128,7 @@ int check_input_get_msg_id(int argc, char **argv) {
             exit(0);
         }
 
-        return CHECKOUT_FILE; 
+        return CHECKOUT_FILE;
 
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "update_file") == 0) {
         if (argc != UPDATE_FILE_ARG_COUNT) {
@@ -138,10 +138,10 @@ int check_input_get_msg_id(int argc, char **argv) {
         }
 
         return UPDATE_FILE;
-    } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_user_list") == 0) {
-        return REQUEST_USER_LIST;
+    // } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_user_list") == 0) {
+    //     return REQUEST_USER_LIST;
     } else {
-        fprintf(stderr, "unknown message type received: %s\n", 
+        fprintf(stderr, "unknown message type received: %s\n",
                 argv[REQUEST_TYPE_ARG]);
         fprintf(stderr, "accepted message types are:\ninit\nnew_client\n\
                 upload_file\nrequest_file\nupdate_file\n");
@@ -232,9 +232,9 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t *db) {
             exit(1);
         }
         add_cspair_wrapper(db, argv[USERNAME_ARG], server->domain_name,
-                           server->port, "send_upload_file_request()");
+                           server->port, "send_upload_file_request()", 0);
         close(sockfd);
-    } 
+    }
 
     /* upload the file */
     sockfd = connect_to_server(server->domain_name, server->port);
@@ -265,7 +265,7 @@ int send_checkout_file_request(char **argv, struct Server *operator, db_t *db) {
         sockfd = connect_to_server(operator->domain_name, operator->port);
         /* get server for file owner from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
-                                            argv[PASSWORD_ARG], 
+                                            argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
             fprintf(stderr, "Server for user %s could not be resolved, \
@@ -276,7 +276,7 @@ int send_checkout_file_request(char **argv, struct Server *operator, db_t *db) {
                            server->port,
                            "send_checkout_file_request()");
         close(sockfd);
-    } 
+    }
 
     /* request the file */
     sockfd = connect_to_server(server->domain_name, server->port);
@@ -307,7 +307,7 @@ int send_request_file_request(char **argv, struct Server *operator, db_t *db) {
         sockfd = connect_to_server(operator->domain_name, operator->port);
         /* get server for file owner from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
-                                            argv[PASSWORD_ARG], 
+                                            argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
             fprintf(stderr, "Server for user %s could not be resolved, \
@@ -316,9 +316,9 @@ int send_request_file_request(char **argv, struct Server *operator, db_t *db) {
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
                            server->port,
-                           "send_request_file_request()");
+                           "send_request_file_request()", 0);
         close(sockfd);
-    } 
+    }
 
     /* request the file */
     sockfd = connect_to_server(server->domain_name, server->port);
@@ -361,9 +361,9 @@ int send_update_file_request(char **argv, struct Server *operator, db_t *db) {
             exit(1);
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
-                           server->port, "send_update_file_request()");
+                           server->port, "send_update_file_request()", 0);
         close(sockfd);
-    } 
+    }
 
     /* upload the file */
     sockfd = connect_to_server(server->domain_name, server->port);
@@ -384,7 +384,7 @@ int send_update_file_request(char **argv, struct Server *operator, db_t *db) {
 }
 
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
-        db_t *db) 
+        db_t *db)
 {
     int n, m;
     char *clientbuf;
@@ -449,7 +449,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                         if (m <= 0) {
                             error("ERROR reading from socket");
                         }
-                    } while(save_buffer(message_header.filename, file_buffer, m, 
+                    } while(save_buffer(message_header.filename, file_buffer, m,
                                         message_header.length) == 0);
                     fprintf(stderr, "successfully checked out file\n" );
                     break;
@@ -467,7 +467,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     if (m <= 0) {
                         error("ERROR reading from socket");
                     }
-                } while(save_buffer(message_header.filename, file_buffer, m, 
+                } while(save_buffer(message_header.filename, file_buffer, m,
                                     message_header.length) == 0);
                 fprintf(stderr, "Read only file successfully retrieved\n" );
             }
@@ -494,7 +494,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     struct Header header;
     char buffer[FQDN_PORT_MAX_LENGTH];
     char *token;
-    struct Server *server = malloc(sizeof(*server));
+    struct Server *server = malloc(sizeof(struct Server));
     if (server == NULL) {
         error("ERROR allocation failure");
     }
@@ -594,8 +594,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
         exit(1);
     }
     add_cspair_wrapper(db, client, fqdn, atoi(port),
-                       "read_new_client_ack_payload()");
-
+                       "read_new_client_ack_payload()", 0);
     free(buffer);
 }
 

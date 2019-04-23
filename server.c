@@ -32,39 +32,43 @@
 //TODO: if you eliminate a timed-out partial for upload, make sure to delete file that was being written
 //linked list of partial messages
 
-void sendHeader(int msgType, char *user, char * pwd,
-                char* fname, int len, int sockfd);
+void sendHeader(int msgType, char *user, char *pwd,
+                char *fname, int len, int sockfd);
 char valid_fname(char *fname);
 char upload_file(int sockfd, struct Header *msgHeader,
-                 struct PartialMessageHandler* handler);
+                 struct PartialMessageHandler *handler);
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
 int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
 int handle_request(int sockfd, struct PartialMessageHandler *handler);
 void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername);
 int create_client(int sockfd, struct Header *msgHeader,
-                  struct PartialMessageHandler* handler);
+                  struct PartialMessageHandler *handler);
+int create_client_err(int sockfd, struct Header *msgHeader,
+                      struct PartialMessageHandler *handler);
 char has_permissions(enum message_type message_id, struct Header *h);
 
 //ARGV arguments
 //      port number to run on
-//      name of server
+//      name of server (or server owner, if personal server)
 //      FQDN of operator
 //      port number of operator
-//
+//      bool of personal server
 int main(int argc, char *argv[]) {
-    if (argc < 5) {
+    if (argc < 6) {
         fprintf(stderr,"ERROR, not enough arguments\n");
         exit(1);
     }
 
     int lSock = open_and_bind_socket(atoi(argv[1]));
+    int personal = atoi(argv[5]);
     struct sockaddr_in cli_addr;
     socklen_t clilen;
     clilen = sizeof(cli_addr);
 
     /* : Talk with the operator to say that you've come online */
-    connect_to_operator(argv[3], atoi(argv[4]), atoi(argv[1]), argv[2]);
+    connect_to_operator(argv[3], atoi(argv[4]),
+                        atoi(argv[1]), argv[2], personal);
 
     int maxSock, rv, newSock = -1;
     struct timeval tv;
@@ -104,7 +108,7 @@ int main(int argc, char *argv[]) {
                         }
                     } else {
                         fprintf(stderr, "new info incoming\n" );
-                        int status = handle_request(sockfd, handler);
+                        int status = handle_request(sockfd, handler, personal);
 
                         if (status == DISCONNECT){
                             fprintf(stderr, "disconnecting client\n" );
@@ -312,7 +316,8 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
 
 //reads in a request
 //in case of either ERROR or SUCCESS, return DISCONNECT CODE. only returns 0 in case of partial read
-int handle_request(int sockfd, struct PartialMessageHandler *handler) {
+int handle_request(int sockfd, struct PartialMessageHandler *handler,
+                   int personal) {
     int n = 0, header_bytes_read;
     char buffer[HEADER_LENGTH];
     bzero(buffer, HEADER_LENGTH);
@@ -338,7 +343,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
             }
         }
     }
-    
+
     if (msgHeader->length > 0 && conflicting_upload(msgHeader->filename))
         return 1;
 
@@ -354,8 +359,13 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
     message_id = msgHeader->id;
     switch(message_id){
         case CREATE_CLIENT:
-            fprintf(stderr, "creating clinet\n");
-             return create_client(sockfd, msgHeader, handler);
+            if (personal) {
+                fprintf(stderr, "trying to add client to personal server\n");
+                return create_client_err(sockfd, msgHeader, handler);
+            } else {
+                fprintf(stderr, "creating clinet\n");
+                return create_client(sockfd, msgHeader, handler);
+            }
         case UPLOAD_FILE:
             fprintf(stderr, "uploading file\n");
             return upload_file(sockfd, msgHeader, handler);
@@ -372,7 +382,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler) {
             //TODO: Delete file
         case CHECKOUT_FILE:
                 fprintf(stderr, "checking out file\n" );
-                return handle_file_request(sockfd, msgHeader, 1);       
+                return handle_file_request(sockfd, msgHeader, 1);
         default:
             return DISCONNECT;
     }
@@ -411,7 +421,9 @@ int create_client(int sockfd, struct Header *msgHeader,
 
     strcpy(password, token);
 
-    fprintf(stderr, " username of create_client is %s\npassword of create_client is %s\n",username, password );
+    fprintf(stderr,
+        "username of create_client is %s\npassword of create_client is %s\n",
+        username, password);
 
     // dbs = add_cppair(db, username, password);
     close_db_connection(db);
@@ -424,22 +436,51 @@ int create_client(int sockfd, struct Header *msgHeader,
     return DISCONNECT;
 }
 
+int create_client_err(int sockfd, struct Header *msgHeader,
+                      struct PartialMessageHandler *handler) {
+    char buffer[512];
+    char username[SOURCE_FIELD_LENGTH];
+    char password[PASSWORD_FIELD_LENGTH];
+    char *token;
+    int n;
+    bzero(buffer, 512);
+    bzero(username, SOURCE_FIELD_LENGTH);
+    bzero(password, PASSWORD_FIELD_LENGTH);
+
+    n = read(sockfd, buffer, msgHeader->length);
+    if (n < 1)
+        return DISCONNECT;
+
+    if (add_partial(handler, buffer, sockfd, n, 0) == 0){
+        return 1;
+    }
+
+    token = strtok(buffer, ":");
+    strcpy(username, token);
+
+    sendHeader(CREATE_CLIENT_ERROR, NULL, NULL, username, 0, sockfd);
+    return DISCONNECT;
+
+}
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
-void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername) {
-
+void connect_to_operator(char *domainName, int operator_portno,
+                         int server_portno, char *servername, int personal) {
     char buffer[512];
     bzero(buffer, 512);
     int operator_sock = connect_to_server(domainName, operator_portno);
     int n;
+    enum message_type type;
 
-
+    if (personal)
+        type = NEW_PERSONAL_SERVER;
+    else
+        type = NEW_SERVER;
     /* send message*/
     sprintf(buffer, "%s:%d", "localhost", server_portno);
-    sendHeader(NEW_SERVER, servername, NULL, NULL, strlen(buffer), operator_sock);
+    sendHeader(type, servername, NULL, NULL, strlen(buffer), operator_sock);
     write_message(operator_sock, buffer, strlen(buffer));
-
 
     n = read(operator_sock, buffer, HEADER_LENGTH);
     if (n <= 0)
@@ -448,23 +489,21 @@ void connect_to_operator(char *domainName, int operator_portno, int server_portn
 
     struct Header *headerBuf = (void *) buffer;
     enum message_type message_id = headerBuf->id;
-    if (message_id == NEW_SERVER_ACK){
+    if (message_id == NEW_SERVER_ACK || message_id == NEW_PERSONAL_SERVER_ACK) {
         fprintf(stderr, "successfully connected to operator\n" );
         return;
-    }
-    else if (message_id == ERROR_SERVER_EXISTS)
+    } else if (message_id == ERROR_SERVER_EXISTS)
         error("inputted servername already exists");
     else
         error("unknown error connecting operator, please try again");
-
     return;
 }
 
 /*
- * A function that determines if a client has proper read/write access to the file
- * he is reqesting to download, upload, or modify.
+ * A function that determines if a client has proper read/write access to the
+ * file they are reqesting to download, upload, or modify.
  *
- * Arguments: 
+ * Arguments:
  *      message_id: the action the client is performing
  *      h: the request header
  *

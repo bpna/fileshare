@@ -14,10 +14,12 @@
 #define USE_DB 0
 
 #define db_t PGconn
+#define DB_OWNER "nathan"
+#define DB_NAME "fileshare"
 
 #ifndef DB_STRUCTS
 #define DB_STRUCTS
-struct server_addr {
+struct Server {
     char name[20];
     short port;
     char domain_name[64];

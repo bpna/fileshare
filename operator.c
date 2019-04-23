@@ -25,6 +25,7 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
+#define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
@@ -35,9 +36,11 @@ int handle_header(struct Header *h, int sockfd,
                   struct PartialMessageHandler *pm);
 int new_client(struct Header *h, int sockfd);
 int send_client_exists_ack(int sockfd, char *username);
-int send_new_client_ack(int sockfd, struct server_addr *server);
+int send_new_client_ack(int sockfd, struct Server *server);
+int send_new_personal_server_ack(int sockfd);
 int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm);
-int new_server(struct Header *h, int sockfd);
+int new_server(struct Header *h, int sockfd, int personal);
+int new_personal_server(struct Header *h, int sockfd);
 
 int main(int argc, char *argv[]) {
     int master_socket, csock, max_fd, rv, sockfd, status;
@@ -159,7 +162,9 @@ int handle_header(struct Header *h, int sockfd,
         case CREATE_CLIENT_ACK:
             return DISCONNECTED;
         case NEW_SERVER:
-            return new_server(h, sockfd);
+            return new_server(h, sockfd, 0);
+        case NEW_PERSONAL_SERVER:
+            return new_personal_server(h, sockfd);
         default:
             return DISCONNECTED;
     }
@@ -169,7 +174,7 @@ int new_client(struct Header *h, int sockfd) {
     db_t *db;
     struct db_return dbr;
     enum DB_STATUS dbs;
-    struct server_addr *server;
+    struct Server *server;
     int server_sock, len;
     struct Header outgoing_message;
     bzero(&outgoing_message, HEADER_LENGTH);
@@ -184,7 +189,7 @@ int new_client(struct Header *h, int sockfd) {
         return DISCONNECTED;
     }
 
-    server = (struct server_addr *) dbr.result;
+    server = (struct Server *) dbr.result;
 
     dbr = get_server_from_client(db, h->source);
     if (dbr.status == SUCCESS) {
@@ -208,19 +213,12 @@ int new_client(struct Header *h, int sockfd) {
     write_message(server_sock, client_info, len);
     fprintf(stderr, "just finished writing CREATE_CLIENT to server\n" );
 
-    dbs = add_cspair(db, h->source, server);
+    dbs = add_cspair(db, h->source, server, 1);
+    close_db_connection(db);
     if (dbs != SUCCESS) {
         fprintf(stderr, "Error: failed to add to cspair\n" );
         free(server);
         close_db_connection(db);
-        return DISCONNECTED;
-    }
-
-    dbs = increment_clients(db, server);
-    close_db_connection(db);
-    if (dbs != SUCCESS) {
-        fprintf(stderr, "Error: failed to increment server's clients\n" );
-        free(server);
         return DISCONNECTED;
     }
 
@@ -241,7 +239,7 @@ int send_client_exists_ack(int sockfd, char *username) {
     return DISCONNECTED;
 }
 
-int send_new_client_ack(int sockfd, struct server_addr *server) {
+int send_new_client_ack(int sockfd, struct Server *server) {
     struct Header outgoing_message;
     int len;
     char payload[275];
@@ -262,11 +260,21 @@ int send_new_client_ack(int sockfd, struct server_addr *server) {
     return DISCONNECTED;
 }
 
+int send_new_personal_server_ack(int sockfd) {
+    struct Header outgoing_message;
+
+    outgoing_message.id = NEW_PERSONAL_SERVER_ACK;
+    strcpy(outgoing_message.source, OPERATOR_SOURCE);
+    write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+
+    return DISCONNECTED;
+}
+
 int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm) {
     (void) pm;
     db_t *db;
     struct db_return dbr;
-    struct server_addr *server;
+    struct Server *server;
     int n, len;
     struct Header outgoing_message;
     bzero(&outgoing_message, HEADER_LENGTH);
@@ -285,7 +293,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         outgoing_message.length = 0;
     } else if (dbr.status == SUCCESS) {
         outgoing_message.id = REQUEST_USER_ACK;
-        server = (struct server_addr *) dbr.result;
+        server = (struct Server *) dbr.result;
         sprintf(buffer, "%s:%d", server->domain_name, server->port);
         fprintf(stderr, "in request_user, buffer is  %s\n", buffer);
         len = strlen(buffer);
@@ -307,10 +315,10 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
     return DISCONNECTED;
 }
 
-int new_server(struct Header *h, int sockfd) {
+int new_server(struct Header *h, int sockfd, int personal) {
     db_t *db;
     enum DB_STATUS dbs;
-    struct server_addr server;
+    struct Server server;
     int n;
     struct Header outgoing_message;
     char  *token;
@@ -328,9 +336,10 @@ int new_server(struct Header *h, int sockfd) {
     token = strtok(NULL, "");
     server.port = atoi(token);
 
-    fprintf(stderr, " fqdn of new_server is %s\nportno of new_server is %d\n",server.domain_name, server.port );
+    fprintf(stderr, "fqdn of new_server is %s\nportno of new_server is %d\n",
+            server.domain_name, server.port);
 
-    dbs = add_server(db, &server);
+    dbs = add_server(db, &server, personal);
     if (dbs == ELEMENT_ALREADY_EXISTS) {
         close_db_connection(db);
         outgoing_message.id = ERROR_SERVER_EXISTS;
@@ -348,4 +357,60 @@ int new_server(struct Header *h, int sockfd) {
     n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
 
     return DISCONNECTED;
+}
+
+int new_personal_server(struct Header *h, int sockfd) {
+    int status;
+    db_t *db;
+    struct db_return dbr;
+    enum DB_STATUS dbs;
+    struct Server *server;
+
+    status = new_server(h, sockfd, 1);
+    if (status != DISCONNECTED)
+        return status;
+
+    db = connect_to_db(DB_OWNER, DB_NAME);
+
+    dbr = get_server_from_client(db, h->source);
+    if (dbr.status == SUCCESS) {
+        fprintf(stderr, "ERROR: client already exists\n");
+        free(dbr.result);
+        close_db_connection(db);
+        return send_client_exists_ack(sockfd, h->source);
+    }
+
+    dbr = get_server_from_name(db, h->source);
+    if (dbr.status != SUCCESS) {
+        fprintf(stderr, "ERROR: server not made");
+        close_db_connection(db);
+        return DISCONNECTED;
+    }
+    server = (struct Server *) dbr.result;
+
+    dbs = add_cspair(db, h->source, server, 1);
+    free(server);
+    if (dbs != SUCCESS) {
+        fprintf(stderr, "Error: failed to add to cspair\n" );
+        close_db_connection(db);
+        return DISCONNECTED;
+    }
+
+    dbr = least_populated_server(db);
+    if (dbr.status != SUCCESS) {
+        fprintf(stderr, "dbr status was not success\n");
+        close_db_connection(db);
+        return DISCONNECTED;
+    }
+    server = (struct Server *) dbr.result;
+
+    dbs = add_backup_cspair(db, h->source, server);
+    free(server);
+    close_db_connection(db);
+    if (dbs!= SUCCESS) {
+        fprintf(stderr, "Error: failed to add backup server info\n");
+        return DISCONNECTED;
+    }
+
+    return send_new_personal_server_ack(sockfd);
 }

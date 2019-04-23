@@ -19,10 +19,9 @@ db_t *connect_to_db(char *owner, char *database) {
 }
 
 int check_connection(db_t *db) {
-    if (PQstatus(db) == CONNECTION_BAD) {
-        PQfinish(db);
+    if (PQstatus(db) == CONNECTION_BAD)
         return 1;
-    }
+
     return 0;
 }
 
@@ -50,7 +49,7 @@ enum DB_STATUS create_table(db_t *db, char *tablename, char *columns,
     if (drop_existing && drop_table(db, tablename))
         error("ERROR dropping table");
     else if (!drop_existing) {
-        stm = calloc(6 + strlen(tablename), sizeof (char));
+        stm = calloc(10 + strlen(tablename), sizeof (char));
         sprintf(stm, "TABLE %s", tablename);
         res = PQexec(db, stm);
         free(stm);
@@ -61,7 +60,7 @@ enum DB_STATUS create_table(db_t *db, char *tablename, char *columns,
         PQclear(res);
     }
 
-    stm = calloc(16 + strlen(tablename) + strlen(columns), sizeof (char));
+    stm = calloc(20 + strlen(tablename) + strlen(columns), sizeof (char));
     sprintf(stm, "CREATE TABLE %s(%s)", tablename, columns);
     res = PQexec(db, stm);
     free(stm);

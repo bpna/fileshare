@@ -4,9 +4,9 @@
 #include "cppairs.h"
 #include "filetable.h"
 
-void do_exit(PGconn *conn) {
-    PQfinish(conn);
-    exit(1);
+void error(const char *msg) {
+    perror(msg);
+    exit(0);
 }
 
 #define TEST_CLIENT "charles"
@@ -16,6 +16,7 @@ void cppairs_test_suite(db_t *db);
 void cspairs_test_suite(db_t *db);
 void filetable_test_suite(db_t *db);
 void servertable_test_suite(db_t *db);
+void personal_server_test_suite(db_t *db);
 
 int main(int argc, char* argv[]) {
     db_t *db = connect_to_db("nathan", "fileshare");
@@ -26,6 +27,7 @@ int main(int argc, char* argv[]) {
     cspairs_test_suite(db);
     filetable_test_suite(db);
     servertable_test_suite(db);
+    personal_server_test_suite(db);
 
     close_db_connection(db);
     return 0;
@@ -54,16 +56,16 @@ void cspairs_test_suite(db_t *db) {
     if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
         error("ERROR creating cspairs table");
 
-    struct server_addr addr = {
+    struct Server addr = {
         .name = "test",
         .port = 9010,
         .domain_name = "nathan@allenhub.com"
     };
-    if (add_cspair(db, TEST_CLIENT, &addr))
+    if (add_cspair(db, TEST_CLIENT, &addr, 1))
         error("ERROR adding cspair");
 
     struct db_return result = get_server_from_client(db, TEST_CLIENT);
-    struct server_addr *stored_addr = (struct server_addr *) result.result;
+    struct Server *stored_addr = (struct Server *) result.result;
     if (addr.port != stored_addr->port ||
         strcmp(addr.domain_name, stored_addr->domain_name)) {
         error("ERROR retrieving stored server info");
@@ -110,12 +112,12 @@ void servertable_test_suite(db_t *db) {
     if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
         error("ERROR creating server table");
 
-    struct server_addr addr = {
+    struct Server addr = {
         .name = "test",
         .port = 9010,
         .domain_name = "nathan@allenhub.com"
     };
-    if (add_server(db, &addr))
+    if (add_server(db, &addr, 0))
         error("ERROR adding server");
 
     if (increment_clients(db, &addr) ||
@@ -124,9 +126,30 @@ void servertable_test_suite(db_t *db) {
 
     struct db_return result = least_populated_server(db);
     if (result.status ||
-        strcmp(((struct server_addr *) result.result)->name, "test"))
+        strcmp(((struct Server *) result.result)->name, "test"))
         error("ERROR retrieving least populated server");
     free(result.result);
+
+    return;
+}
+
+void personal_server_test_suite(db_t *db) {
+    enum DB_STATUS dbs;
+
+    dbs = create_server_table(db, 0);
+    if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
+        error("ERROR creating server table");
+
+    struct Server addr = {
+        .name = "nathan",
+        .port = 9010,
+        .domain_name = "nathan@allenhub.com"
+    };
+    if (add_server(db, &addr, 1))
+        error("ERROR adding personal server");
+
+    if (add_cspair(db, "nathan", &addr, 1))
+        error("ERROR adding cspair to personal server");
 
     return;
 }
