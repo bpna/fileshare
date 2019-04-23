@@ -70,6 +70,7 @@ int main(int argc, char **argv) {
         operator = get_operator_address(argv, db);
         message_id = check_input_get_msg_id(argc, argv);
         sockfd = parse_and_send_request(message_id, argv, operator, db);
+        free(operator);
         if (sockfd == -1) {
             return 1;
         }
