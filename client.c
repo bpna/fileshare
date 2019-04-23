@@ -274,7 +274,7 @@ int send_checkout_file_request(char **argv, struct Server *operator, db_t *db) {
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
                            server->port,
-                           "send_checkout_file_request()");
+                           "send_checkout_file_request()", 0);
         close(sockfd);
     }
 
@@ -452,13 +452,12 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                     } while(save_buffer(message_header.filename, file_buffer, m,
                                         message_header.length) == 0);
                     fprintf(stderr, "successfully checked out file\n" );
-                    break;
-                }
-                else if (message_header.id == RETURN_READ_ONLY_FILE){
-                    fprintf(stderr, "someone has already checked out this file, you are downloading a read-only copy\n" );
-                }
+                } else if (message_header.id == RETURN_READ_ONLY_FILE)
+                    fprintf(stderr, "someone has already checked out this \
+                                     file, you are downloading a read-only \
+                                     copy\n");
+                break;
         case REQUEST_FILE:
-
             if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
                fprintf(stderr,"File %s does not exist on server\n", message_header.filename);
             else if (message_header.id == RETURN_READ_ONLY_FILE){

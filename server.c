@@ -40,8 +40,10 @@ char upload_file(int sockfd, struct Header *msgHeader,
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
 int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
-int handle_request(int sockfd, struct PartialMessageHandler *handler);
-void connect_to_operator(char *domainName, int operator_portno, int server_portno, char* servername);
+int handle_request(int sockfd, struct PartialMessageHandler *handler,
+                   int personal);
+void connect_to_operator(char *domainName, int operator_portno,
+                         int server_portno, char* servername, int personal);
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler *handler);
 int create_client_err(int sockfd, struct Header *msgHeader,
@@ -107,7 +109,7 @@ int main(int argc, char *argv[]) {
                             maxSock = (newSock > maxSock) ? newSock: maxSock;
                         }
                     } else {
-                        fprintf(stderr, "new info incoming\n" );
+                        // fprintf(stderr, "new info incoming\n" );
                         int status = handle_request(sockfd, handler, personal);
 
                         if (status == DISCONNECT){
