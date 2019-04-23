@@ -11,7 +11,8 @@
 
 enum DB_STATUS create_file_table(db_t *db, char drop_existing) {
     return create_table(db, "files", "Filename VARCHAR(100), Owner VARCHAR(20), \
-                                      Size INT", drop_existing);
+                                      Size INT, Checked_Out_By VARCHAR(20)",
+                                      drop_existing);
 }
 
 enum DB_STATUS add_file(db_t *db, char *client, char *pass,
@@ -25,7 +26,7 @@ enum DB_STATUS add_file(db_t *db, char *client, char *pass,
     //     return ELEMENT_ALREADY_EXISTS;
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "INSERT INTO files VALUES('%s', '%s', 0)",
+    sprintf(stm, "INSERT INTO files VALUES('%s', '%s', %d)",
             file.name, client, file.len);
 
     // TODO: actually save the file
