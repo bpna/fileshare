@@ -12,3 +12,5 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
                         char *loc);
 struct Server * get_server_from_client_wrapper(db_t *db, char *client,
                                                char *loc);
+
+int get_user_list_wrapper(char **user_list);

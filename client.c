@@ -459,8 +459,9 @@ void process_reply(int sockfd, const enum message_type message_id, char **argv,
         case REQUEST_USER_LIST:
             read_user_list_reply(sockfd, &message_header);
             break;
+        default:
+            break;
     }
-    return 0;
 }
 
 void read_new_client_reply(int sockfd, char **argv, 
@@ -593,12 +594,13 @@ void read_request_file_reply(int sockfd, struct Header *message_header) {
 
 void read_user_list_reply(int sockfd, struct Header *message_header) {
     int n;
+    unsigned m;
     char list_buffer[FILE_BUFFER_MAX_LEN];
     struct PartialMessageHandler *p = init_partials();
 
-    else if (message_header->id == REQUEST_USER_LIST_ACK) {
+    if (message_header->id == REQUEST_USER_LIST_ACK) {
         do {
-            n = read(sockfd, list_buffer, RW_LENGTH);
+            n = read(sockfd, list_buffer, FILE_BUFFER_MAX_LEN);
             if (n < 0)
                 error("ERROR reading from socket");
             else if (n == 0) {
@@ -607,15 +609,15 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
             }
         } while (add_partial(p, list_buffer, sockfd, 
                              message_header->length, 0) == 0);
-    }
-    else
+    } else
         fprintf(stderr, "Bad response type %d received from router",
                 message_header->id);
-    n = 0;
+
+    m = 0;
     printf("Users in the system:\n\n");
-    while (n < message_header->length) {
+    while (m < message_header->length) {
         printf("%s\n", list_buffer);
-        list_buffer += strlen(list_buffer);
+        m += strlen(list_buffer);
     }
 }
 

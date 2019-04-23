@@ -22,6 +22,7 @@
 #include "partial_message_handler.h"
 #include "database/cspairs.h"
 #include "io.h"
+#include "db_wrapper.h"
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
@@ -41,6 +42,7 @@ int send_client_exists_ack(int sockfd, char *username);
 int send_new_client_ack(int sockfd, struct server_addr *server);
 int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm);
 int new_server(struct Header *h, int sockfd);
+int user_list(int sockfd);
 
 int main(int argc, char *argv[]) {
     int master_socket, csock, max_fd, rv, sockfd, status;
@@ -163,6 +165,8 @@ int handle_header(struct Header *h, int sockfd,
             return DISCONNECTED;
         case NEW_SERVER:
             return new_server(h, sockfd);
+        case REQUEST_USER_LIST:
+            return user_list(sockfd);
         default:
             return DISCONNECTED;
     }
@@ -347,6 +351,25 @@ int new_server(struct Header *h, int sockfd) {
 
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+
+    return DISCONNECTED;
+}
+
+int user_list(int sockfd) {
+    int n, length;
+    struct Header reply_header;
+    char *user_list;
+    
+    length = get_user_list_wrapper(&user_list);
+
+    bzero(&reply_header, HEADER_LENGTH);
+    reply_header.id = REQUEST_USER_LIST_ACK;
+    strcpy(reply_header.source, OPERATOR_SOURCE);
+    reply_header.length = length;
+
+    write_message(sockfd, (char *) &reply_header, HEADER_LENGTH);
+    if (length != 0)
+        write_message(sockfd, user_list, length);
 
     return DISCONNECTED;
 }
