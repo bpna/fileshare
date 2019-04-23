@@ -584,33 +584,39 @@ void read_request_file_reply(int sockfd, struct Header *message_header) {
                 exit(1);
             }
         } while(save_buffer(message_header->filename, file_buffer, n, 
-                    message_header->length) == 0);
+                            message_header->length) == 0);
     }
     else
         fprintf(stderr, "Bad response type %d received from router",
                 message_header->id);
 }
 
-// TODO: make sure adding partials works here
 void read_user_list_reply(int sockfd, struct Header *message_header) {
     int n;
-    char file_buffer[RW_LENGTH];
+    char list_buffer[FILE_BUFFER_MAX_LEN];
+    struct PartialMessageHandler *p = init_partials();
 
     else if (message_header->id == REQUEST_USER_LIST_ACK) {
         do {
-            n = read(sockfd, file_buffer, RW_LENGTH);
+            n = read(sockfd, list_buffer, RW_LENGTH);
             if (n < 0)
                 error("ERROR reading from socket");
             else if (n == 0) {
                 fprintf(stderr, "server closed connection prematurely\n");
                 exit(1);
             }
-        } while(add_partial(message_header->filename, file_buffer, n, 
-                            message_header->length) == 0);
+        } while (add_partial(p, list_buffer, sockfd, 
+                             message_header->length, 0) == 0);
     }
     else
         fprintf(stderr, "Bad response type %d received from router",
                 message_header->id);
+    n = 0;
+    printf("Users in the system:\n\n");
+    while (n < message_header->length) {
+        printf("%s\n", list_buffer);
+        list_buffer += strlen(list_buffer);
+    }
 }
 
 /* Purpose: creates a filename in format "file-owner/filename" so as to be

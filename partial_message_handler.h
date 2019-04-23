@@ -5,7 +5,7 @@
  *
  * The partial message handler interface allows any node reading from a
  * socket to store partial reads of arbitrary length <= 10000 bytes.
- * INIT_BUFFER_LENGTH and RW_LENGTH constants are also defined in this file
+ * The INIT_BUFFER_LENGTH constant is also defined in this file
  * so clients of the partial message handler interface may initialize and read
  * into arrays the correct number of bytes passed to this interface.
  *
