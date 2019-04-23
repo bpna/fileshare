@@ -30,7 +30,7 @@ def run_operator():
 
 def run_server(server_name, portno):
     file = open("./output/{0}_output.txt".format(server_name), "w")
-    subprocess.run(['./server'.format(server_name), portno,server_name,'localhost', operator_port], stderr=file, stdout=file, cwd = '{0}/'.format(server_name))
+    subprocess.run(['./server'.format(server_name), portno,server_name,'localhost', operator_port, "0"], stderr=file, stdout=file, cwd = '{0}/'.format(server_name))
     file.close()
 
 def init_client(client_name):
