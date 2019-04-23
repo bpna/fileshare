@@ -12,14 +12,14 @@ void error(const char *msg) {
 #define TEST_CLIENT "charles"
 #define TEST_PASS "qwerty"
 
-void cppairs_test_suite(db_t *db);
-void cspairs_test_suite(db_t *db);
-void filetable_test_suite(db_t *db);
-void servertable_test_suite(db_t *db);
-void personal_server_test_suite(db_t *db);
+void cppairs_test_suite(db_t db);
+void cspairs_test_suite(db_t db);
+void filetable_test_suite(db_t db);
+void servertable_test_suite(db_t db);
+void personal_server_test_suite(db_t db);
 
 int main(int argc, char* argv[]) {
-    db_t *db = connect_to_db("nathan", "fileshare");
+    db_t db = connect_to_db("nathan", "fileshare");
     if (db == NULL)
         error("ERROR connecting to database");
 
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void cppairs_test_suite(db_t *db) {
+void cppairs_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_cppairs_table(db, 1);
@@ -49,7 +49,7 @@ void cppairs_test_suite(db_t *db) {
     return;
 }
 
-void cspairs_test_suite(db_t *db) {
+void cspairs_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_cspairs_table(db, 1);
@@ -84,7 +84,7 @@ void cspairs_test_suite(db_t *db) {
     return;
 }
 
-void filetable_test_suite(db_t *db) {
+void filetable_test_suite(db_t db) {
     enum DB_STATUS dbs;
     struct db_return dbr;
 
@@ -120,7 +120,7 @@ void filetable_test_suite(db_t *db) {
     return;
 }
 
-void servertable_test_suite(db_t *db) {
+void servertable_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_server_table(db, 1);
@@ -148,7 +148,7 @@ void servertable_test_suite(db_t *db) {
     return;
 }
 
-void personal_server_test_suite(db_t *db) {
+void personal_server_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_server_table(db, 0);

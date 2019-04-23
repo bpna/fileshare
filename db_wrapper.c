@@ -32,9 +32,8 @@ void check_db_status(enum DB_STATUS db_status, char *func) {
     }
 }
 
-db_t *connect_to_db_wrapper()
-{
-    db_t *db;
+db_t connect_to_db_wrapper() {
+    db_t db;
     if (USE_DB) {
         db = connect_to_db(DB_OWNER, DB_NAME);
     } else {
@@ -44,7 +43,7 @@ db_t *connect_to_db_wrapper()
     return db;
 }
 
-void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
+void add_cspair_wrapper(db_t db, char *client, char *fqdn, unsigned port,
                         char *loc, int increment_client) {
     enum DB_STATUS db_status;
     struct Server server;
@@ -84,7 +83,7 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
  * returns NULL. Otherwise, it malloc's and returns a Server struct which must
  * be free'd by the caller.
  */
-struct Server *get_server_from_client_wrapper(db_t *db, char *client,
+struct Server *get_server_from_client_wrapper(db_t db, char *client,
                                               char *loc) {
     struct db_return db_return;
     struct Server *server;
@@ -326,7 +325,7 @@ void de_checkout_file(char *desired_filename){
 
 
 /*
-struct Server *least_populated_server_wrapper(db_t *db, char *loc)
+struct Server *least_populated_server_wrapper(db_t db, char *loc)
 {
     struct db_return dbr;
     struct Server *server = malloc(sizeof(*server));

@@ -9,13 +9,13 @@
 #include "filetable.h"
 #include "cppairs.h"
 
-enum DB_STATUS create_file_table(db_t *db, char drop_existing) {
+enum DB_STATUS create_file_table(db_t db, char drop_existing) {
     return create_table(db, "files", "Filename VARCHAR(100), Owner VARCHAR(20), \
                                       Size INT, Checked_Out_By VARCHAR(20)",
                                       drop_existing);
 }
 
-enum DB_STATUS add_file(db_t *db, char *client, char *pass,
+enum DB_STATUS add_file(db_t db, char *client, char *pass,
                         struct file_info file) {
     if (check_connection(db))
         return CORRUPTED;
@@ -37,7 +37,7 @@ enum DB_STATUS add_file(db_t *db, char *client, char *pass,
     return SUCCESS;
 }
 
-enum DB_STATUS delete_file(db_t *db, char *client,
+enum DB_STATUS delete_file(db_t db, char *client,
                            char *pass, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
@@ -49,7 +49,7 @@ enum DB_STATUS delete_file(db_t *db, char *client,
     return exec_command(db, stm);
 }
 
-enum DB_STATUS update_file(db_t *db, char *client, char *pass,
+enum DB_STATUS update_file(db_t db, char *client, char *pass,
                            struct file_info file) {
     if (check_connection(db))
         return CORRUPTED;
@@ -63,7 +63,7 @@ enum DB_STATUS update_file(db_t *db, char *client, char *pass,
     return exec_command(db, stm);
 }
 
-enum DB_STATUS checkout_file(db_t *db, char *owner, char *filename,
+enum DB_STATUS checkout_file(db_t db, char *owner, char *filename,
                              char *requester) {
     if (check_connection(db))
         return CORRUPTED;
@@ -76,7 +76,7 @@ enum DB_STATUS checkout_file(db_t *db, char *owner, char *filename,
     return exec_command(db, stm);
 }
 
-struct db_return is_file_editor(db_t *db, char *owner, char *filename,
+struct db_return is_file_editor(db_t db, char *owner, char *filename,
                              char *requester) {
     if (check_connection(db))
         return generate_dbr(CORRUPTED, NULL);
@@ -100,7 +100,7 @@ struct db_return is_file_editor(db_t *db, char *owner, char *filename,
     return generate_dbr(SUCCESS, (void *) diff);
 }
 
-enum DB_STATUS de_checkout_file(db_t *db, char *owner, char *filename) {
+enum DB_STATUS de_checkout_file(db_t db, char *owner, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
 
