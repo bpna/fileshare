@@ -18,6 +18,7 @@
 #define UPLOAD_FILE_ARG_COUNT 5
 #define REQUEST_FILE_ARG_COUNT 6
 #define UPDATE_FILE_ARG_COUNT 6
+#define FILE_LIST_ARG_COUNT 5
 #define REQUEST_TYPE_ARG 1
 #define OPERATOR_FQDN_ARG 2
 #define OPERATOR_PORT_ARG 3
@@ -37,6 +38,7 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t *db);
 int send_file_request(char **argv, struct Server *operator, db_t *db);
 int send_update_file_request(char **argv, struct Server *operator, db_t *db);
 int send_user_list_request(struct Server *server);
+int send_file_list_request(char **argv, struct Server *operator, db_t *db);
 struct Server *send_recv_user_req(int sockfd, char *user, char *password,
                                   char *file_owner);
 void process_reply(int sockfd, const enum message_type message_id, char **argv,
@@ -120,7 +122,7 @@ int check_input_get_msg_id(int argc, char **argv) {
         }
 
         return UPLOAD_FILE;
-    } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_file") == 0) {
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "file") == 0) {
         if (argc != REQUEST_FILE_ARG_COUNT) {
             fprintf(stderr, "usage: %s request_file [username] [password] \
                     [owner-username] [filename]\n", argv[0]);
@@ -136,13 +138,22 @@ int check_input_get_msg_id(int argc, char **argv) {
         }
 
         return UPDATE_FILE;
-    } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_user_list") == 0) {
-        return REQUEST_USER_LIST;
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "user_list") == 0) {
+        return USER_LIST;
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "file_list") == 0) {
+        if (argc != FILE_LIST_ARG_COUNT) {
+            fprintf(stderr, "usage %s file_list [username] [password] \
+                    [owner-username]\n", argv[0]);
+            exit(0);
+        }
+        
+        return FILE_LIST;
     } else {
         fprintf(stderr, "unknown message type received: %s\n", 
                 argv[REQUEST_TYPE_ARG]);
         fprintf(stderr, "accepted message types are:\ninit\nnew_client\n\
-                upload_file\nrequest_file\nupdate_file\n");
+                upload_file\nrequest_file\nupdate_file\nuser_list\n\
+                file_list\n");
         exit(0);
     }
 }
@@ -177,8 +188,11 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
         case UPDATE_FILE:
             sockfd = send_update_file_request(argv, operator, db);
             break;
-        case REQUEST_USER_LIST:
+        case USER_LIST:
             sockfd = send_user_list_request(operator);
+            break;
+        case FILE_LIST:
+            sockfd = send_file_list_request(argv, operator, db);
             break;
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
@@ -343,10 +357,46 @@ int send_user_list_request(struct Server *operator) {
 
     sockfd = connect_to_server(operator->domain_name, operator->port);
     bzero(&message_header, sizeof(message_header));
-    message_header.id = REQUEST_USER_LIST;
+    message_header.id = USER_LIST;
     write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
 
     return sockfd;
+}
+
+
+int send_file_list_request(char **argv, struct Server *operator, db_t *db) {
+   int sockfd;
+   struct Header message_header;
+   struct Server *server;
+
+   server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
+                                           "send_file_list_request()");
+   if (server == NULL) { /* no client/server pairing on client */
+        sockfd = connect_to_server(operator->domain_name, operator->port);
+        /* get server for owner from operator */
+        server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
+                                            argv[PASSWORD_ARG],
+                                            argv[OWNER_ARG]);
+        if (server == NULL) { /* no client/server pairing on operator */
+            fprintf(stderr, "Server for user %s could not be resolved, \
+                    exiting\n", argv[USERNAME_ARG]);
+            exit(1);
+        }
+        add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+                           server->port, "send_update_file_request()");
+        close(sockfd);
+    } 
+    
+   /* send file list request */
+   sockfd = connect_to_server(server->domain_name, server->port);
+   bzero(&message_header, sizeof(message_header));
+   message_header.id = FILE_LIST;
+   strcpy(message_header.source, argv[USERNAME_ARG]);
+   strcpy(message_header.password, argv[PASSWORD_ARG]);
+   write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+
+   free(server);
+   return sockfd;
 }
 
 /*
@@ -368,7 +418,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     }
 
     bzero(&header, sizeof(header));
-    header.id = REQUEST_USER;
+    header.id = USER;
     strcpy(header.source, user);
     strcpy(header.password, password);
     strcpy(header.filename, file_owner);
@@ -386,7 +436,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     }
 
     memcpy(&header, buffer, HEADER_LENGTH);
-    if (header.id == REQUEST_USER_ACK) {
+    if (header.id == USER_ACK) {
         length = ntohl(header.length);
         n = 0;
         if (length < FQDN_PORT_MAX_LENGTH)
@@ -456,7 +506,7 @@ void process_reply(int sockfd, const enum message_type message_id, char **argv,
         case REQUEST_FILE:
             read_request_file_reply(sockfd, &message_header);
             break;
-        case REQUEST_USER_LIST:
+        case USER_LIST:
             read_user_list_reply(sockfd, &message_header);
             break;
         default:
@@ -598,7 +648,7 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
     char list_buffer[FILE_BUFFER_MAX_LEN];
     struct PartialMessageHandler *p = init_partials();
 
-    if (message_header->id == REQUEST_USER_LIST_ACK) {
+    if (message_header->id == USER_LIST_ACK) {
         do {
             n = read(sockfd, list_buffer, FILE_BUFFER_MAX_LEN);
             if (n < 0)
