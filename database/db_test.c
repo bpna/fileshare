@@ -75,6 +75,12 @@ void cspairs_test_suite(db_t *db) {
     if (!client_exists(db, TEST_CLIENT))
         error("ERROR verifying client existence");
 
+    char *list;
+    struct db_return dbr = get_user_list(db, &list);
+    free(list);
+    if (dbr.status)
+        error("ERROR getting user list");
+
     return;
 }
 
@@ -159,6 +165,12 @@ void personal_server_test_suite(db_t *db) {
 
     if (add_cspair(db, "nathan", &addr, 1))
         error("ERROR adding cspair to personal server");
+
+    char *list;
+    struct db_return dbr = get_user_list(db, &list);
+    free(list);
+    if (dbr.status)
+        error("ERROR getting user list");
 
     return;
 }

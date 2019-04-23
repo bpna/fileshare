@@ -18,3 +18,5 @@ enum DB_STATUS add_backup_cspair(db_t *db, char *client,
                                  struct Server *server);
 
 int client_exists(db_t *db, char *client);
+
+struct db_return get_user_list(db_t *db, char **list);
