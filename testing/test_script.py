@@ -35,7 +35,6 @@ def run_server(server_name, portno):
     file.close()
 
 def init_client(client_name):
-    time.sleep(1)
 
     input_arr = ['./client', 'init', 'localhost', operator_port]
     file = open("./output/{0}_output.txt".format(client_name), "a")
@@ -94,7 +93,6 @@ file.close()
 #cli_one checks out file (should fail)
 client_name = 'cli_one'
 input_arr[2] = client_name
-input_arr.insert(0, '-v')
 input_arr.insert(0, '--leak-check=full')
 
 input_arr.insert(0, 'valgrind')
