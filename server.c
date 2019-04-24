@@ -46,7 +46,7 @@ int create_client(int sockfd, struct Header *msgHeader,
 int create_client_err(int sockfd, struct Header *msgHeader,
                       struct PartialMessageHandler *handler);
 char has_permissions(enum message_type message_id, struct Header *h);
-char delete_file(int sockfd, struct Headder *msgHeader);
+char delete_file(int sockfd, struct Header *msgHeader);
 
 //ARGV arguments
 //      port number to run on
@@ -291,7 +291,7 @@ char update_file(int sockfd, struct Header *msgHeader,
 /*
  * deletes a given file
  */ 
-char delete_file(int sockfd, struct Headder *msgHeader){
+char delete_file(int sockfd, struct Header *msgHeader){
 
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
@@ -301,7 +301,7 @@ char delete_file(int sockfd, struct Headder *msgHeader){
         return DISCONNECT;
     }
 
-    if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename == -1)){
+    if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) == -1){
 
         fprintf(stderr, "tried to delete a file that is checked out\n");
         sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
