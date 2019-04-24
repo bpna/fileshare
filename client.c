@@ -498,7 +498,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                        message_header.filename);
             break;
         case DELETE_FILE:
-            if (message_header.id == UPDATE_ACK)
+            if (message_header.id == DELETE_FILE_ACK)
                 fprintf(stderr,"File %s successfully deleted\n",
                        message_header.filename);
             else if (message_header.id == ERROR_FILE_DOES_NOT_EXIST)
@@ -507,7 +507,7 @@ int process_reply(int sockfd, const enum message_type message_id, char **argv,
                 fprintf(stderr,"Invalid permissions for %s\n",
                        message_header.filename);
             else
-                fprintf(stderr, "response form server unclear, deletion for file %s may have been unsuccesful\n",
+                fprintf(stderr, "response from server unclear, deletion for file %s may have been unsuccesful\n",
                         message_header.filename);
             break;
 

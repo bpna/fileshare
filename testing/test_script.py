@@ -102,15 +102,23 @@ subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_n
 file.close()
 
 
-#"modify" file
-subprocess.run(['cp', 'file.file2', './cli_two/file.file'])
+# #"modify" file
+# subprocess.run(['cp', 'file.file2', './cli_two/file.file'])
 
-#cli_two updates file
+# #cli_two updates file
+# client_name = 'cli_two'
+# input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'file.file']
+# file = open("./output/{0}_output.txt".format(client_name), "a")
+# subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+# file.close()
+
+#cli_two deletes file
 client_name = 'cli_two'
-input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'file.file']
+input_arr = ['./client', 'delete_file', client_name, 'password', 'cli_one', 'file.file']
 file = open("./output/{0}_output.txt".format(client_name), "a")
 subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 file.close()
+
 
 
         
