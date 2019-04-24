@@ -176,9 +176,7 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
         //loops through file line by line
         while(fgets(buffer, buflen, fp) != NULL){
             file = strtok(buffer, " ");
-            fprintf(stderr, "strtoked filename is %s\n", file);
             file_editor = strtok(NULL, "\n");
-            fprintf(stderr, "raw file editor is %s\n", file_editor);
 
             if (strcmp(desired_filename, file) == 0){
 
@@ -239,9 +237,7 @@ char is_file_editor(char *requester, char *desired_filename){
         //loops through file line by line
         while(fgets(buffer, buflen, fp) != NULL){
             file = strtok(buffer, " ");
-            fprintf(stderr, "strtoked filename is %s\n", file);
             file_editor = strtok(NULL, "\n");
-            fprintf(stderr, "raw file editor is %s\n", file_editor);
 
             if (strcmp(desired_filename, file) == 0){
 
@@ -307,7 +303,6 @@ void de_checkout_file(char *desired_filename){
         //loops through file line by line
         while(fgets(buffer, buflen, fp) != NULL){
             file = strtok(buffer, " ");
-            fprintf(stderr, "strtoked filename is %s\n", file);
 
             if (strcmp(desired_filename, file) == 0){
                 fseek(fp, (SOURCE_FIELD_LENGTH + 1) * -1, SEEK_CUR);
