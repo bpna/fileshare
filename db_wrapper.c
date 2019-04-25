@@ -8,7 +8,7 @@
 #include "database/servertable.h"
 #include "io.h"
 
-#define USE_DB 0
+#define USE_DB 1
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define SERVER_LOAD_FNAME "server_nums.txt"
 #define CHECKOUT_FILE "checkouts.txt"

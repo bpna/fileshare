@@ -20,7 +20,7 @@ client: client.o $(DEPS) database/cspairs.o db_wrapper.o database/servertable.o
 operator: operator.o $(DEPS) database/servertable.o database/cspairs.o db_wrapper.o
 	$(CC) -g -o $@ $^ $(DB_INCLUDES)
 
-server: server.o $(DEPS) database/cppairs.o db_wrapper.o
+server: server.o $(DEPS) database/cppairs.o db_wrapper.o database/cspairs.o database/servertable.o
 	$(CC) -g -o $@ $^ $(DB_INCLUDES)
 
 clean:

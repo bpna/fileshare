@@ -42,6 +42,7 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t db);
 int send_request_file_request(char **argv, struct Server *operator, db_t db);
 int send_checkout_file_request(char **argv, struct Server *operator, db_t db);
 int send_update_file_request(char **argv, struct Server *operator, db_t db);
+int send_delete_file_request(char **argv, struct Server *operator, db_t db);
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
                   db_t db);
 struct Server *send_recv_user_req(int sockfd, char *user, char *password,
@@ -396,7 +397,7 @@ int send_update_file_request(char **argv, struct Server *operator, db_t db) {
     return sockfd;
 }
 
-int send_delete_file_request(char **argv, struct Server *operator, db_t *db) {
+int send_delete_file_request(char **argv, struct Server *operator, db_t db) {
     int sockfd;
     struct Header message_header;
     struct Server *server;
