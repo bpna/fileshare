@@ -14,7 +14,6 @@
 #include <sys/types.h>
 #include <errno.h>
 #include "partial_message_handler.h"
-#include "db_wrapper.h"
 #include "database/cppairs.h"
 #include "io.h"
 
@@ -27,9 +26,7 @@
 //reads in a message from the operator, adds a client, sends ack, creates folder for that
 //does partial message handling
 
-//TODO: set timeout value on read
 
-//TODO: if you eliminate a timed-out partial for upload, make sure to delete file that was being written
 //linked list of partial messages
 
 void sendHeader(int msgType, char *user, char *pwd,
@@ -49,6 +46,7 @@ int create_client(int sockfd, struct Header *msgHeader,
 int create_client_err(int sockfd, struct Header *msgHeader,
                       struct PartialMessageHandler *handler);
 char has_permissions(enum message_type message_id, struct Header *h);
+char delete_file(int sockfd, struct Header *msgHeader);
 
 //ARGV arguments
 //      port number to run on
@@ -109,7 +107,7 @@ int main(int argc, char *argv[]) {
                             maxSock = (newSock > maxSock) ? newSock: maxSock;
                         }
                     } else {
-                        // fprintf(stderr, "new info incoming\n" );
+                         fprintf(stderr, "new info incoming\n" );
                         int status = handle_request(sockfd, handler, personal);
 
                         if (status == DISCONNECT){
@@ -164,6 +162,8 @@ char valid_fname(char *fname) {
 //returns DISCONNECT on succesfull read OR Error, returns 0 on partial read
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
+
+
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
 
@@ -176,6 +176,20 @@ char upload_file(int sockfd, struct Header *msgHeader,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+
+    char owns_file = is_file_editor(msgHeader->source, msgHeader->filename);
+
+    if (owns_file == 0){
+        return 0;
+    }
+    else {
+        if (owns_file == -1)
+            add_file_wrapper(msgHeader->filename);
+        checkout_file_db_wrapper(msgHeader->source, msgHeader->filename);
+    }
+    
+    //if another upload already in progress,
+
 
     if (valid_fname(msgHeader->filename) == 0) {
         fprintf(stderr, "invalid fname led to upload failure\n" );
@@ -206,13 +220,15 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
-        add_file_wrapper(msgHeader->filename);
+        
         sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
+        de_checkout_file(msgHeader->filename);
         return DISCONNECT;
     }
     else if (n < 0){
         fprintf(stderr, "problem in add_partial led to upload_failure\n" );
         sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
+        de_checkout_file(msgHeader->filename);
         return DISCONNECT;
     }
 
@@ -270,6 +286,34 @@ char update_file(int sockfd, struct Header *msgHeader,
     }
 
     return 0;
+}
+
+/*
+ * deletes a given file
+ */ 
+char delete_file(int sockfd, struct Header *msgHeader){
+
+    //if file does not exist, send ERROR_CODE and disconnect
+    if (access( msgHeader->filename, F_OK ) == -1) {
+        fprintf(stderr, "tried to delete file that does not existed\n");
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
+    if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) == -1){
+
+        fprintf(stderr, "tried to delete a file that is checked out\n");
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+    remove(msgHeader->filename);
+    sendHeader(DELETE_FILE_ACK, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+
+    return DISCONNECT;
+
 }
 
 /*
@@ -346,8 +390,6 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
         }
     }
 
-    if (msgHeader->length > 0 && conflicting_upload(msgHeader->filename))
-        return 1;
 
     fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
@@ -356,7 +398,6 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
     fprintf(stderr, "the fname incoming is %s\n", msgHeader->filename);
     fprintf(stderr, "the length incoming is %d\n", msgHeader->length);
 
-    /* TODO: Deal with endianess */
 
     message_id = msgHeader->id;
     switch(message_id){
@@ -379,12 +420,11 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
         case UPDATE_FILE:
             fprintf(stderr, "updating file\n");
             return update_file(sockfd, msgHeader, handler);
-            //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
-            //TODO in future: add in permision cases
-            //TODO: Delete file
         case CHECKOUT_FILE:
                 fprintf(stderr, "checking out file\n" );
                 return handle_file_request(sockfd, msgHeader, 1);
+        case DELETE_FILE:
+            return delete_file(sockfd, msgHeader);
         default:
             return DISCONNECT;
     }
@@ -405,7 +445,6 @@ int create_client(int sockfd, struct Header *msgHeader,
     bzero(password, PASSWORD_FIELD_LENGTH);
 
     db = connect_to_db(DB_OWNER, DB_NAME);
-    // TODO: get user info
 
     n = read(sockfd, buffer, msgHeader->length);
     if (n < 1)

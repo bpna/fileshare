@@ -1,4 +1,5 @@
 #include "file_saving_handler.h"
+#include "db_wrapper.h"
 #include <sys/select.h>
 #include <strings.h>
 #define INIT_BUFFER_LENGTH 512
