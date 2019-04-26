@@ -15,6 +15,8 @@
 #define DB_NAME "fileshare"
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define SERVER_LOAD_FNAME "server_nums.txt"
+#define CHECKOUT_FILE "checkouts.txt"
+#define TEMP_CHECKOUT_FILE "checkouts.txt~"
 #define SERVER_FILE_MAX_LENGTH 10000
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
@@ -34,9 +36,8 @@ void check_db_status(enum DB_STATUS db_status, char *func) {
     }
 }
 
-db_t *connect_to_db_wrapper()
-{
-    db_t *db;
+db_t connect_to_db_wrapper() {
+    db_t db;
     if (USE_DB) {
         db = connect_to_db(DB_OWNER, DB_NAME);
     } else {
@@ -74,10 +75,10 @@ char *open_file_return_string(char *fname) {
     return buf;
 }
 
-void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
-                        char *loc) {
+void add_cspair_wrapper(db_t db, char *client, char *fqdn, unsigned port,
+                        char *loc, int increment_client) {
     enum DB_STATUS db_status;
-    struct server_addr server;
+    struct Server server;
     char portno[6];
     int portno_length;
     FILE *fp;
@@ -91,7 +92,7 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
         strcpy(server.domain_name, fqdn);
         server.port = port;
 
-        db_status = add_cspair(db, client, &server);
+        db_status = add_cspair(db, client, &server, increment_client);
         check_db_status(db_status, loc);
     } else {
         portno_length = sprintf(portno, "%u", port);
@@ -114,10 +115,10 @@ void add_cspair_wrapper(db_t *db, char *client, char *fqdn, unsigned port,
  * returns NULL. Otherwise, it malloc's and returns a Server struct which must
  * be free'd by the caller.
  */
-struct Server *get_server_from_client_wrapper(db_t *db, char *client,
+struct Server *get_server_from_client_wrapper(db_t db, char *client,
                                               char *loc) {
     struct db_return db_return;
-    struct server_addr *server;
+    struct Server *server;
     struct Server *retval = malloc(sizeof(*retval));
     if (retval == NULL)
         error("ERROR: Allocation failure");
@@ -132,7 +133,7 @@ struct Server *get_server_from_client_wrapper(db_t *db, char *client,
             return NULL;
         }
 
-        server = (struct server_addr *) db_return.result;
+        server = (struct Server *) db_return.result;
         retval->port = server->port;
         strcpy(retval->domain_name, server->domain_name);
     } else {
@@ -170,25 +171,177 @@ struct Server *get_server_from_client_wrapper(db_t *db, char *client,
     return retval;
 }
 
-/*
-struct server_addr *least_populated_server_wrapper(db_t *db, char *loc)
-{
-    struct db_return dbr;
-    struct server_addr *server = malloc(sizeof(*server));
 
-    if (USE_DB) {
-        dbr = least_populated_server(db);
-        check_db_status(dbr.status, loc);
-        if (dbr.result == NULL) {
-            free 
-    } else {
 
+char checkout_file_db_wrapper(char *requester, char * desired_filename){
+    int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
+    char buffer[buflen];
+    bzero(buffer, buflen);
+    char *file;
+    char *file_editor;
+
+    // if (USE_DB){
+    //     //TODO: database stuff
+
+    // }
+    //{
+        FILE *fp = fopen(CHECKOUT_FILE, "r+");
+        if (fp == NULL){
+                fprintf(stderr, "error in checkout_file_db_wrapper\n" );
+                return -1;
+        }
+
+        fseek(fp, 0, SEEK_SET);
+
+        //loops through file line by line
+        while(fgets(buffer, buflen, fp) != NULL){
+            file = strtok(buffer, " ");
+            file_editor = strtok(NULL, "\n");
+
+            if (strcmp(desired_filename, file) == 0){
+
+                //if someone has already checked out file
+                if (file_editor[0] != '~'){
+                    fclose(fp);
+                    file_editor = strtok(file_editor, "~");
+                    if (strcmp(file_editor, requester) == 0)
+                        return 1;
+                    return -1;
+                }
+                else{
+
+                    //rest File pointer to before string of tildas
+                    fseek(fp, (SOURCE_FIELD_LENGTH + 1) * -1, SEEK_CUR);
+                    fwrite(requester,1, strlen(requester), fp);
+                    memset(buffer, '~', buflen);
+                    fwrite(buffer, 1, SOURCE_FIELD_LENGTH - strlen(requester), fp);
+                    fwrite("\n", 1, 1, fp);
+                    fclose(fp);
+                    return 0;
+                }
+
+            }
+
+        }
+        fclose(fp);
+        return -1;
+
+
+
+
+   // }
+}
+
+
+char is_file_editor(char *requester, char *desired_filename){
+
+    int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
+    char buffer[buflen];
+    bzero(buffer, buflen);
+    char *file;
+    char *file_editor;
+
+    // if (USE_DB){
+    //     //TODO: database stuff
+
+    // }
+    //{
+        FILE *fp = fopen(CHECKOUT_FILE, "r+");
+        if (fp == NULL){
+                fprintf(stderr, "error in is_file_editor\n" );
+                return -1;
+        }
+
+        fseek(fp, 0, SEEK_SET);
+
+        //loops through file line by line
+        while(fgets(buffer, buflen, fp) != NULL){
+            file = strtok(buffer, " ");
+            file_editor = strtok(NULL, "\n");
+
+            if (strcmp(desired_filename, file) == 0){
+
+                //if someone has already checked out file
+                if (file_editor[0] != '~'){
+                    file_editor = strtok(file_editor, "~");
+                    fclose(fp);
+                    if (strcmp(file_editor, requester) == 0)
+                        return 1;
+                    return 0;
+                }
+                else{
+                    fclose(fp);
+                    return 0;
+                }
+
+            }
+
+        }
+        fclose(fp);
+        return 0;
+
+
+}
+
+
+void add_file_wrapper(char *filename){
+    char buffer[SOURCE_FIELD_LENGTH];
+    memset(buffer, '~', SOURCE_FIELD_LENGTH);
+
+    FILE *fp = fopen(CHECKOUT_FILE, "a");
+    if (fp == NULL){
+        fprintf(stderr, "error in add_file_wrapper\n" );
+        return;
     }
+    fwrite(filename, 1, strlen(filename), fp);
+    fwrite(" ", 1, 1, fp);
+    fwrite(buffer, 1, SOURCE_FIELD_LENGTH, fp);
+    fwrite("\n", 1, 1, fp);
+    fclose(fp);
+}
 
-} */
+void de_checkout_file(char *desired_filename){
+
+    int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
+    char buffer[buflen];
+    bzero(buffer, buflen);
+    char *file;
+
+    // if (USE_DB){
+    //     //TODO: database stuff
+
+    // }
+    //{
+        FILE *fp = fopen(CHECKOUT_FILE, "r+");
+        if (fp == NULL){
+                fprintf(stderr, "error in checkout_file_db_wrapper\n" );
+                return;
+        }
+
+        fseek(fp, 0, SEEK_SET);
+
+        //loops through file line by line
+        while(fgets(buffer, buflen, fp) != NULL){
+            file = strtok(buffer, " ");
+
+            if (strcmp(desired_filename, file) == 0){
+                fseek(fp, (SOURCE_FIELD_LENGTH + 1) * -1, SEEK_CUR);
+                memset(buffer, '~', buflen);
+                fwrite(buffer, 1, SOURCE_FIELD_LENGTH, fp);
+                fwrite("\n", 1, 1, fp);
+                break;
+            }
+
+        }
+        fclose(fp);
+
+
+
+}
 
 int get_user_list_wrapper(char **user_list) {
-    db_t *db;
+    db_t db;
+    struct db_return dbr;
     int size = USER_LIST_INIT_BUF_SIZE;
     int current_size = 0;
     int token_size = 0;
@@ -197,7 +350,9 @@ int get_user_list_wrapper(char **user_list) {
 
     if (USE_DB) {
         db = connect_to_db(DB_OWNER, DB_NAME);
-        current_size = get_user_list(db, user_list);
+        dbr = get_user_list(db, user_list);
+        check_db_status(dbr.status, "get_user_list()");
+        current_size = *(int *)dbr.result;
     } else {
         buffer = open_file_return_string(CSPAIRS_FNAME);
         if (buffer == NULL)

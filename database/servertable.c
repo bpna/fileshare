@@ -8,33 +8,33 @@
 #include <string.h>
 #include "servertable.h"
 
-enum DB_STATUS create_server_table(db_t *db, char drop_existing) {
+enum DB_STATUS create_server_table(db_t db, char drop_existing) {
     return create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, \
-                                       PORT SMALLINT, Domain VARCHAR(255), \
-                                       Clients INT, Stored_Bytes BIGINT",
+                                        Port SMALLINT, Domain VARCHAR(255), \
+                                        Clients INT, Stored_Bytes BIGINT, \
+                                        Personal_Server SMALLINT",
                         drop_existing);
 }
 
-enum DB_STATUS add_server(db_t *db, struct server_addr *addr) {
+enum DB_STATUS add_server(db_t db, struct Server *addr, int personal) {
     if (check_connection(db))
         return CORRUPTED;
 
     //TODO: check if port-domain pair is in db
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "INSERT INTO servers VALUES('%s', %d, '%s', 0, 0)",
-            addr->name, addr->port, addr->domain_name);
+    sprintf(stm, "INSERT INTO servers VALUES('%s', %d, '%s', 0, 0, %d)",
+            addr->name, addr->port, addr->domain_name, personal);
 
     return exec_command(db, stm);
 }
 
-struct db_return clients_served_by(db_t *db, struct server_addr *addr) {
+struct db_return clients_served_by(db_t db, struct Server *addr) {
     if (check_connection(db))
         return generate_dbr(CORRUPTED, NULL);
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "SELECT count(*) FROM cspairs \
-                  WHERE port=%d AND domain='%s'",
+    sprintf(stm, "SELECT clients FROM servers WHERE port=%d AND domain='%s'",
             addr->port, addr->domain_name);
 
     PGresult *res = PQexec(db, stm);
@@ -52,7 +52,7 @@ struct db_return clients_served_by(db_t *db, struct server_addr *addr) {
     return generate_dbr(SUCCESS, (void *) count);
 }
 
-struct db_return least_populated_server(db_t *db) {
+struct db_return least_populated_server(db_t db) {
     if (check_connection(db)) {
         return generate_dbr(CORRUPTED, NULL);
     }
@@ -67,8 +67,8 @@ struct db_return least_populated_server(db_t *db) {
         return generate_dbr(ELEMENT_NOT_FOUND, NULL);
     }
 
-    struct server_addr *addr =
-        (struct server_addr *) malloc(sizeof (struct server_addr));
+    struct Server *addr =
+        (struct Server *) malloc(sizeof (struct Server));
 
     addr->port = atoi(PQgetvalue(res, 0, 0));
     strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
@@ -79,7 +79,7 @@ struct db_return least_populated_server(db_t *db) {
     return generate_dbr(get_server_name(db, addr), addr);
 }
 
-enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
+enum DB_STATUS increment_clients(db_t db, struct Server *addr) {
     char *stm = calloc(350, sizeof (char));
     sprintf(stm, "SELECT clients FROM servers WHERE port=%d AND domain='%s'",
             addr->port, addr->domain_name);
@@ -111,7 +111,7 @@ enum DB_STATUS increment_clients(db_t *db, struct server_addr *addr) {
     return SUCCESS;
 }
 
-enum DB_STATUS get_server_name(db_t *db, struct server_addr *addr) {
+enum DB_STATUS get_server_name(db_t db, struct Server *addr) {
     char *stm;
     PGresult *res;
     if (check_connection(db))
@@ -130,4 +130,27 @@ enum DB_STATUS get_server_name(db_t *db, struct server_addr *addr) {
     PQclear(res);
 
     return SUCCESS;
+}
+
+struct db_return get_server_from_name(db_t db, char *server) {
+    struct Server *addr;
+    char *stm;
+    PGresult *res;
+    if (check_connection(db))
+        return generate_dbr(CORRUPTED, NULL);
+
+    stm = calloc(70, sizeof (char));
+    sprintf(stm, "SELECT port, domain FROM servers WHERE name='%s'", server);
+    res = PQexec(db, stm);
+    free(stm);
+    if (PQntuples(res) == 0)
+        return generate_dbr(ELEMENT_NOT_FOUND, NULL);
+
+
+    addr = calloc(sizeof (struct Server), 1);
+    strcpy(addr->name, server);
+    addr->port = atoi(PQgetvalue(res, 0, 0));
+    strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
+
+    return generate_dbr(SUCCESS, addr);
 }
