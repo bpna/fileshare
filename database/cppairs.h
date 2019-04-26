@@ -7,8 +7,8 @@
 
 #include "db.h"
 
-enum DB_STATUS create_cppairs_table(db_t *db, char drop_existing);
+enum DB_STATUS create_cppairs_table(db_t db, char drop_existing);
 
-enum DB_STATUS add_cppair(db_t *db, char *client, char *pass);
+enum DB_STATUS add_cppair(db_t db, char *client, char *pass);
 
-int valid_authentication(db_t *db, char *client, char *pass);
+int valid_authentication(db_t db, char *client, char *pass);

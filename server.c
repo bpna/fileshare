@@ -433,7 +433,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
 
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler* handler) {
-    db_t *db;
+    db_t db;
     //enum DB_STATUS dbs;
     char buffer[512];
     char username[SOURCE_FIELD_LENGTH];

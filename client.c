@@ -29,22 +29,22 @@
 #define REQUEST_FNAME_ARG 5
 #define UPDATE_FNAME_ARG 5
 
-struct Server *get_operator_address(char **argv, db_t *db);
+struct Server *get_operator_address(char **argv, db_t db);
 void read_new_client_ack_payload(int sockfd, struct Header *message_header,
-                                 char *client, db_t *db);
+                                 char *client, db_t db);
 char *read_error_client_exists_payload(int sockfd,
                                        struct Header *message_header);
 int check_input_get_msg_id(int argc, char **argv);
 int parse_and_send_request(const enum message_type message_id, char **argv,
-                           struct Server *operator, db_t *db);
+                           struct Server *operator, db_t db);
 int send_new_client_request(char **argv, struct Server *operator);
-int send_upload_file_request(char **argv, struct Server *operator, db_t *db);
-int send_request_file_request(char **argv, struct Server *operator, db_t *db);
-int send_checkout_file_request(char **argv, struct Server *operator, db_t *db);
-int send_update_file_request(char **argv, struct Server *operator, db_t *db);
-int send_delete_file_request(char **argv, struct Server *operator, db_t *db);
+int send_upload_file_request(char **argv, struct Server *operator, db_t db);
+int send_request_file_request(char **argv, struct Server *operator, db_t db);
+int send_checkout_file_request(char **argv, struct Server *operator, db_t db);
+int send_update_file_request(char **argv, struct Server *operator, db_t db);
+int send_delete_file_request(char **argv, struct Server *operator, db_t db);
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
-                  db_t *db);
+                  db_t db);
 struct Server *send_recv_user_req(int sockfd, char *user, char *password,
                                   char *file_owner);
 char *make_full_fname(char* owner, char *fname);
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     int sockfd;
     enum message_type message_id;
     struct Server *operator;
-    db_t *db = connect_to_db_wrapper();
+    db_t db = connect_to_db_wrapper();
 
     if (argc < 2) {
        fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-struct Server *get_operator_address(char **argv, db_t *db) {
+struct Server *get_operator_address(char **argv, db_t db) {
     struct Server *operator;
     operator = get_server_from_client_wrapper(db, OPERATOR_SOURCE,
                                               "get_operator_address()");
@@ -173,7 +173,7 @@ int check_input_get_msg_id(int argc, char **argv) {
  * using the socket.
  */
 int parse_and_send_request(const enum message_type message_id, char **argv,
-                           struct Server *operator, db_t *db) {
+                           struct Server *operator, db_t db) {
     int sockfd;
 
     switch (message_id) {
@@ -220,7 +220,7 @@ int send_new_client_request(char **argv, struct Server *operator) {
     return sockfd;
 }
 
-int send_upload_file_request(char **argv, struct Server *operator, db_t *db) {
+int send_upload_file_request(char **argv, struct Server *operator, db_t db) {
     int sockfd;
     struct Header message_header;
     struct Server *server;
@@ -267,7 +267,7 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t *db) {
     return sockfd;
 }
 
-int send_checkout_file_request(char **argv, struct Server *operator, db_t *db) {
+int send_checkout_file_request(char **argv, struct Server *operator, db_t db) {
     int sockfd;
     struct Header message_header;
     struct Server *server;
@@ -309,7 +309,7 @@ int send_checkout_file_request(char **argv, struct Server *operator, db_t *db) {
 }
 
 
-int send_request_file_request(char **argv, struct Server *operator, db_t *db) {
+int send_request_file_request(char **argv, struct Server *operator, db_t db) {
     int sockfd;
     struct Header message_header;
     struct Server *server;
@@ -350,7 +350,7 @@ int send_request_file_request(char **argv, struct Server *operator, db_t *db) {
     return sockfd;
 }
 
-int send_update_file_request(char **argv, struct Server *operator, db_t *db) {
+int send_update_file_request(char **argv, struct Server *operator, db_t db) {
     int sockfd;
     struct Header message_header;
     struct Server *server;
@@ -397,7 +397,7 @@ int send_update_file_request(char **argv, struct Server *operator, db_t *db) {
     return sockfd;
 }
 
-int send_delete_file_request(char **argv, struct Server *operator, db_t *db) {
+int send_delete_file_request(char **argv, struct Server *operator, db_t db) {
     int sockfd;
     struct Header message_header;
     struct Server *server;
@@ -440,7 +440,7 @@ int send_delete_file_request(char **argv, struct Server *operator, db_t *db) {
 
 
 int process_reply(int sockfd, const enum message_type message_id, char **argv,
-        db_t *db)
+        db_t db)
 {
     int n, m;
     char *clientbuf;
@@ -630,7 +630,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
 }
 
 void read_new_client_ack_payload(int sockfd, struct Header *message_header,
-                                 char *client, db_t *db) {
+                                 char *client, db_t db) {
     int length = message_header->length;
     int n, m;
     char *buffer = malloc(length + 1);

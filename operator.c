@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
     struct timeval timeout;
     struct PartialMessageHandler *handler = init_partials();
     enum DB_STATUS dbs;
-    db_t *db = NULL;
+    db_t db = NULL;
 
     if (argc < 2) {
         fprintf(stderr,"ERROR, no port provided\n");
@@ -171,7 +171,7 @@ int handle_header(struct Header *h, int sockfd,
 }
 
 int new_client(struct Header *h, int sockfd) {
-    db_t *db;
+    db_t db;
     struct db_return dbr;
     enum DB_STATUS dbs;
     struct Server *server;
@@ -272,7 +272,7 @@ int send_new_personal_server_ack(int sockfd) {
 
 int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm) {
     (void) pm;
-    db_t *db;
+    db_t db;
     struct db_return dbr;
     struct Server *server;
     int n, len;
@@ -316,7 +316,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
 }
 
 int new_server(struct Header *h, int sockfd, int personal) {
-    db_t *db;
+    db_t db;
     enum DB_STATUS dbs;
     struct Server server;
     int n;
@@ -361,7 +361,7 @@ int new_server(struct Header *h, int sockfd, int personal) {
 
 int new_personal_server(struct Header *h, int sockfd) {
     int status;
-    db_t *db;
+    db_t db;
     struct db_return dbr;
     enum DB_STATUS dbs;
     struct Server *server;
