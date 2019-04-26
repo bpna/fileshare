@@ -30,10 +30,3 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
 *
 */
 int delete_temp_file(char *fname);
-
-
-/*
- * Purose: tells the program if an upload/update file on a given filename is already happening
- * if an upload is happening, returns 1. Else, returns 0
- */
-char conflicting_upload(char *fname);

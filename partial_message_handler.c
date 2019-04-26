@@ -95,7 +95,7 @@ int add_partial(struct PartialMessageHandler *p, char *buffer, int sockfd,
         temp->last_modified = time(NULL);
         temp->bytes_read += length;
         if (is_file_input == 0){
-            assert(length <= (int) (INIT_BUFFER_LENGTH - temp->bytes_read));
+            assert(length <=INIT_BUFFER_LENGTH - temp->bytes_read);
             memcpy(&(temp->data[temp->bytes_read - length]), buffer, length);
             if (temp->bytes_read == temp->h->length){
                 bzero(buffer, length);
@@ -170,7 +170,6 @@ void timeout_sweep(struct PartialMessageHandler *p, fd_set *masterFDSet) {
         if (temp->last_modified - current_time >= MINUTE){
             if (temp->h != NULL){
                 delete_temp_file(temp->h->filename);
-                //TODO: de_checkout file
                 free(temp->h);
             }
             close(temp->sockfd);

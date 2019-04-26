@@ -92,11 +92,12 @@ int write_file(int csock, char *filename)
         } else {
             to_write = FILE_BUFFER_MAX_LEN;
         }
+
         fread(bytes, 1, to_write, fp);
         write_message(csock, bytes, to_write);
         bytes_written += to_write;
     }
-
     fclose(fp);
+
     return 0;
 }

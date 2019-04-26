@@ -59,5 +59,3 @@ vgcore*
 stat.c
 *.swp
 client_cspairs.txt
-testing/*/*
-file.*
