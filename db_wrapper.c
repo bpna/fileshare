@@ -87,7 +87,6 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
                                               char *loc) {
     struct db_return db_return;
     struct Server *server;
-    struct Server *retval = malloc(sizeof(*retval));
     FILE *fp = NULL;
     char buffer[CSPAIRS_FILE_MAX_LENGTH];
     char *token = NULL;
@@ -96,16 +95,13 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
     if (USE_DB) {
         db_return = get_server_from_client(db, client);
         check_db_status(db_return.status, loc);
-        if (db_return.result == NULL) {
-            free(retval);
+        if (db_return.result == NULL)
             return NULL;
-        }
 
         server = (struct Server *) db_return.result;
-        retval->port = server->port;
-        strcpy(retval->domain_name, server->domain_name);
     } else {
         /* read contents of CSPAIRS file into buffer */
+        server = malloc(sizeof (struct Server));
         fp = fopen(CSPAIRS_FNAME, "rb");
         if (fp == NULL) {
             fprintf(stderr, "ERROR opening file %s for reading\n",
@@ -118,7 +114,7 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
         fread(buffer, 1, length, fp);
         fclose(fp);
         if (length == 0) {
-            free(retval);
+            free(server);
             return NULL;
         }
 
@@ -136,18 +132,18 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
                         CSPAIRS_FNAME);
                 exit(1);
             }
-            strcpy(retval->domain_name, token);
+            strcpy(server->domain_name, token);
             token = strtok(NULL, ":\n");
             if (token == NULL) {
                 fprintf(stderr, "CSPAIRS file %s badly formed\n",
                         CSPAIRS_FNAME);
                 exit(1);
             }
-            retval->port = atoi(token);
+            server->port = atoi(token);
         }
     }
 
-    return retval;
+    return server;
 }
 
 

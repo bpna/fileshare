@@ -79,6 +79,7 @@ int main(int argc, char **argv) {
 
         close(sockfd);
     }
+    close_db_connection(db);
     return 0;
 }
 
