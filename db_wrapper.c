@@ -119,30 +119,23 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
                                               char *loc) {
     struct db_return db_return;
     struct Server *server;
-    struct Server *retval = malloc(sizeof(*retval));
-    if (retval == NULL)
-        error("ERROR: Allocation failure");
     char *buffer = NULL;
     char *token = NULL;
 
     if (USE_DB) {
         db_return = get_server_from_client(db, client);
         check_db_status(db_return.status, loc);
-        if (db_return.result == NULL) {
-            free(retval);
+        if (db_return.result == NULL)
             return NULL;
-        }
 
         server = (struct Server *) db_return.result;
-        retval->port = server->port;
-        strcpy(retval->domain_name, server->domain_name);
     } else {
         /* read contents of CSPAIRS file into buffer */
         buffer = open_file_return_string(CSPAIRS_FNAME);
-        if (buffer == NULL) {
-            free(retval);
+        if (buffer == NULL)
             return NULL;
-        }
+        server = malloc(sizeof (struct Server));
+
         /* parse buffer for desired client */
         token = strtok(buffer, ":\n");
         while (token != NULL && strcmp(token, client) != 0) {
@@ -157,18 +150,18 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
                         CSPAIRS_FNAME);
                 exit(1);
             }
-            strcpy(retval->domain_name, token);
+            strcpy(server->domain_name, token);
             token = strtok(NULL, ":\n");
             if (token == NULL) {
                 fprintf(stderr, "CSPAIRS file %s badly formed\n",
                         CSPAIRS_FNAME);
                 exit(1);
             }
-            retval->port = atoi(token);
+            server->port = atoi(token);
         }
     }
 
-    return retval;
+    return server;
 }
 
 
