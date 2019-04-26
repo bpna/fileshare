@@ -53,6 +53,7 @@ void read_upload_file_reply(struct Header *message_header);
 void read_update_file_reply(struct Header *message_header);
 void read_request_file_reply(int sockfd, struct Header *message_header);
 void read_user_list_reply(int sockfd, struct Header *message_header);
+void read_file_list_reply(int sockfd, struct Header *message_header);
 char *make_full_fname(char* owner, char *fname);
 
 int main(int argc, char **argv) {
@@ -509,6 +510,9 @@ void process_reply(int sockfd, const enum message_type message_id, char **argv,
         case USER_LIST:
             read_user_list_reply(sockfd, &message_header);
             break;
+        case FILE_LIST:
+            read_file_list_reply(sockfd, &message_header);
+            break;
         default:
             break;
     }
@@ -660,7 +664,7 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
         } while (add_partial(p, list_buffer, sockfd, 
                              message_header->length, 0) == 0);
     } else
-        fprintf(stderr, "Bad response type %d received from router",
+        fprintf(stderr, "Bad response type %d received from operator",
                 message_header->id);
 
     m = 0;
@@ -669,6 +673,36 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
         printf("%s\n", list_buffer);
         m += strlen(list_buffer);
     }
+}
+
+void read_file_list_reply(int sockfd, struct Header *message_header) {
+    int n;
+    unsigned m;
+    char list_buffer[FILE_BUFFER_MAX_LEN];
+    struct PartialMessageHandler *p = init_partials();
+    
+    if (message_header->id == FILE_LIST_ACK) {
+        do {
+            n = read(sockfd, list_buffer, FILE_BUFFER_MAX_LEN);
+            if (n < 0)
+                error("ERROR reading from socket");
+            else if (n == 0) {
+                fprintf(stderr, "server closed connection prematurely\n");
+                exit(1);
+            }
+        } while (add_partial(p, list_buffer, sockfd, 
+                             message_header->length, 0) == 0);
+    }  else
+        fprintf(stderr, "Bad response type %d received from server",
+                message_header->id);
+
+    m = 0;
+    printf("Files for user %s:\n\n", message_header->filename);
+    while (m < message_header->length) {
+        printf("%s\n", list_buffer);
+        m += strlen(list_buffer);
+    }
+
 }
 
 /* Purpose: creates a filename in format "file-owner/filename" so as to be
