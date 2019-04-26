@@ -1,1 +1,1 @@
-gcc *.c -I/usr/include/postgresql -lpq -std=c99 -g
+gcc *.c -I/usr/include/postgresql -lpq -std=c99
