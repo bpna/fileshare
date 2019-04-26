@@ -2,13 +2,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include "db_wrapper.h"
 #include "database/db.h"
 #include "database/cspairs.h"
 #include "database/servertable.h"
 #include "io.h"
 
-#define USE_DB 1
+#define USER_LIST_INIT_BUF_SIZE 100
+#define USE_DB 0
+#define DB_OWNER "nathan"
+#define DB_NAME "fileshare"
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define SERVER_LOAD_FNAME "server_nums.txt"
 #define CHECKOUT_FILE "checkouts.txt"
@@ -41,6 +45,34 @@ db_t connect_to_db_wrapper() {
     }
 
     return db;
+}
+
+int get_file_size(char *fname) {
+    struct stat st;
+    if (stat(fname, &st) != 0)
+        return 0;
+ 
+    return (int)st.st_size;
+}
+
+char *open_file_return_string(char *fname) {
+    char *buf;
+    int length = get_file_size(fname);
+    if (length == 0)
+        return NULL;
+
+    FILE *fp = fopen(fname, "rb");
+    if (fp == NULL) {
+        fprintf(stderr, "ERROR opening file %s for reading\n", fname);
+        exit(1);
+    }
+
+    buf = malloc(length + 1);
+    bzero(buf, length + 1);
+    fread(buf, 1, length, fp);
+    fclose(fp);
+
+    return buf;
 }
 
 void add_cspair_wrapper(db_t db, char *client, char *fqdn, unsigned port,
@@ -87,10 +119,8 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
                                               char *loc) {
     struct db_return db_return;
     struct Server *server;
-    FILE *fp = NULL;
-    char buffer[CSPAIRS_FILE_MAX_LENGTH];
+    char *buffer = NULL;
     char *token = NULL;
-    int length;
 
     if (USE_DB) {
         db_return = get_server_from_client(db, client);
@@ -101,22 +131,10 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
         server = (struct Server *) db_return.result;
     } else {
         /* read contents of CSPAIRS file into buffer */
-        server = malloc(sizeof (struct Server));
-        fp = fopen(CSPAIRS_FNAME, "rb");
-        if (fp == NULL) {
-            fprintf(stderr, "ERROR opening file %s for reading\n",
-                    CSPAIRS_FNAME);
-            exit(1);
-        }
-        fseek(fp, 0, SEEK_END);
-        length = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-        fread(buffer, 1, length, fp);
-        fclose(fp);
-        if (length == 0) {
-            free(server);
+        buffer = open_file_return_string(CSPAIRS_FNAME);
+        if (buffer == NULL)
             return NULL;
-        }
+        server = malloc(sizeof (struct Server));
 
         /* parse buffer for desired client */
         token = strtok(buffer, ":\n");
@@ -314,23 +332,45 @@ void de_checkout_file(char *desired_filename){
 
 }
 
-
-
-
-
-/*
-struct Server *least_populated_server_wrapper(db_t db, char *loc)
-{
+int get_user_list_wrapper(char **user_list) {
+    db_t db;
     struct db_return dbr;
-    struct Server *server = malloc(sizeof(*server));
+    int size = USER_LIST_INIT_BUF_SIZE;
+    int current_size = 0;
+    int token_size = 0;
+    char *token = NULL;
+    char *buffer = NULL;
 
     if (USE_DB) {
-        dbr = least_populated_server(db);
-        check_db_status(dbr.status, loc);
-        if (dbr.result == NULL) {
-            free
+        db = connect_to_db(DB_OWNER, DB_NAME);
+        dbr = get_user_list(db, user_list);
+        check_db_status(dbr.status, "get_user_list()");
+        current_size = *(int *)dbr.result;
     } else {
-
+        buffer = open_file_return_string(CSPAIRS_FNAME);
+        if (buffer == NULL)
+            *user_list = NULL;
+            return 0;
+        *user_list = malloc(size);
+        if (*user_list == NULL)
+            error("ERROR: Allocation failure");
+        token = strtok(buffer, ":"); /* token never NULL since file not empty */
+        while (token != NULL) {
+            token_size += strlen(token) + 1;
+            if (token_size > USER_LIST_INIT_BUF_SIZE - 1) {
+                size *= 2;
+                *user_list = realloc(user_list, size);
+                if (*user_list == NULL)
+                    error("ERROR: Allocation failure");
+            }
+            memcpy(user_list[current_size], token, token_size);
+            current_size += token_size;
+            token = strtok(NULL, ":");
+            token = strtok(NULL, "\n");
+            token = strtok(NULL, ":");
+        }
+        free(buffer);
     }
 
-} */
+    return current_size;
+}

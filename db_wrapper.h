@@ -10,6 +10,7 @@ void add_cspair_wrapper(db_t db, char *client, char *fqdn, unsigned port,
 struct Server * get_server_from_client_wrapper(db_t db, char *client,
                                                char *loc);
 
+int get_user_list_wrapper(char **user_list);
 
 /* checks out a given file to the given username. If the file does not
  * exist or the file is already checkout out, returns -1. Else. returns 0

@@ -22,6 +22,7 @@
 #include "partial_message_handler.h"
 #include "database/cspairs.h"
 #include "io.h"
+#include "db_wrapper.h"
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
@@ -39,6 +40,7 @@ int send_client_exists_ack(int sockfd, char *username);
 int send_new_client_ack(int sockfd, struct Server *server);
 int send_new_personal_server_ack(int sockfd);
 int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm);
+int user_list(int sockfd);
 int new_server(struct Header *h, int sockfd, int personal);
 int new_personal_server(struct Header *h, int sockfd);
 
@@ -157,12 +159,14 @@ int handle_header(struct Header *h, int sockfd,
         case NEW_CLIENT:
         fprintf(stderr, "about to go to return new_client\n" );
             return new_client(h, sockfd);
-        case REQUEST_USER:
+        case USER:
             return request_user(h, sockfd, pm);
         case CREATE_CLIENT_ACK:
             return DISCONNECTED;
         case NEW_SERVER:
             return new_server(h, sockfd, 0);
+        case USER_LIST:
+            return user_list(sockfd);
         case NEW_PERSONAL_SERVER:
             return new_personal_server(h, sockfd);
         default:
@@ -292,7 +296,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
         outgoing_message.length = 0;
     } else if (dbr.status == SUCCESS) {
-        outgoing_message.id = REQUEST_USER_ACK;
+        outgoing_message.id = USER_ACK;
         server = (struct Server *) dbr.result;
         sprintf(buffer, "%s:%d", server->domain_name, server->port);
         fprintf(stderr, "in request_user, buffer is  %s\n", buffer);
@@ -309,7 +313,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         return DISCONNECTED;
     }
 
-    if (outgoing_message.id == REQUEST_USER_ACK)
+    if (outgoing_message.id == USER_ACK)
         n = write_message(sockfd, buffer, len);
 
     return DISCONNECTED;
@@ -355,6 +359,25 @@ int new_server(struct Header *h, int sockfd, int personal) {
 
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
     n = write_message(sockfd, (char *) &outgoing_message, HEADER_LENGTH);
+
+    return DISCONNECTED;
+}
+
+int user_list(int sockfd) {
+    int length;
+    struct Header reply_header;
+    char *user_list;
+    
+    length = get_user_list_wrapper(&user_list);
+
+    bzero(&reply_header, HEADER_LENGTH);
+    reply_header.id = USER_LIST_ACK;
+    strcpy(reply_header.source, OPERATOR_SOURCE);
+    reply_header.length = length;
+
+    write_message(sockfd, (char *) &reply_header, HEADER_LENGTH);
+    if (length != 0)
+        write_message(sockfd, user_list, length);
 
     return DISCONNECTED;
 }

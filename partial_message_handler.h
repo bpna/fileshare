@@ -1,10 +1,3 @@
-#include "file_saving_handler.h"
-#include "db_wrapper.h"
-#include <sys/select.h>
-#include <strings.h>
-#define INIT_BUFFER_LENGTH 512
-#define MINUTE 60000
-
 /*
  * 03/31/2019
  * COMP 112 Final Project
@@ -12,7 +5,7 @@
  *
  * The partial message handler interface allows any node reading from a
  * socket to store partial reads of arbitrary length <= 10000 bytes.
- * INIT_BUFFER_LENGTH and RW_LENGTH constants are also defined in this file
+ * The INIT_BUFFER_LENGTH constant is also defined in this file
  * so clients of the partial message handler interface may initialize and read
  * into arrays the correct number of bytes passed to this interface.
  *
@@ -22,6 +15,11 @@
  * a NULL PartialMessageHandler * to any function in the interface.
  */
 
+#include "file_saving_handler.h"
+#include <sys/select.h>
+#include <strings.h>
+#define INIT_BUFFER_LENGTH 512
+#define MINUTE 60000
 
 /*
  * Call this function before calling other functions in the interface.
