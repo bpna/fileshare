@@ -1,13 +1,27 @@
 import subprocess
 import sched, time
 import threading
+import os, shutil
 
 
 
 operator_port = '9054'
 
+
+def clear_directory():
+    
+    folder = './'
+    for the_file in os.listdir(folder):
+        file_path = os.path.join(folder, the_file)
+        try:
+            if os.path.isfile(file_path) and the_file != 'test_script.py':
+                os.unlink(file_path)
+            elif os.path.isdir(file_path): shutil.rmtree(file_path)
+        except Exception as e:
+            print(e)
+
 def pre_process():
-    subprocess.run(['rm', '-vrf', '!("test_script.py"|"test_init.py")'])
+    clear_directory()
     subprocess.run(['mkdir', 'serv_one'])
 
     subprocess.run(['mkdir', 'serv_two'])
@@ -93,10 +107,6 @@ file.close()
 #cli_one checks out file (should fail)
 client_name = 'cli_one'
 input_arr[2] = client_name
-input_arr.insert(0, '--leak-check=full')
-
-input_arr.insert(0, 'valgrind')
-print (str(input_arr))
 file = open("./output/{0}_output.txt".format(client_name), "a")
 subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 file.close()
