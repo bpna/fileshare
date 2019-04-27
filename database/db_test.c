@@ -107,14 +107,18 @@ void filetable_test_suite(db_t db) {
     if (update_file(db, TEST_CLIENT, TEST_PASS, file))
         error("ERROR updating file");
 
-    if (checkout_file(db, TEST_CLIENT, file.name, TEST_CLIENT))
+    char file_name[40];
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    if (checkout_file(db, file_name, TEST_CLIENT))
         error("ERROR checking out file");
 
-    dbr = is_file_editor(db, TEST_CLIENT, file.name, TEST_CLIENT);
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    dbr = is_file_editor(db, file_name, TEST_CLIENT);
     if (dbr.status || dbr.result)
         error("ERROR checking file editor");
 
-    if (de_checkout_file(db, TEST_CLIENT, file.name))
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    if (de_checkout_file(db, file_name))
         error("ERROR de-checking out file");
 
     return;
