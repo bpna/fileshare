@@ -37,7 +37,7 @@ enum DB_STATUS add_file(db_t db, char *client, char *pass,
     return SUCCESS;
 }
 
-enum DB_STATUS delete_file(db_t db, char *client,
+enum DB_STATUS delete_file_from_table(db_t db, char *client,
                            char *pass, char *filename) {
     if (check_connection(db))
         return CORRUPTED;

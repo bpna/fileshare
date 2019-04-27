@@ -25,7 +25,7 @@ enum DB_STATUS create_file_table(db_t db, char drop_existing);
 enum DB_STATUS add_file(db_t db, char *client, char *pass,
                         struct file_info file);
 
-enum DB_STATUS delete_file(db_t db, char *client,
+enum DB_STATUS delete_file_from_table(db_t db, char *client,
                            char *pass, char *filename);
 
 enum DB_STATUS update_file(db_t db, char *client, char *pass,
