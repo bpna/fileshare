@@ -180,11 +180,14 @@ char upload_file(int sockfd, struct Header *msgHeader,
     char owns_file = is_file_editor(msgHeader->source, msgHeader->filename);
 
     if (owns_file == 0){
-        return 0;
+        fprintf(stderr, "person does not own file %s, dropping connection\n", msgHeader->filename);
+        return DISCONNECT;
     }
     else {
-        if (owns_file == -1)
+        if (owns_file == -1){
+            fprintf(stderr, "adding file %s to db\n", msgHeader->filename);
             add_file_wrapper(msgHeader->filename);
+        }
         checkout_file_db_wrapper(msgHeader->source, msgHeader->filename);
     }
     
@@ -391,7 +394,6 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
     }
 
 
-    fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
     fprintf(stderr, "the username incoming is %s\n", msgHeader->source);
     fprintf(stderr, "the password incoming is %s\n", msgHeader->password);
