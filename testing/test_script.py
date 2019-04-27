@@ -1,7 +1,7 @@
 import subprocess
 import sched, time
 import threading
-import os, shutil
+import os, shutil, glob
 
 
 
@@ -32,11 +32,18 @@ def pre_process():
     subprocess.run(['cp', '../server', './serv_two/'])
     subprocess.run(['cp', '../client', './cli_one/'])
     subprocess.run(['cp', '../client', './cli_two/'])
+    subprocess.run(['cp', '../operator', './'])
     subprocess.run(['cp', '../client.c', './file.file'])
+
+    files = glob.glob('../*')
+    for file in files:
+        if os.path.isfile(file) and '.' in file:
+            subprocess.run(['cp', file, './cli_one/'])
     # subprocess.run(['cp', '../file/file.file', './'])
     subprocess.run(['cp', '../client.o', './file.file2'])
-    subprocess.run(['cp', './file.file', './cli_one/'])
-    subprocess.run(['cp', '../operator', './'])
+    subprocess.run(['cp', './file.file', './cli_two/'])
+    subprocess.run(['cp', './file.file2', './cli_two/'])
+   
 
 def run_operator():
     file = open("output/op_output.txt", "w")
@@ -88,46 +95,50 @@ init_client('cli_two')
 
 #cli one uploads
 client_name = 'cli_one'
-input_arr = ['./client', 'upload_file',  client_name, 'password', 'file.file' ]
 
-file = open("./output/{0}_output.txt".format(client_name), "a")
-subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-file.close()
+files = glob.glob('./cli_one/*')
+for file in files:
+    if os.path.isfile(file):
+        local_file = file.split('cli_one/')[-1]
+        input_arr = ['./client', 'upload_file',  client_name, 'password',  local_file]
+        file = open("./output/{0}_output.txt".format(client_name), "a")
+        subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+        file.close()
 
-#cli_two checks out file
-client_name = 'cli_two'
-input_arr[2] = client_name
-input_arr[1] = 'checkout_file'
-input_arr[-1] = 'cli_one'
-input_arr.append('file.file')
-file = open("./output/{0}_output.txt".format(client_name), "a")
-subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-file.close()
-
-#cli_one checks out file (should fail)
-client_name = 'cli_one'
-input_arr[2] = client_name
-file = open("./output/{0}_output.txt".format(client_name), "a")
-subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-file.close()
-
-
-# #"modify" file
-# subprocess.run(['cp', 'file.file2', './cli_two/file.file'])
-
-# #cli_two updates file
+# #cli_two checks out file
 # client_name = 'cli_two'
-# input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'file.file']
+# input_arr[2] = client_name
+# input_arr[1] = 'checkout_file'
+# input_arr[-1] = 'cli_one'
+# input_arr.append('file.file')
 # file = open("./output/{0}_output.txt".format(client_name), "a")
 # subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 # file.close()
 
-#cli_two deletes file
-client_name = 'cli_two'
-input_arr = ['./client', 'delete_file', client_name, 'password', 'cli_one', 'file.file']
-file = open("./output/{0}_output.txt".format(client_name), "a")
-subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-file.close()
+# #cli_one checks out file (should fail)
+# client_name = 'cli_one'
+# input_arr[2] = client_name
+# file = open("./output/{0}_output.txt".format(client_name), "a")
+# subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+# file.close()
+
+
+# # #"modify" file
+# # subprocess.run(['cp', 'file.file2', './cli_two/file.file'])
+
+# # #cli_two updates file
+# # client_name = 'cli_two'
+# # input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'file.file']
+# # file = open("./output/{0}_output.txt".format(client_name), "a")
+# # subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+# # file.close()
+
+# #cli_two deletes file
+# client_name = 'cli_two'
+# input_arr = ['./client', 'delete_file', client_name, 'password', 'cli_one', 'file.file']
+# file = open("./output/{0}_output.txt".format(client_name), "a")
+# subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+# file.close()
 
 
 
