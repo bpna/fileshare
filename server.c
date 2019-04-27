@@ -167,6 +167,8 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
+    bzero(buffer, FILE_BUFFER_MAX_LEN);
+    int n = 0;
 
     int bytesRead = get_bytes_read(handler, sockfd);
 
@@ -209,16 +211,17 @@ char upload_file(int sockfd, struct Header *msgHeader,
     //     return DISCONNECT;
     // }
 
+    if (msgHeader->length > 0){
+        //if number of bytes left to read < 100000
+        if (msgHeader->length - bytesRead < bytesToRead)
+            bytesToRead = msgHeader->length  - bytesRead;
 
-    //if number of bytes left to read < 100000
-    if (msgHeader->length - bytesRead < bytesToRead)
-        bytesToRead = msgHeader->length  - bytesRead;
+        n = read(sockfd, buffer, bytesToRead);
+        fprintf(stderr, "%d bytes read from socket\n", n);
 
-    int n = read(sockfd, buffer, bytesToRead);
-    fprintf(stderr, "%d bytes read from socket\n", n);
-
-    if (n == 0)
-        return DISCONNECT;
+        if (n == 0)
+            return DISCONNECT;
+    }
 
     n = add_partial(handler, buffer, sockfd, n, 1);
 
@@ -247,10 +250,8 @@ char update_file(int sockfd, struct Header *msgHeader,
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
     int bytesRead = get_bytes_read(handler, sockfd);
+    int n = 0;
 
-    //if number of bytes left to read < 100000
-    if (msgHeader->length - bytesRead < bytesToRead)
-        bytesToRead = msgHeader->length  - bytesRead;
 
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
@@ -274,11 +275,17 @@ char update_file(int sockfd, struct Header *msgHeader,
     //     return DISCONNECT;
     // }
 
-    int n = read(sockfd, buffer, bytesToRead);
-    fprintf(stderr, "%d bytes read from socket\n", n);
+    if (msgHeader->length > 0){
+        //if number of bytes left to read < 100000
+        if (msgHeader->length - bytesRead < bytesToRead)
+            bytesToRead = msgHeader->length  - bytesRead;
 
-    if (n == 0)
-        return DISCONNECT;
+        n = read(sockfd, buffer, bytesToRead);
+        fprintf(stderr, "%d bytes read from socket\n", n);
+
+        if (n == 0)
+            return DISCONNECT;
+    }
 
     n = add_partial(handler, buffer, sockfd, n, 1);
 
