@@ -12,14 +12,14 @@ void error(const char *msg) {
 #define TEST_CLIENT "charles"
 #define TEST_PASS "qwerty"
 
-void cppairs_test_suite(db_t *db);
-void cspairs_test_suite(db_t *db);
-void filetable_test_suite(db_t *db);
-void servertable_test_suite(db_t *db);
-void personal_server_test_suite(db_t *db);
+void cppairs_test_suite(db_t db);
+void cspairs_test_suite(db_t db);
+void filetable_test_suite(db_t db);
+void servertable_test_suite(db_t db);
+void personal_server_test_suite(db_t db);
 
 int main(int argc, char* argv[]) {
-    db_t *db = connect_to_db("nathan", "fileshare");
+    db_t db = connect_to_db("nathan", "fileshare");
     if (db == NULL)
         error("ERROR connecting to database");
 
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void cppairs_test_suite(db_t *db) {
+void cppairs_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_cppairs_table(db, 1);
@@ -49,7 +49,7 @@ void cppairs_test_suite(db_t *db) {
     return;
 }
 
-void cspairs_test_suite(db_t *db) {
+void cspairs_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_cspairs_table(db, 1);
@@ -61,7 +61,7 @@ void cspairs_test_suite(db_t *db) {
         .port = 9010,
         .domain_name = "nathan@allenhub.com"
     };
-    if (add_cspair(db, TEST_CLIENT, &addr, 1))
+    if (add_cspair(db, TEST_CLIENT, &addr, 0))
         error("ERROR adding cspair");
 
     struct db_return result = get_server_from_client(db, TEST_CLIENT);
@@ -75,11 +75,18 @@ void cspairs_test_suite(db_t *db) {
     if (!client_exists(db, TEST_CLIENT))
         error("ERROR verifying client existence");
 
+    char *list;
+    struct db_return dbr = get_user_list(db, &list);
+    free(list);
+    if (dbr.status)
+        error("ERROR getting user list");
+
     return;
 }
 
-void filetable_test_suite(db_t *db) {
+void filetable_test_suite(db_t db) {
     enum DB_STATUS dbs;
+    struct db_return dbr;
 
     dbs = create_file_table(db, 1);
     if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
@@ -89,23 +96,35 @@ void filetable_test_suite(db_t *db) {
         .owner = TEST_CLIENT,
         .name = "asdf.txt",
         .file = "asdf",
-        .len = 4
+        .len = 4,
+        .checked_out_by = ""
     };
     if (add_file(db, TEST_CLIENT, TEST_PASS, file))
         error("ERROR adding file");
 
     file.file = "asdfg";
     file.len = 5;
-    if (update_file(db, TEST_CLIENT, TEST_PASS ,file))
+    if (update_file(db, TEST_CLIENT, TEST_PASS, file))
         error("ERROR updating file");
 
-    if (delete_file(db, TEST_CLIENT, TEST_PASS, "asdf.txt"))
-        error("ERROR deleting file");
+    char file_name[40];
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    if (checkout_file(db, file_name, TEST_CLIENT))
+        error("ERROR checking out file");
+
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    dbr = is_file_editor(db, file_name, TEST_CLIENT);
+    if (dbr.status || dbr.result)
+        error("ERROR checking file editor");
+
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    if (de_checkout_file(db, file_name))
+        error("ERROR de-checking out file");
 
     return;
 }
 
-void servertable_test_suite(db_t *db) {
+void servertable_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_server_table(db, 1);
@@ -133,7 +152,7 @@ void servertable_test_suite(db_t *db) {
     return;
 }
 
-void personal_server_test_suite(db_t *db) {
+void personal_server_test_suite(db_t db) {
     enum DB_STATUS dbs;
 
     dbs = create_server_table(db, 0);
@@ -150,6 +169,12 @@ void personal_server_test_suite(db_t *db) {
 
     if (add_cspair(db, "nathan", &addr, 1))
         error("ERROR adding cspair to personal server");
+
+    char *list;
+    struct db_return dbr = get_user_list(db, &list);
+    free(list);
+    if (dbr.status)
+        error("ERROR getting user list");
 
     return;
 }

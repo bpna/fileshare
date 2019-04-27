@@ -13,9 +13,11 @@
 #include <time.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <dirent.h>
 #include "partial_message_handler.h"
 #include "database/cppairs.h"
 #include "io.h"
+#include "db_wrapper.h"
 
 #define HEADER_LENGTH 85
 #define DISCONNECT -69
@@ -36,6 +38,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler *handler);
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
+int file_list(int sockfd, struct Header *msgHeader);
 int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
 int handle_request(int sockfd, struct PartialMessageHandler *handler,
                    int personal);
@@ -422,9 +425,18 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
         case UPDATE_FILE:
             fprintf(stderr, "updating file\n");
             return update_file(sockfd, msgHeader, handler);
+            //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
+            //TODO in future: add in permision cases
+            //TODO: Delete file
+            //TODO:
+        case NEW_SERVER_ACK:
+            fprintf(stderr, "new server ack\n");
+            return DISCONNECT;
+        case FILE_LIST:
+            return file_list(sockfd, msgHeader);
         case CHECKOUT_FILE:
-                fprintf(stderr, "checking out file\n" );
-                return handle_file_request(sockfd, msgHeader, 1);
+            fprintf(stderr, "checking out file\n" );
+            return handle_file_request(sockfd, msgHeader, 1);
         case DELETE_FILE:
             return delete_file(sockfd, msgHeader);
         default:
@@ -435,7 +447,7 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
 
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler* handler) {
-    db_t *db;
+    db_t db;
     //enum DB_STATUS dbs;
     char buffer[512];
     char username[SOURCE_FIELD_LENGTH];
@@ -479,6 +491,28 @@ int create_client(int sockfd, struct Header *msgHeader,
     return DISCONNECT;
 }
 
+int file_list(int sockfd, struct Header *msgHeader) {
+    struct dirent *ent;
+    DIR *dir;
+    char files[10000]; // TODO: create array resize
+    int loc = 0;
+
+    bzero(files, 10000);
+    dir = opendir(msgHeader->filename);
+    ent = readdir(dir);
+    ent = readdir(dir); /* get rid of . and .. files */
+    ent = readdir(dir); /* first actual file */
+    while (ent != NULL) {
+        memcpy(&files[loc], ent->d_name, strlen(ent->d_name));
+        loc += strlen(ent->d_name) + 1;
+    }
+    
+    sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, loc, sockfd);
+    write_message(sockfd, files, loc);
+
+    return DISCONNECT;
+}
+
 int create_client_err(int sockfd, struct Header *msgHeader,
                       struct PartialMessageHandler *handler) {
     char buffer[512];
@@ -503,7 +537,6 @@ int create_client_err(int sockfd, struct Header *msgHeader,
 
     sendHeader(CREATE_CLIENT_ERROR, NULL, NULL, username, 0, sockfd);
     return DISCONNECT;
-
 }
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
