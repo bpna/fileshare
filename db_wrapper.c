@@ -10,7 +10,7 @@
 #include "io.h"
 
 #define USER_LIST_INIT_BUF_SIZE 100
-#define USE_DB 0
+#define USE_DB 1
 #define DB_OWNER "nathan"
 #define DB_NAME "fileshare"
 #define CSPAIRS_FNAME "client_cspairs.txt"
@@ -51,7 +51,7 @@ int get_file_size(char *fname) {
     struct stat st;
     if (stat(fname, &st) != 0)
         return 0;
- 
+
     return (int)st.st_size;
 }
 

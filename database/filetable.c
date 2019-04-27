@@ -63,27 +63,33 @@ enum DB_STATUS update_file(db_t db, char *client, char *pass,
     return exec_command(db, stm);
 }
 
-enum DB_STATUS checkout_file(db_t db, char *owner, char *filename,
-                             char *requester) {
+enum DB_STATUS checkout_file(db_t db, char *filename, char *requester) {
     if (check_connection(db))
         return CORRUPTED;
+
+    char file[20], owner[20];
+    strcpy(owner, strtok(filename, "/"));
+    strcpy(file, strtok(NULL, ""));
 
     char *stm = calloc(150, sizeof (char));
     sprintf(stm, "UPDATE files SET checked_out_by='%s' WHERE filename='%s' \
                   AND owner='%s'",
-            requester, filename, owner);
+            requester, file, owner);
 
     return exec_command(db, stm);
 }
 
-struct db_return is_file_editor(db_t db, char *owner, char *filename,
-                             char *requester) {
+struct db_return is_file_editor(db_t db, char *filename, char *requester) {
     if (check_connection(db))
         return generate_dbr(CORRUPTED, NULL);
 
+    char file[20], owner[20];
+    strcpy(owner, strtok(filename, "/"));
+    strcpy(file, strtok(NULL, ""));
+
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "SELECT checked_out_by FROM files WHERE filename='%s' AND \
-                  owner='%s'", filename, owner);
+                  owner='%s'", file, owner);
 
     PGresult *res = PQexec(db, stm);
     free(stm);
@@ -100,13 +106,17 @@ struct db_return is_file_editor(db_t db, char *owner, char *filename,
     return generate_dbr(SUCCESS, (void *) diff);
 }
 
-enum DB_STATUS de_checkout_file(db_t db, char *owner, char *filename) {
+enum DB_STATUS de_checkout_file(db_t db, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
 
+    char file[20], owner[20];
+    strcpy(owner, strtok(filename, "/"));
+    strcpy(file, strtok(NULL, ""));
+
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "UPDATE files SET Checked_Out_By='' WHERE filename='%s' \
-                  AND Owner='%s'", filename, owner);
+                  AND Owner='%s'", file, owner);
 
     return exec_command(db, stm);
 }
