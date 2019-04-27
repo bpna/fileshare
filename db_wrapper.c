@@ -224,7 +224,7 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
 }
 
 
-char is_file_editor(char *requester, char *desired_filename){
+char is_file_editor_wrapper(char *requester, char *desired_filename){
 
     int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
     char buffer[buflen];
@@ -291,7 +291,7 @@ void add_file_wrapper(char *filename){
     fclose(fp);
 }
 
-void de_checkout_file(char *desired_filename){
+void de_checkout_file_wrapper(char *desired_filename){
 
     int buflen = FILENAME_FIELD_LENGTH + SOURCE_FIELD_LENGTH + 5;
     char buffer[buflen];
@@ -346,9 +346,10 @@ int get_user_list_wrapper(char **user_list) {
         current_size = *(int *)dbr.result;
     } else {
         buffer = open_file_return_string(CSPAIRS_FNAME);
-        if (buffer == NULL)
+        if (buffer == NULL){
             *user_list = NULL;
             return 0;
+        }
         *user_list = malloc(size);
         if (*user_list == NULL)
             error("ERROR: Allocation failure");

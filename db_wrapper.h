@@ -28,9 +28,9 @@ void add_file_wrapper(char *filename);
  * Returns 1 if the requester has checked out a given file, 0 if not
  * Returns -1 if file does not exist on list
  */
-char is_file_editor(char *requester, char *desired_filename);
+char is_file_editor_wrapper(char *requester, char *desired_filename);
 
 /*
  * makes a given file availible for checkout
  */
-void de_checkout_file(char *desired_filename);
+void de_checkout_file_wrapper(char *desired_filename);
