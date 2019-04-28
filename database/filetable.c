@@ -37,12 +37,11 @@ enum DB_STATUS add_file(db_t db, char *client, char *pass,
     return SUCCESS;
 }
 
-enum DB_STATUS delete_file_from_table(db_t db, char *client,
-                           char *pass, char *filename) {
+enum DB_STATUS delete_file_from_table(db_t db, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
-    else if (valid_authentication(db, client, pass))
-        return INVALID_AUTHENTICATION;
+   // else if (valid_authentication(db, client, pass))
+   //     return INVALID_AUTHENTICATION;
 
     char *stm = calloc(150, sizeof (char));
     sprintf(stm, "DELETE FROM files WHERE filename='%s'", filename);
