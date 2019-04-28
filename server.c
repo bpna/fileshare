@@ -165,7 +165,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
 //TODO: on every unsuccesful disconnect, delete file from table
 
-    db_t db;
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
     bzero(buffer, FILE_BUFFER_MAX_LEN);
@@ -192,11 +191,9 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
 
     char owns_file = is_file_editor_wrapper(msgHeader->source, msgHeader->filename);
-    db = connect_to_db(DB_OWNER, DB_NAME);
     // if not the file ownder
     if (owns_file == 0){
         fprintf(stderr, "person does not own file %s, dropping connection\n", msgHeader->filename);
-        close_db_connection(db);
         return DISCONNECT;
     }
     else {
@@ -228,8 +225,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
         if (n == 0){
             //TODO: should be delete file
-            de_checkout_file_wrapper(msgHeader->filename);
-            close_db_connection(db);
+            delete_file_from_table_wrapper(msgHeader->filename);
             return DISCONNECT;
 
         }
@@ -239,7 +235,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
-        close_db_connection(db);
         sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         de_checkout_file_wrapper(msgHeader->filename);
         return DISCONNECT;
@@ -249,12 +244,10 @@ char upload_file(int sockfd, struct Header *msgHeader,
     else if (n < 0){
         fprintf(stderr, "problem in add_partial led to upload_failure\n" );
         sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
-        close_db_connection(db);
-        de_checkout_file_wrapper(msgHeader->filename);
+        delete_file_from_table_wrapper(msgHeader->filename);
         return DISCONNECT;
     }
 
-    close_db_connection(db);
     return 0;
 }
 
@@ -262,7 +255,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
 // overwrites current file and sends an ACK
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
-    db_t db;
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
     int bytesRead = get_bytes_read(handler, sockfd);
@@ -276,12 +268,10 @@ char update_file(int sockfd, struct Header *msgHeader,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
-    db = connect_to_db(DB_OWNER, DB_NAME);
     if (!is_file_editor_wrapper(msgHeader->source, msgHeader->filename)){
         fprintf(stderr, "tried to update file without checking it out \n");
         sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
-        close_db_connection(db);
         return DISCONNECT;
     }
 
@@ -301,7 +291,6 @@ char update_file(int sockfd, struct Header *msgHeader,
         fprintf(stderr, "%d bytes read from socket\n", n);
 
         if (n == 0){
-            close_db_connection(db);
             return DISCONNECT;
         }
     }
@@ -310,12 +299,10 @@ char update_file(int sockfd, struct Header *msgHeader,
 
     //if file completely read in
     if (n > 0) {
-        close_db_connection(db);
         de_checkout_file_wrapper(msgHeader->filename);
         sendHeader(UPDATE_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
-    close_db_connection(db);
     return 0;
 }
 
@@ -323,7 +310,6 @@ char update_file(int sockfd, struct Header *msgHeader,
  * deletes a given file
  */ 
 char delete_file(int sockfd, struct Header *msgHeader){
-    db_t db;
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
         fprintf(stderr, "tried to delete file that does not existed\n");
@@ -334,22 +320,19 @@ char delete_file(int sockfd, struct Header *msgHeader){
 
 
     //TODO: if is_file_editor(msg->filename, "");
-    db = connect_to_db(DB_OWNER, DB_NAME);
     //if file is not checked out
     if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) == -1){
 
         fprintf(stderr, "tried to delete a file that is checked out\n");
         sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
-        close_db_connection(db);
         return DISCONNECT;
     }
     remove(msgHeader->filename);
-    //TODO: delete_file_from_table_wrapper(db, msgHeader->filename);
+    delete_file_from_table_wrapper(msgHeader->filename);
     sendHeader(DELETE_FILE_ACK, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
 
-    close_db_connection(db);
     return DISCONNECT;
 
 }
@@ -361,7 +344,6 @@ char delete_file(int sockfd, struct Header *msgHeader){
  */
 int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request) {
 
-    db_t db;
     struct stat sb;
     char *token;
     char buffer[FILENAME_FIELD_LENGTH * 2];
@@ -375,7 +357,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
         return DISCONNECT;
     }
 
-    db = connect_to_db(DB_OWNER, DB_NAME);
     if (is_checkout_request){
 
         //TODO: if (is_file_editor(db, msgHeader->filename, "") && checcheckout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1)
@@ -392,7 +373,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
     if (token == NULL){
         fprintf(stderr, "malformed file name\n" );
         de_checkout_file_wrapper(msgHeader->filename);
-        close_db_connection(db);
         return DISCONNECT;
     }
     token = strtok(NULL, "");
@@ -403,7 +383,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
     if (write_file(sockfd, msgHeader->filename))
         error("ERROR sending file");
 
-    close_db_connection(db);
     return DISCONNECT;
 }
 
