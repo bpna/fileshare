@@ -182,11 +182,13 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
     char owns_file = is_file_editor_wrapper(msgHeader->source, msgHeader->filename);
 
+    // if not the file ownder
     if (owns_file == 0){
         fprintf(stderr, "person does not own file %s, dropping connection\n", msgHeader->filename);
         return DISCONNECT;
     }
     else {
+        //if file does not exist
         if (owns_file == -1){
             fprintf(stderr, "adding file %s to db\n", msgHeader->filename);
             add_file_wrapper(msgHeader->filename);
@@ -194,7 +196,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
         checkout_file_db_wrapper(msgHeader->source, msgHeader->filename);
     }
     
-    //if another upload already in progress,
 
 
     if (valid_fname(msgHeader->filename) == 0) {
@@ -312,7 +313,10 @@ char delete_file(int sockfd, struct Header *msgHeader){
         return DISCONNECT;
     }
 
-    
+
+    //TODO: if is_file_editor(msg->filename, "");
+
+    //if file is not checked out
     if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) == -1){
 
         fprintf(stderr, "tried to delete a file that is checked out\n");
@@ -321,6 +325,7 @@ char delete_file(int sockfd, struct Header *msgHeader){
         return DISCONNECT;
     }
     remove(msgHeader->filename);
+    //TODO: delete_file_from_table_wrapper(db, msgHeader->filename);
     sendHeader(DELETE_FILE_ACK, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
 
@@ -348,6 +353,8 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
         return DISCONNECT;
     }
     if (is_checkout_request){
+
+        //TODO: if (is_file_editor(db, msgHeader->filename, "") && checcheckout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1)
         if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1){
             fprintf(stderr, "in server.c, he got permission to check out file\n" );
             message_id = RETURN_CHECKEDOUT_FILE;
