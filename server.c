@@ -312,6 +312,7 @@ char delete_file(int sockfd, struct Header *msgHeader){
         return DISCONNECT;
     }
 
+    
     if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) == -1){
 
         fprintf(stderr, "tried to delete a file that is checked out\n");

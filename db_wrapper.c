@@ -173,6 +173,12 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
 
     // if (USE_DB){
     //     //TODO: database stuff
+    //TODO: if file is already checked out, need to convey that
+            // enum DB_STATUS status = 
+            // if (checkout_file_from_table(db, desired_filename, requester) == SUCCESS)
+            //     return 1;
+            // else
+            //     return -1;
 
     // }
     //{
@@ -234,6 +240,9 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
 
     // if (USE_DB){
     //     //TODO: database stuff
+            //TODO: gotta tell if file even exists
+            struct db_return = is_file_editor(db, desired_filename, requester);
+            return db_return->result != NULL
 
     // }
     //{
@@ -276,6 +285,18 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
 
 
 void add_file_wrapper(char *filename){
+
+    //TODO: don't add if already exists?
+    /*
+    if (USE_DB){
+        if (add_file(args i don't get )== SUCCESS)
+            return 0;
+        else{
+            return -1
+        }
+    }
+
+    */
     char buffer[SOURCE_FIELD_LENGTH];
     memset(buffer, '~', SOURCE_FIELD_LENGTH);
 
@@ -300,6 +321,8 @@ void de_checkout_file_wrapper(char *desired_filename){
 
     // if (USE_DB){
     //     //TODO: database stuff
+           // if (de_checkout_file(db, filename) == SUCCESS)
+           //   return;
 
     // }
     //{
