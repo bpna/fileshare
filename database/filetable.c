@@ -63,7 +63,7 @@ enum DB_STATUS update_file(db_t db, char *client, char *pass,
     return exec_command(db, stm);
 }
 
-enum DB_STATUS checkout_file(db_t db, char *filename, char *requester) {
+enum DB_STATUS checkout_file_from_table(db_t db, char *filename, char *requester) {
     if (check_connection(db))
         return CORRUPTED;
 
