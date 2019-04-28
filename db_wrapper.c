@@ -172,6 +172,7 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
     char *file_editor;
 
     // if (USE_DB){
+    //      db_t db = connect_to_db(DB_OWNER, DB_NAME);
     //     //TODO: database stuff
     //TODO: if file is already checked out, need to convey that
             // enum DB_STATUS status = 
@@ -239,10 +240,11 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
     char *file_editor;
 
     // if (USE_DB){
+    //     db_t db = connect_to_db(DB_OWNER, DB_NAME);
     //     //TODO: database stuff
             //TODO: gotta tell if file even exists
-            struct db_return = is_file_editor(db, desired_filename, requester);
-            return db_return->result != NULL
+            // struct db_return = is_file_editor(db, desired_filename, requester);
+            // return db_return->result != NULL
 
     // }
     //{
@@ -289,6 +291,8 @@ void add_file_wrapper(char *filename){
     //TODO: don't add if already exists?
     /*
     if (USE_DB){
+        db_t db = connect_to_db(DB_OWNER, DB_NAME);
+
         if (add_file(args i don't get )== SUCCESS)
             return 0;
         else{
@@ -320,6 +324,7 @@ void de_checkout_file_wrapper(char *desired_filename){
     char *file;
 
     // if (USE_DB){
+    //          db_t db = connect_to_db(DB_OWNER, DB_NAME);
     //     //TODO: database stuff
            // if (de_checkout_file(db, filename) == SUCCESS)
            //   return;
@@ -395,4 +400,16 @@ int get_user_list_wrapper(char **user_list) {
     }
 
     return current_size;
+}
+
+
+void delete_file_from_table_wrapper(char *filename){
+    // if (USE_DB){
+    //     db_t db = connect_to_db(DB_OWNER, DB_NAME);
+    //     delete_file_from_table_wrapper(db, filename);
+    //     close_db_connection(db);
+    // }
+    // else{
+        de_checkout_file_wrapper(filename);
+    // }
 }

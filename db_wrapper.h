@@ -34,3 +34,5 @@ char is_file_editor_wrapper(char *requester, char *desired_filename);
  * makes a given file availible for checkout
  */
 void de_checkout_file_wrapper(char *desired_filename);
+
+void delete_file_from_table_wrapper(char *filename);
