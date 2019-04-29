@@ -7,12 +7,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <libpq-fe.h>
+#include <postgresql/libpq-fe.h>
 #include "../io.h"
 
 #define db_t PGconn *
-#define DB_OWNER "nathan"
-#define DB_NAME "fileshare"
+#define DB_OWNER "postgres"
+#define DB_NAME "comp112-fileshare:us-east1:myinstance"
+#define DB_ADDR "35.231.141.209"
 
 #ifndef DB_STRUCTS
 #define DB_STRUCTS
@@ -47,7 +48,7 @@ struct db_return {
  *     db_t representing database connection variable
  *     NULL on error
  */
-db_t connect_to_db(char *owner, char *database);
+db_t connect_to_db(char *owner, char *database, char *hostaddr);
 
 /*
  * check_connection

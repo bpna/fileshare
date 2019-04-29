@@ -11,8 +11,6 @@
 
 #define USER_LIST_INIT_BUF_SIZE 100
 #define USE_DB 1
-#define DB_OWNER "nathan"
-#define DB_NAME "fileshare"
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define SERVER_LOAD_FNAME "server_nums.txt"
 #define CHECKOUT_FILE "checkouts.txt"
@@ -39,7 +37,7 @@ void check_db_status(enum DB_STATUS db_status, char *func) {
 db_t connect_to_db_wrapper() {
     db_t db;
     if (USE_DB) {
-        db = connect_to_db(DB_OWNER, DB_NAME);
+        db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
     } else {
         db = NULL;
     }
@@ -342,15 +340,16 @@ int get_user_list_wrapper(char **user_list) {
     char *buffer = NULL;
 
     if (USE_DB) {
-        db = connect_to_db(DB_OWNER, DB_NAME);
+        db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
         dbr = get_user_list(db, user_list);
         check_db_status(dbr.status, "get_user_list()");
         current_size = *(int *)dbr.result;
     } else {
         buffer = open_file_return_string(CSPAIRS_FNAME);
-        if (buffer == NULL)
+        if (buffer == NULL) {
             *user_list = NULL;
             return 0;
+	}
         *user_list = malloc(size);
         if (*user_list == NULL)
             error("ERROR: Allocation failure");

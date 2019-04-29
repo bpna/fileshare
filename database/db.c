@@ -8,9 +8,11 @@
 #include <string.h>
 #include "db.h"
 
-db_t connect_to_db(char *owner, char *database) {
-    char *stm = calloc(50, sizeof (char));
-    sprintf(stm, "user=%s dbname=%s", owner, database);
+db_t connect_to_db(char *owner, char *database, char *hostaddr) {
+	fprintf(stderr, "hostaddr is %s\n", hostaddr);
+    char *stm = calloc(1000, sizeof (char));
+    sprintf(stm, "user=%s dbname=%s hostaddr=%s", owner, database, hostaddr);
+    fprintf(stderr, "length is %zd\n", strlen(stm));
     db_t conn = PQconnectdb(stm);
     free(stm);
     if (check_connection(conn))

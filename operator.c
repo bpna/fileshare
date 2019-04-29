@@ -26,7 +26,6 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define USE_DB 0
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
@@ -70,7 +69,7 @@ int main(int argc, char *argv[]) {
     timeout.tv_usec = 0;
 
     //if (USE_DB) {
-    db = connect_to_db(DB_OWNER, DB_NAME);
+    db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
     dbs = create_server_table(db, 1);
     if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
         error("ERROR creating server table");
@@ -185,7 +184,7 @@ int new_client(struct Header *h, int sockfd) {
     char client_info[512];
     bzero(client_info, 512);
 
-    db = connect_to_db(DB_OWNER, DB_NAME);
+    db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
     dbr = least_populated_server(db);
     if (dbr.status != SUCCESS) {
         fprintf(stderr, "dbr status was not success\n");
@@ -286,7 +285,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
     bzero(buffer, INIT_BUFFER_LENGTH);
 
 
-    db = connect_to_db(DB_OWNER, DB_NAME);
+    db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
     dbr = get_server_from_client(db, h->filename);
     close_db_connection(db);
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
@@ -329,7 +328,7 @@ int new_server(struct Header *h, int sockfd, int personal) {
     char buffer[512];
     bzero(buffer, 512);
 
-    db = connect_to_db(DB_OWNER, DB_NAME);
+    db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
     strcpy(server.name, h->source);
 
     n = read(sockfd, buffer, h->length);
@@ -393,7 +392,7 @@ int new_personal_server(struct Header *h, int sockfd) {
     if (status != DISCONNECTED)
         return status;
 
-    db = connect_to_db(DB_OWNER, DB_NAME);
+    db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
 
     dbr = get_server_from_client(db, h->source);
     if (dbr.status == SUCCESS) {
