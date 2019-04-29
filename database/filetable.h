@@ -114,3 +114,18 @@ struct db_return is_file_editor(db_t db, char *filename, char *editor);
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED
  */
 enum DB_STATUS de_checkout_file(db_t db, char *filename);
+
+/*
+ *
+ * file_exists
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *filename: name of file in "owner/name" format
+ * Returns:
+ *     db_return struct with status and bool representing whether or not the
+ *     file exists
+ *
+ *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
+ */
+struct db_return file_exists(db_t db, char *filename);

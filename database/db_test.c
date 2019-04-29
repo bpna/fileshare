@@ -122,6 +122,12 @@ void filetable_test_suite(db_t db) {
     if (de_checkout_file(db, file_name))
         error("ERROR de-checking out file");
 
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    dbr = file_exists(db, file_name);
+    if (dbr.status || !dbr.result) {
+        error("ERROR validating file existance");
+    }
+
     return;
 }
 
