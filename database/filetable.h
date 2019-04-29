@@ -129,3 +129,18 @@ enum DB_STATUS de_checkout_file(db_t db, char *filename);
  *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
  */
 struct db_return file_exists(db_t db, char *filename);
+
+/*
+ *
+ * ready_for_checkout
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *filename: name of file in "owner/name" format
+ * Returns:
+ *     db_return struct with status and bool representing whether or not the
+ *     file is ready for checkout
+ *
+ *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
+ */
+struct db_return ready_for_checkout(db_t db, char *filename);

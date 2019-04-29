@@ -138,7 +138,7 @@ struct db_return file_exists(db_t db, char *filename) {
 
     if (PQntuples(res) == 0) {
         PQclear(res);
-        return generate_dbr(COMMAND_FAILED, NULL);
+        return generate_dbr(COMMAND_FAILED, 0);
     }
 
     long exists = atoi(PQgetvalue(res, 0, 0));
@@ -146,4 +146,31 @@ struct db_return file_exists(db_t db, char *filename) {
     PQclear(res);
 
     return generate_dbr(SUCCESS, (void *) exists);
+}
+
+struct db_return ready_for_checkout(db_t db, char *filename) {
+    if (check_connection(db))
+        return generate_dbr(CORRUPTED, 0);
+
+    char file[20], owner[20];
+    strcpy(owner, strtok(filename, "/"));
+    strcpy(file, strtok(NULL, ""));
+
+    char *stm = calloc(100, sizeof (char));
+    sprintf(stm, "SELECT checked_out_by FROM files WHERE filename='%s' AND "
+                 "owner='%s'", file, owner);
+
+    PGresult *res = PQexec(db, stm);
+    free(stm);
+
+    if (PQntuples(res) == 0) {
+        PQclear(res);
+        return generate_dbr(ELEMENT_NOT_FOUND, 0);
+    }
+
+    long open = !strcmp(PQgetvalue(res, 0, 0), "");
+    PQclear(res);
+
+    return generate_dbr(SUCCESS, (void *) open);
+
 }
