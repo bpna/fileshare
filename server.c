@@ -189,6 +189,13 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
+    if (!has_permissions(UPLOAD_FILE, msgHeader)){
+        fprintf(stderr, "tried to uplaod file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
 
     char owns_file = is_file_editor_wrapper(msgHeader->source, msgHeader->filename);
     // if not the file ownder
@@ -208,12 +215,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
 
 
-    // if (!has_permissions(UPLOAD_FILE, msgHeader)){
-    //     fprintf(stderr, "tried to uplaod file with bad permissions \n");
-    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
-    //                msgHeader->filename, 0, sockfd);
-    //     return DISCONNECT;
-    // }
 
     if (msgHeader->length > 0){
         //if number of bytes left to read < 100000
@@ -275,12 +276,12 @@ char update_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    // if (!has_permissions(UPDATE_FILE, msgHeader)){
-    //     fprintf(stderr, "tried to update file with bad permissions \n");
-    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
-    //                msgHeader->filename, 0, sockfd);
-    //     return DISCONNECT;
-    // }
+    if (!has_permissions(UPDATE_FILE, msgHeader)){
+        fprintf(stderr, "tried to update file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
 
     if (msgHeader->length > 0){
         //if number of bytes left to read < 100000
@@ -317,6 +318,14 @@ char delete_file(int sockfd, struct Header *msgHeader){
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+
+    if (!has_permissions(DELETE_FILE, msgHeader)){
+        fprintf(stderr, "tried to update file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
 
 
     //TODO: if is_file_editor(msg->filename, "");
@@ -357,7 +366,16 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
         return DISCONNECT;
     }
 
+
+
     if (is_checkout_request){
+        if (!has_permissions(CHECKOUT_FILE, msgHeader)){
+            fprintf(stderr, "tried to update file with bad permissions \n");
+            sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                       msgHeader->filename, 0, sockfd);
+            return DISCONNECT;
+        }
+
 
         //TODO: if (is_file_editor(db, msgHeader->filename, "") && checcheckout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1)
         if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1){
@@ -578,9 +596,18 @@ char has_permissions(enum message_type message_id, struct Header *h){
     memcpy(fname, h->filename, FILENAME_FIELD_LENGTH);
     file_owner = strtok(fname, "/");
 
-    if (message_id == REQUEST_FILE)
+    /*
+     if (personal_server){
+        if message_id == REQUEST_FILE
+            return 1
+        else
+            return (strcmp(file_owner, h->source) == 0)?  1 : 0;
+     }
+     */
+
+    if (message_id != UPLOAD_FILE )
         return 1;
 
-    //if the file owner is the person making the changes
+    //if the file owner the person uploading the file?
     return (strcmp(file_owner, h->source) == 0)?  1 : 0;
 }
