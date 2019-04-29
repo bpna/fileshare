@@ -16,7 +16,7 @@ enum DB_STATUS create_server_table(db_t db, char drop_existing) {
                         drop_existing);
 }
 
-enum DB_STATUS add_server(db_t db, struct Server *addr, int personal) {
+enum DB_STATUS add_server(db_t db, struct Server *addr, char personal) {
     if (check_connection(db))
         return CORRUPTED;
 
@@ -53,9 +53,8 @@ struct db_return clients_served_by(db_t db, struct Server *addr) {
 }
 
 struct db_return least_populated_server(db_t db) {
-    if (check_connection(db)) {
+    if (check_connection(db))
         return generate_dbr(CORRUPTED, NULL);
-    }
 
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "SELECT port, domain, clients FROM servers ORDER BY 2 ASC");
@@ -80,6 +79,9 @@ struct db_return least_populated_server(db_t db) {
 }
 
 enum DB_STATUS increment_clients(db_t db, struct Server *addr) {
+    if (check_connection(db))
+        return CORRUPTED;
+
     char *stm = calloc(350, sizeof (char));
     sprintf(stm, "SELECT clients FROM servers WHERE port=%d AND domain='%s'",
             addr->port, addr->domain_name);
