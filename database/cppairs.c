@@ -33,7 +33,7 @@ enum DB_STATUS add_cppair(db_t db, char *client, char *pass) {
     return SUCCESS;
 }
 
-int valid_authentication(db_t db, char *client, char *pass) {
+char valid_authentication(db_t db, char *client, char *pass) {
     char *stm = calloc(70, sizeof (char));
     sprintf(stm, "SELECT password FROM cppairs WHERE client='%s'", client);
 
@@ -44,7 +44,7 @@ int valid_authentication(db_t db, char *client, char *pass) {
         return 1;
     }
 
-    int result = strcmp(pass, PQgetvalue(res, 0, 0));
+    char result = !strcmp(pass, PQgetvalue(res, 0, 0));
     PQclear(res);
 
     return result;

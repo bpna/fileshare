@@ -43,7 +43,7 @@ void cppairs_test_suite(db_t db) {
     if (add_cppair(db, TEST_CLIENT, TEST_PASS))
         error("ERROR adding cppair");
 
-    if (valid_authentication(db, TEST_CLIENT, TEST_PASS))
+    if (!valid_authentication(db, TEST_CLIENT, TEST_PASS))
         error("ERROR verifying client authentication");
 
     return;
@@ -99,6 +99,7 @@ void filetable_test_suite(db_t db) {
         .len = 4,
         .checked_out_by = ""
     };
+    // printf("%d\n", add_file(db, TEST_CLIENT, TEST_PASS, file));
     if (add_file(db, TEST_CLIENT, TEST_PASS, file))
         error("ERROR adding file");
 
@@ -114,7 +115,7 @@ void filetable_test_suite(db_t db) {
 
     sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
     dbr = is_file_editor(db, file_name, TEST_CLIENT);
-    if (dbr.status || dbr.result)
+    if (dbr.status || !dbr.result)
         error("ERROR checking file editor");
 
     sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);

@@ -43,7 +43,7 @@ struct db_return get_server_from_client(db_t db, char *client) {
 }
 
 enum DB_STATUS add_cspair(db_t db, char *client, struct Server *server,
-                          int increment_client) {
+                          char increment_client) {
     if (check_connection(db))
         return CORRUPTED;
 

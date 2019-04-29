@@ -19,7 +19,7 @@ enum DB_STATUS add_file(db_t db, char *client, char *pass,
                         struct file_info file) {
     if (check_connection(db))
         return CORRUPTED;
-    if (valid_authentication(db, client, pass))
+    if (!valid_authentication(db, client, pass))
         return INVALID_AUTHENTICATION;
 
     char *stm = calloc(100, sizeof (char));
@@ -41,7 +41,7 @@ enum DB_STATUS delete_file(db_t db, char *client,
                            char *pass, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
-    else if (valid_authentication(db, client, pass))
+    else if (!valid_authentication(db, client, pass))
         return INVALID_AUTHENTICATION;
 
     char *stm = calloc(150, sizeof (char));
@@ -53,7 +53,7 @@ enum DB_STATUS update_file(db_t db, char *client, char *pass,
                            struct file_info file) {
     if (check_connection(db))
         return CORRUPTED;
-    else if (valid_authentication(db, client, pass))
+    else if (!valid_authentication(db, client, pass))
         return INVALID_AUTHENTICATION;
 
     char *stm = calloc(100, sizeof (char));
@@ -99,7 +99,7 @@ struct db_return is_file_editor(db_t db, char *filename, char *requester) {
         return generate_dbr(ELEMENT_NOT_FOUND, NULL);
     }
 
-    long diff = strcmp(PQgetvalue(res, 0, 0), requester);
+    long diff = !strcmp(PQgetvalue(res, 0, 0), requester);
 
     PQclear(res);
 
