@@ -38,3 +38,5 @@ void de_checkout_file_wrapper(char *desired_filename);
 void delete_file_from_table_wrapper(char *filename);
 
 void create_file_table_wrapper();
+
+int get_file_list_wrapper(db_t db, char *client, char **list);

@@ -27,12 +27,29 @@ enum DB_STATUS create_cspairs_table(db_t db, char drop_existing);
  *     db_t db: database connection variable
  *     char *client: client to get information from
  * Returns:
- *     db_return struct with status and Server struct containing server info
+ *     db_return struct with status and pointer to allocated Server struct
+ *     containing server info
  *     status is ELEMENT_NOT_FOUND if client's info is not in the local database
  *
  *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
  */
 struct db_return get_server_from_client(db_t db, char *client);
+
+/*
+ * get_backup_server_from_client
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *client: client to get information from
+ * Returns:
+ *     db_return struct with status and pointer to allocated Server struct
+ *     containing server info
+ *     status is ELEMENT_NOT_FOUND if client's info is not in the local database
+ *     or if client does not have a backup server
+ *
+ *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
+ */
+struct db_return get_backup_server_from_client(db_t db, char *client);
 
 /*
  * add_cspair

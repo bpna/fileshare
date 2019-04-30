@@ -75,8 +75,7 @@ int write_message(int csock, char *data, int length) {
     return 0;
 }
 
-int write_file(int csock, char *filename)
-{
+int write_file(int csock, char *filename) {
     FILE *fp = fopen(filename, "rb");
     char bytes[FILE_BUFFER_MAX_LEN];
     long filelen;
@@ -99,4 +98,20 @@ int write_file(int csock, char *filename)
 
     fclose(fp);
     return 0;
+}
+
+/* Purpose: creates a filename in format "file-owner/filename" so as to be
+ * interpretable by the server
+ * Takes the owner name and fname as cstrings as arguments
+ * Returns the malloced full filename
+ */
+char *make_full_fname(char* owner, char *fname) {
+    int len_owner = strlen(owner);
+    int len_fname = strlen(fname);
+    //2 extra bytes for the "/" and the "\0"
+    char *full_fname = calloc(len_owner + len_fname + 2, 1);
+    memcpy(full_fname, owner, len_owner);
+    full_fname[len_owner] = '/';
+    memcpy((&full_fname[len_owner + 1]), fname, len_fname);
+    return full_fname;
 }
