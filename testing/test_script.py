@@ -57,13 +57,13 @@ def run_server(server_name, portno):
 
 def init_client(client_name):
 
-    input_arr = ['./client', 'init', 'localhost', operator_port]
+    input_arr = ['valgrind', './client', 'init', 'localhost', operator_port]
     file = open("./output/{0}_output.txt".format(client_name), "a")
     subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
 
 
-    input_arr = ['./client', 'new_client',  client_name, 'password' ]
+    input_arr = ['valgrind','./client', 'new_client',  client_name, 'password' ]
     file = open("./output/{0}_output.txt".format(client_name), "a")
     subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
@@ -88,13 +88,19 @@ threads = [op, serv1, serv2]
 for thread in threads:
     thread.start()
 
-time.sleep(5)
+#time.sleep(3)
 #new_client commands
 init_client('cli_one')
 init_client('cli_two')
 
 #cli one uploads
 client_name = 'cli_one'
+
+input_arr = ['./client', 'upload_file',  client_name, 'password',  'server.c']
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
+
 
 files = glob.glob('./cli_one/*')
 for file in files:
@@ -105,15 +111,15 @@ for file in files:
         subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
         file.close()
 
-# #cli_two checks out file
-# client_name = 'cli_two'
-# input_arr[2] = client_name
-# input_arr[1] = 'checkout_file'
-# input_arr[-1] = 'cli_one'
-# input_arr.append('file.file')
-# file = open("./output/{0}_output.txt".format(client_name), "a")
-# subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-# file.close()
+#cli_two checks out file
+client_name = 'cli_two'
+input_arr[2] = client_name
+input_arr[1] = 'checkout_file'
+input_arr[-1] = 'cli_one'
+input_arr.append('server.c')
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
 
 # #cli_one checks out file (should fail)
 # client_name = 'cli_one'
@@ -123,22 +129,22 @@ for file in files:
 # file.close()
 
 
-# # #"modify" file
-# # subprocess.run(['cp', 'file.file2', './cli_two/file.file'])
+# #"modify" file
+# subprocess.run(['cp', 'file.file', './cli_two/server.c'])
 
-# # #cli_two updates file
-# # client_name = 'cli_two'
-# # input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'file.file']
-# # file = open("./output/{0}_output.txt".format(client_name), "a")
-# # subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-# # file.close()
-
-# #cli_two deletes file
+# #cli_two updates file
 # client_name = 'cli_two'
-# input_arr = ['./client', 'delete_file', client_name, 'password', 'cli_one', 'file.file']
+# input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'server.c']
 # file = open("./output/{0}_output.txt".format(client_name), "a")
 # subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 # file.close()
+
+#cli_two deletes file
+client_name = 'cli_two'
+input_arr = ['./client', 'delete_file', client_name, 'password', 'cli_one', 'server.c']
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
 
 
 
