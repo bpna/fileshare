@@ -13,7 +13,6 @@
 #include <time.h>
 #include <sys/types.h>
 #include <errno.h>
-#include <dirent.h>
 #include "partial_message_handler.h"
 #include "database/cppairs.h"
 #include "io.h"
@@ -38,7 +37,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler *handler);
 char update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
-int file_list(int sockfd, struct Header *msgHeader);
 int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
 int handle_request(int sockfd, struct PartialMessageHandler *handler,
                    int personal);
@@ -73,6 +71,8 @@ int main(int argc, char *argv[]) {
     connect_to_operator(argv[3], atoi(argv[4]),
                         atoi(argv[1]), argv[2], personal);
 
+
+    create_file_table_wrapper();
     int maxSock, rv, newSock = -1;
     struct timeval tv;
     tv.tv_sec=1;
@@ -165,12 +165,15 @@ char valid_fname(char *fname) {
 //returns DISCONNECT on succesfull read OR Error, returns 0 on partial read
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
-
+//TODO: on every unsuccesful disconnect, delete file from table
 
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
+    bzero(buffer, FILE_BUFFER_MAX_LEN);
+    int n = 0;
 
     int bytesRead = get_bytes_read(handler, sockfd);
+
 
     //if file already exists, send ERROR_CODE and disconnect
     if (access(msgHeader->filename, F_OK) != -1) {
@@ -180,20 +183,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    char owns_file = is_file_editor(msgHeader->source, msgHeader->filename);
-
-    if (owns_file == 0){
-        return 0;
-    }
-    else {
-        if (owns_file == -1)
-            add_file_wrapper(msgHeader->filename);
-        checkout_file_db_wrapper(msgHeader->source, msgHeader->filename);
-    }
-    
-    //if another upload already in progress,
-
-
     if (valid_fname(msgHeader->filename) == 0) {
         fprintf(stderr, "invalid fname led to upload failure\n" );
         sendHeader(ERROR_INVALID_FNAME, NULL, NULL,
@@ -201,40 +190,65 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    // if (!has_permissions(UPLOAD_FILE, msgHeader)){
-    //     fprintf(stderr, "tried to uplaod file with bad permissions \n");
-    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
-    //                msgHeader->filename, 0, sockfd);
-    //     return DISCONNECT;
-    // }
-
-
-    //if number of bytes left to read < 100000
-    if (msgHeader->length - bytesRead < bytesToRead)
-        bytesToRead = msgHeader->length  - bytesRead;
-
-    int n = read(sockfd, buffer, bytesToRead);
-    fprintf(stderr, "%d bytes read from socket\n", n);
-
-    if (n == 0)
+    if (!has_permissions(UPLOAD_FILE, msgHeader)){
+        fprintf(stderr, "tried to uplaod file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
         return DISCONNECT;
+    }
+
+
+    char owns_file = is_file_editor_wrapper(msgHeader->source, msgHeader->filename);
+    // if not the file ownder
+    if (owns_file == 0){
+        fprintf(stderr, "person does not own file %s, dropping connection\n", msgHeader->filename);
+        return DISCONNECT;
+    }
+    else {
+        //if file does not exist
+        if (owns_file == -1){
+            fprintf(stderr, "adding file %s to db\n", msgHeader->filename);
+            add_file_wrapper(msgHeader->filename);
+        }
+        checkout_file_db_wrapper(msgHeader->source, msgHeader->filename);
+    }
+    
+
+
+
+
+    if (msgHeader->length > 0){
+        //if number of bytes left to read < 100000
+        if (msgHeader->length - bytesRead < bytesToRead)
+            bytesToRead = msgHeader->length  - bytesRead;
+
+        n = read(sockfd, buffer, bytesToRead);
+        fprintf(stderr, "%d bytes read from socket\n", n);
+
+        if (n == 0){
+            //TODO: should be delete file
+            delete_file_from_table_wrapper(msgHeader->filename);
+            return DISCONNECT;
+
+        }
+    }
 
     n = add_partial(handler, buffer, sockfd, n, 1);
 
     //if file completely read in
     if (n > 0) {
-        
         sendHeader(UPLOAD_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
-        de_checkout_file(msgHeader->filename);
-        return DISCONNECT;
-    }
-    else if (n < 0){
-        fprintf(stderr, "problem in add_partial led to upload_failure\n" );
-        sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
-        de_checkout_file(msgHeader->filename);
+        de_checkout_file_wrapper(msgHeader->filename);
         return DISCONNECT;
     }
 
+    //TODO: should be delete file
+    else if (n < 0){
+        fprintf(stderr, "problem in add_partial led to upload_failure\n" );
+        sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
+        delete_file_from_table_wrapper(msgHeader->filename);
+        return DISCONNECT;
+    }
 
     return 0;
 }
@@ -246,10 +260,8 @@ char update_file(int sockfd, struct Header *msgHeader,
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
     int bytesRead = get_bytes_read(handler, sockfd);
+    int n = 0;
 
-    //if number of bytes left to read < 100000
-    if (msgHeader->length - bytesRead < bytesToRead)
-        bytesToRead = msgHeader->length  - bytesRead;
 
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
@@ -258,36 +270,41 @@ char update_file(int sockfd, struct Header *msgHeader,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
-
-    if (!is_file_editor(msgHeader->source, msgHeader->filename)){
+    if (!is_file_editor_wrapper(msgHeader->source, msgHeader->filename)){
         fprintf(stderr, "tried to update file without checking it out \n");
         sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
 
-    // if (!has_permissions(UPDATE_FILE, msgHeader)){
-    //     fprintf(stderr, "tried to update file with bad permissions \n");
-    //     sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
-    //                msgHeader->filename, 0, sockfd);
-    //     return DISCONNECT;
-    // }
-
-    int n = read(sockfd, buffer, bytesToRead);
-    fprintf(stderr, "%d bytes read from socket\n", n);
-
-    if (n == 0)
+    if (!has_permissions(UPDATE_FILE, msgHeader)){
+        fprintf(stderr, "tried to update file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
         return DISCONNECT;
+    }
+
+    if (msgHeader->length > 0){
+        //if number of bytes left to read < 100000
+        if (msgHeader->length - bytesRead < bytesToRead)
+            bytesToRead = msgHeader->length  - bytesRead;
+
+        n = read(sockfd, buffer, bytesToRead);
+        fprintf(stderr, "%d bytes read from socket\n", n);
+
+        if (n == 0){
+            return DISCONNECT;
+        }
+    }
 
     n = add_partial(handler, buffer, sockfd, n, 1);
 
     //if file completely read in
     if (n > 0) {
-        de_checkout_file(msgHeader->filename);
+        de_checkout_file_wrapper(msgHeader->filename);
         sendHeader(UPDATE_ACK, NULL, NULL, msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
-
     return 0;
 }
 
@@ -295,7 +312,6 @@ char update_file(int sockfd, struct Header *msgHeader,
  * deletes a given file
  */ 
 char delete_file(int sockfd, struct Header *msgHeader){
-
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
         fprintf(stderr, "tried to delete file that does not existed\n");
@@ -304,6 +320,17 @@ char delete_file(int sockfd, struct Header *msgHeader){
         return DISCONNECT;
     }
 
+    if (!has_permissions(DELETE_FILE, msgHeader)){
+        fprintf(stderr, "tried to update file with bad permissions \n");
+        sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
+
+
+    //TODO: if is_file_editor(msg->filename, "");
+    //if file is not checked out
     if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) == -1){
 
         fprintf(stderr, "tried to delete a file that is checked out\n");
@@ -312,6 +339,7 @@ char delete_file(int sockfd, struct Header *msgHeader){
         return DISCONNECT;
     }
     remove(msgHeader->filename);
+    delete_file_from_table_wrapper(msgHeader->filename);
     sendHeader(DELETE_FILE_ACK, NULL, NULL,
                    msgHeader->filename, 0, sockfd);
 
@@ -338,7 +366,18 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+
+
+
     if (is_checkout_request){
+        if (!has_permissions(CHECKOUT_FILE, msgHeader)){
+            fprintf(stderr, "tried to update file with bad permissions \n");
+            sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
+                       msgHeader->filename, 0, sockfd);
+            return DISCONNECT;
+        }
+
+
         if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1){
             fprintf(stderr, "in server.c, he got permission to check out file\n" );
             message_id = RETURN_CHECKEDOUT_FILE;
@@ -351,6 +390,7 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
     token = strtok(buffer, "/");
     if (token == NULL){
         fprintf(stderr, "malformed file name\n" );
+        de_checkout_file_wrapper(msgHeader->filename);
         return DISCONNECT;
     }
     token = strtok(NULL, "");
@@ -360,6 +400,7 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
     sendHeader(message_id, NULL, NULL, token, sb.st_size, sockfd);
     if (write_file(sockfd, msgHeader->filename))
         error("ERROR sending file");
+
     return DISCONNECT;
 }
 
@@ -394,7 +435,6 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
     }
 
 
-    fprintf(stderr, "the number of bytes read in was %d\n", n);
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
     fprintf(stderr, "the username incoming is %s\n", msgHeader->source);
     fprintf(stderr, "the password incoming is %s\n", msgHeader->password);
@@ -423,18 +463,9 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
         case UPDATE_FILE:
             fprintf(stderr, "updating file\n");
             return update_file(sockfd, msgHeader, handler);
-            //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
-            //TODO in future: add in permision cases
-            //TODO: Delete file
-            //TODO:
-        case NEW_SERVER_ACK:
-            fprintf(stderr, "new server ack\n");
-            return DISCONNECT;
-        case FILE_LIST:
-            return file_list(sockfd, msgHeader);
         case CHECKOUT_FILE:
-            fprintf(stderr, "checking out file\n" );
-            return handle_file_request(sockfd, msgHeader, 1);
+                fprintf(stderr, "checking out file\n" );
+                return handle_file_request(sockfd, msgHeader, 1);
         case DELETE_FILE:
             return delete_file(sockfd, msgHeader);
         default:
@@ -456,7 +487,7 @@ int create_client(int sockfd, struct Header *msgHeader,
     bzero(username, SOURCE_FIELD_LENGTH);
     bzero(password, PASSWORD_FIELD_LENGTH);
 
-    db = connect_to_db(DB_OWNER, DB_NAME);
+    
 
     n = read(sockfd, buffer, msgHeader->length);
     if (n < 1)
@@ -466,17 +497,13 @@ int create_client(int sockfd, struct Header *msgHeader,
         return 1;
     }
 
+    db = connect_to_db(DB_OWNER, DB_NAME);
     token = strtok(buffer, ":");
-    fprintf(stderr, "username is %s\n", token );
     strcpy(username, token);
     token = strtok(NULL, "");
-    fprintf(stderr, "password is %s\n", token );
 
     strcpy(password, token);
 
-    fprintf(stderr,
-        "username of create_client is %s\npassword of create_client is %s\n",
-        username, password);
 
     // dbs = add_cppair(db, username, password);
     close_db_connection(db);
@@ -486,28 +513,6 @@ int create_client(int sockfd, struct Header *msgHeader,
     mkdir(username, S_IRWXU);
 
     sendHeader(CREATE_CLIENT_ACK, NULL, NULL, NULL, 0, sockfd);
-    return DISCONNECT;
-}
-
-int file_list(int sockfd, struct Header *msgHeader) {
-    struct dirent *ent;
-    DIR *dir;
-    char files[10000]; // TODO: create array resize
-    int loc = 0;
-
-    bzero(files, 10000);
-    dir = opendir(msgHeader->filename);
-    ent = readdir(dir);
-    ent = readdir(dir); /* get rid of . and .. files */
-    ent = readdir(dir); /* first actual file */
-    while (ent != NULL) {
-        memcpy(&files[loc], ent->d_name, strlen(ent->d_name));
-        loc += strlen(ent->d_name) + 1;
-    }
-    
-    sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, loc, sockfd);
-    write_message(sockfd, files, loc);
-
     return DISCONNECT;
 }
 
@@ -535,6 +540,7 @@ int create_client_err(int sockfd, struct Header *msgHeader,
 
     sendHeader(CREATE_CLIENT_ERROR, NULL, NULL, username, 0, sockfd);
     return DISCONNECT;
+
 }
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
@@ -590,9 +596,18 @@ char has_permissions(enum message_type message_id, struct Header *h){
     memcpy(fname, h->filename, FILENAME_FIELD_LENGTH);
     file_owner = strtok(fname, "/");
 
-    if (message_id == REQUEST_FILE)
+    /*
+     if (personal_server){
+        if message_id == REQUEST_FILE
+            return 1
+        else
+            return (strcmp(file_owner, h->source) == 0)?  1 : 0;
+     }
+     */
+
+    if (message_id != UPLOAD_FILE )
         return 1;
 
-    //if the file owner is the person making the changes
+    //if the file owner the person uploading the file?
     return (strcmp(file_owner, h->source) == 0)?  1 : 0;
 }

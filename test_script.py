@@ -1,27 +1,13 @@
 import subprocess
 import sched, time
 import threading
-import os, shutil, glob
 
 
 
 operator_port = '9054'
 
-
-def clear_directory():
-    
-    folder = './'
-    for the_file in os.listdir(folder):
-        file_path = os.path.join(folder, the_file)
-        try:
-            if os.path.isfile(file_path) and the_file != 'test_script.py':
-                os.unlink(file_path)
-            elif os.path.isdir(file_path): shutil.rmtree(file_path)
-        except Exception as e:
-            print(e)
-
 def pre_process():
-    clear_directory()
+    subprocess.run(['rm', '-vrf', '!("test_script.py"|"test_init.py")'])
     subprocess.run(['mkdir', 'serv_one'])
 
     subprocess.run(['mkdir', 'serv_two'])
@@ -32,18 +18,11 @@ def pre_process():
     subprocess.run(['cp', '../server', './serv_two/'])
     subprocess.run(['cp', '../client', './cli_one/'])
     subprocess.run(['cp', '../client', './cli_two/'])
-    subprocess.run(['cp', '../operator', './'])
     subprocess.run(['cp', '../client.c', './file.file'])
-
-    files = glob.glob('../*')
-    for file in files:
-        if os.path.isfile(file) and '.' in file:
-            subprocess.run(['cp', file, './cli_one/'])
     # subprocess.run(['cp', '../file/file.file', './'])
     subprocess.run(['cp', '../client.o', './file.file2'])
-    subprocess.run(['cp', './file.file', './cli_two/'])
-    subprocess.run(['cp', './file.file2', './cli_two/'])
-   
+    subprocess.run(['cp', './file.file', './cli_one/'])
+    subprocess.run(['cp', '../operator', './'])
 
 def run_operator():
     file = open("output/op_output.txt", "w")
@@ -56,14 +35,15 @@ def run_server(server_name, portno):
     file.close()
 
 def init_client(client_name):
+    time.sleep(1)
 
-    input_arr = ['valgrind', './client', 'init', 'localhost', operator_port]
+    input_arr = ['./client', 'init', 'localhost', operator_port]
     file = open("./output/{0}_output.txt".format(client_name), "a")
     subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
 
 
-    input_arr = ['valgrind','./client', 'new_client',  client_name, 'password' ]
+    input_arr = ['./client', 'new_client',  client_name, 'password' ]
     file = open("./output/{0}_output.txt".format(client_name), "a")
     subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
     file.close()
@@ -88,67 +68,54 @@ threads = [op, serv1, serv2]
 for thread in threads:
     thread.start()
 
-#time.sleep(3)
+time.sleep(5)
 #new_client commands
 init_client('cli_one')
 init_client('cli_two')
 
 #cli one uploads
 client_name = 'cli_one'
+input_arr = ['./client', 'upload_file',  client_name, 'password', 'file.file' ]
 
-input_arr = ['./client', 'upload_file',  client_name, 'password',  'server.c']
 file = open("./output/{0}_output.txt".format(client_name), "a")
 subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 file.close()
-
-
-files = glob.glob('./cli_one/*')
-for file in files:
-    if os.path.isfile(file):
-        local_file = file.split('cli_one/')[-1]
-        input_arr = ['./client', 'upload_file',  client_name, 'password',  local_file]
-        file = open("./output/{0}_output.txt".format(client_name), "a")
-        subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-        file.close()
 
 #cli_two checks out file
 client_name = 'cli_two'
 input_arr[2] = client_name
 input_arr[1] = 'checkout_file'
 input_arr[-1] = 'cli_one'
-input_arr.append('server.c')
+input_arr.append('file.file')
 file = open("./output/{0}_output.txt".format(client_name), "a")
 subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 file.close()
 
-# #cli_one checks out file (should fail)
-# client_name = 'cli_one'
-# input_arr[2] = client_name
-# file = open("./output/{0}_output.txt".format(client_name), "a")
-# subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-# file.close()
+#cli_one checks out file (should fail)
+client_name = 'cli_one'
+input_arr[2] = client_name
+input_arr.insert(0, '-v')
+input_arr.insert(0, '--leak-check=full')
+
+input_arr.insert(0, 'valgrind')
+print (str(input_arr))
+file = open("./output/{0}_output.txt".format(client_name), "a")
+subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
+file.close()
 
 
-# #"modify" file
-# subprocess.run(['cp', 'file.file', './cli_two/server.c'])
+#"modify" file
+subprocess.run(['cp', 'file.file2', './cli_two/file.file'])
 
-# #cli_two updates file
-# client_name = 'cli_two'
-# input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'server.c']
-# file = open("./output/{0}_output.txt".format(client_name), "a")
-# subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
-# file.close()
-
-#cli_two deletes file
+#cli_two updates file
 client_name = 'cli_two'
-input_arr = ['./client', 'delete_file', client_name, 'password', 'cli_one', 'server.c']
+input_arr = ['./client', 'update_file', client_name, 'password', 'cli_one', 'file.file']
 file = open("./output/{0}_output.txt".format(client_name), "a")
 subprocess.run(input_arr, stderr=file, stdout=file, cwd = '{0}/'.format(client_name))
 file.close()
 
 
-
-
+        
 
 
 # for thread in threads:

@@ -26,7 +26,7 @@
 
 #define DISCONNECTED -69
 #define MAX_MSG_READ 450
-#define USE_DB 0
+#define USE_DB 1
 #define CSPAIRS_FNAME "client_cspairs.txt"
 #define CSPAIRS_FILE_MAX_LENGTH 10000
 
