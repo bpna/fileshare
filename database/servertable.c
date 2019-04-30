@@ -9,10 +9,10 @@
 #include "servertable.h"
 
 enum DB_STATUS create_server_table(db_t db, char drop_existing) {
-    return create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, \
-                                        Port SMALLINT, Domain VARCHAR(255), \
-                                        Clients INT, Stored_Bytes BIGINT, \
-                                        Personal_Server SMALLINT",
+    return create_table(db, "servers", "Name VARCHAR(20) PRIMARY KEY, "
+                                       "Port SMALLINT, Domain VARCHAR(255), "
+                                       "Clients INT, Stored_Bytes BIGINT, "
+                                       "Personal_Server SMALLINT",
                         drop_existing);
 }
 
@@ -57,7 +57,8 @@ struct db_return least_populated_server(db_t db) {
         return generate_dbr(CORRUPTED, NULL);
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "SELECT port, domain, clients FROM servers ORDER BY 2 ASC");
+    sprintf(stm, "SELECT port, domain, clients FROM servers ORDER BY 2 ASC "
+                 "WHERE personal_server=0");
 
     PGresult *res = PQexec(db, stm);
 

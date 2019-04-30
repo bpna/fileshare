@@ -367,7 +367,7 @@ int user_list(int sockfd) {
     int length;
     struct Header reply_header;
     char *user_list;
-    
+
     length = get_user_list_wrapper(&user_list);
 
     bzero(&reply_header, HEADER_LENGTH);

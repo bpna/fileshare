@@ -23,7 +23,32 @@ struct db_return get_server_from_client(db_t db, char *client) {
 
     char *stm = calloc(65, sizeof (char));
     sprintf(stm,
-        "SELECT port, domain FROM cspairs WHERE name='%s'", client);
+            "SELECT port, domain FROM cspairs WHERE name='%s'", client);
+
+    PGresult *res = PQexec(db, stm);
+    free(stm);
+
+    if (PQntuples(res) == 0)
+        return generate_dbr(ELEMENT_NOT_FOUND, NULL);
+
+    struct Server *addr =
+        (struct Server *) malloc(sizeof (struct Server));
+
+    addr->port = atoi(PQgetvalue(res, 0, 0));
+    strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
+
+    PQclear(res);
+
+    return generate_dbr(SUCCESS, addr);
+}
+struct db_return get_backup_server_from_client(db_t db, char *client) {
+    if (check_connection(db))
+        return generate_dbr(CORRUPTED, NULL);
+
+    char *stm = calloc(65, sizeof (char));
+    sprintf(stm,
+            "SELECT backup_port, backup_domain FROM cspairs WHERE name='%s'",
+            client);
 
     PGresult *res = PQexec(db, stm);
     free(stm);

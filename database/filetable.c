@@ -10,8 +10,10 @@
 #include "cppairs.h"
 
 enum DB_STATUS create_file_table(db_t db, char drop_existing) {
-    return create_table(db, "files", "Filename VARCHAR(20), Owner VARCHAR(20), "
-                                     "Size INT, Checked_Out_By VARCHAR(20)",
+    return create_table(db, "files", "Filename VARCHAR(20) PRIMARY KEY, "
+                                     "Owner VARCHAR(20) "
+                                     "Checked_Out_By VARCHAR(20)",
+
                                       drop_existing);
 }
 
@@ -43,8 +45,8 @@ enum DB_STATUS add_file(db_t db,
 enum DB_STATUS delete_file_from_table(db_t db, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
-   // else if (valid_authentication(db, client, pass))
-   //     return INVALID_AUTHENTICATION;
+    // else if (!valid_authentication(db, client, pass))
+    //     return INVALID_AUTHENTICATION;
 
     char *stm = calloc(150, sizeof (char));
     sprintf(stm, "DELETE FROM files WHERE filename='%s'", filename);

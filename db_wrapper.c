@@ -305,7 +305,6 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
 
 }
 
-
 void add_file_wrapper(char *filename){
 
     //TODO: don't add if already exists?

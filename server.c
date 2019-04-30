@@ -15,6 +15,8 @@
 #include <errno.h>
 #include "partial_message_handler.h"
 #include "database/cppairs.h"
+#include "database/cspairs.h"
+#include "database/filetable.h"
 #include "io.h"
 #include "db_wrapper.h"
 
@@ -35,7 +37,7 @@ void sendHeader(int msgType, char *user, char *pwd,
 char valid_fname(char *fname);
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler *handler);
-char update_file(int sockfd, struct Header *msgHeader,
+char server_update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler);
 int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
 int handle_request(int sockfd, struct PartialMessageHandler *handler,
@@ -48,7 +50,11 @@ int create_client_err(int sockfd, struct Header *msgHeader,
                       struct PartialMessageHandler *handler);
 int file_list(int sockfd, struct Header *msgHeader);
 char has_permissions(enum message_type message_id, struct Header *h);
-char delete_file(int sockfd, struct Header *msgHeader);
+char server_delete_file(int sockfd, struct Header *msgHeader);
+void sync_with_backup(char *client_name);
+void sync_file(char *client_name, char *file_name);
+char handle_sync_file(int sockfd, struct Header *msgHeader,
+                      struct PartialMessageHandler* handler);
 
 //ARGV arguments
 //      port number to run on
@@ -65,8 +71,18 @@ int main(int argc, char *argv[]) {
     int lSock = open_and_bind_socket(atoi(argv[1]));
     int personal = atoi(argv[5]);
     struct sockaddr_in cli_addr;
+    time_t curr_time, last_updated;
     socklen_t clilen;
     clilen = sizeof(cli_addr);
+
+    db_t db = connect_to_db_wrapper();
+    enum DB_STATUS dbs = create_file_table(db, 1);
+    close_db_connection(db);
+    if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
+        error("ERROR creating file table");
+
+    if (personal)
+        time(&last_updated);
 
     /* : Talk with the operator to say that you've come online */
     connect_to_operator(argv[3], atoi(argv[4]),
@@ -92,6 +108,14 @@ int main(int argc, char *argv[]) {
         FD_ZERO(&copyFDSet);
         memcpy(&copyFDSet, &masterFDSet, sizeof(masterFDSet));
         rv = select (maxSock + 1, &copyFDSet, NULL, NULL, &tv);
+
+        if (personal) {
+            time(&curr_time);
+            if (curr_time - last_updated >= 5) {
+                time(&last_updated);
+                sync_with_backup(argv[2]);
+            }
+        }
 
         if (rv == -1)
             perror("Select");
@@ -146,6 +170,52 @@ void sendHeader(int msgType, char *user, char * pwd,
     return;
 }
 
+void sync_with_backup(char *client_name) {
+    db_t db;
+    struct db_return dbr;
+    char *file_list;
+    int len, i = 0;
+
+    // db = connect_to_db(DB_OWNER, DB_NAME);
+    // dbr = get_file_list(db, client_name, &file_list);
+    // if (dbr.status) {
+    //     fprintf(stderr, "ERROR getting file list for sync");
+    // }
+
+    // len = dbr.result;
+    // while (i < len) {
+    //     sync_file(client_name, file_list[i]);
+    //     i += strlen(file_list) + 1;
+    //     file_list += i;
+    // }
+    return;
+}
+
+void sync_file(char *client_name, char *file_name) {
+    int sockfd;
+    struct Server *server;
+    db_t db;
+    struct db_return dbr;
+    struct stat sb;
+
+    if (stat(file_name, &sb) == -1)
+        return;
+
+    db = connect_to_db(DB_OWNER, DB_NAME);
+    dbr = get_backup_server_from_client(db, client_name);
+    if (dbr.status)
+        return;
+    server = dbr.result;
+
+    sockfd = connect_to_server(server->domain_name, server->port);
+    free(server);
+    char *fname = make_full_fname(client_name, file_name);
+
+    sendHeader(SYNC_FILE, client_name, NULL, fname, sb.st_size, sockfd);
+    free(fname);
+    write_file(sockfd, file_name);
+    return;
+}
 
 //returns 1 if all characters in the fname are alphnumric, ".", or "-". returns 0 otherwise
 char valid_fname(char *fname) {
@@ -166,7 +236,8 @@ char valid_fname(char *fname) {
 //returns DISCONNECT on succesfull read OR Error, returns 0 on partial read
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
-//TODO: on every unsuccesful disconnect, delete file from table
+  
+    //TODO: on every unsuccesful disconnect, delete file from table
 
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
@@ -213,10 +284,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
         }
         checkout_file_db_wrapper(msgHeader->source, msgHeader->filename);
     }
-    
-
-
-
 
     if (msgHeader->length > 0){
         //if number of bytes left to read < 100000
@@ -243,7 +310,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
         return DISCONNECT;
     }
 
-    //TODO: should be delete file
     else if (n < 0){
         fprintf(stderr, "problem in add_partial led to upload_failure\n" );
         sendHeader(ERROR_UPLOAD_FAILURE, NULL, NULL,msgHeader->filename, 0, sockfd );
@@ -256,7 +322,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
 // vefifies a client has write access to file, reads in a file from the socket, and on completiong
 // overwrites current file and sends an ACK
-char update_file(int sockfd, struct Header *msgHeader,
+char server_update_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
     char buffer[FILE_BUFFER_MAX_LEN];
@@ -271,6 +337,7 @@ char update_file(int sockfd, struct Header *msgHeader,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
+  
     if (!is_file_editor_wrapper(msgHeader->source, msgHeader->filename)){
         fprintf(stderr, "tried to update file without checking it out \n");
         sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
@@ -309,10 +376,45 @@ char update_file(int sockfd, struct Header *msgHeader,
     return 0;
 }
 
+char handle_sync_file(int sockfd, struct Header *msgHeader,
+                      struct PartialMessageHandler* handler) {
+    uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
+    char buffer[FILE_BUFFER_MAX_LEN];
+    int bytesRead = get_bytes_read(handler, sockfd);
+
+    //if number of bytes left to read < 100000
+    if (msgHeader->length - bytesRead < bytesToRead)
+        bytesToRead = msgHeader->length  - bytesRead;
+
+    //if file does not exist, send ERROR_CODE and disconnect
+    if (access(msgHeader->filename, F_OK ) == -1) {
+        fprintf(stderr, "tried to update file that does not existed\n");
+        sendHeader(ERROR_FILE_DOES_NOT_EXIST, NULL, NULL,
+                   msgHeader->filename, 0, sockfd);
+        return DISCONNECT;
+    }
+
+    int n = read(sockfd, buffer, bytesToRead);
+    fprintf(stderr, "%d bytes read from socket\n", n);
+
+    if (n == 0)
+        return DISCONNECT;
+
+    n = add_partial(handler, buffer, sockfd, n, 1);
+
+    //if file completely read in
+    if (n > 0) {
+        // TODO: update file
+        return DISCONNECT;
+    }
+
+    return 0;
+}
+
 /*
  * deletes a given file
- */ 
-char delete_file(int sockfd, struct Header *msgHeader){
+ */
+char server_delete_file(int sockfd, struct Header *msgHeader) {
     //if file does not exist, send ERROR_CODE and disconnect
     if (access( msgHeader->filename, F_OK ) == -1) {
         fprintf(stderr, "tried to delete file that does not existed\n");
@@ -328,9 +430,6 @@ char delete_file(int sockfd, struct Header *msgHeader){
         return DISCONNECT;
     }
 
-
-
-    //TODO: if is_file_editor(msg->filename, "");
     //if file is not checked out
     if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) == -1){
 
@@ -345,7 +444,6 @@ char delete_file(int sockfd, struct Header *msgHeader){
                    msgHeader->filename, 0, sockfd);
 
     return DISCONNECT;
-
 }
 
 /*
@@ -353,8 +451,8 @@ char delete_file(int sockfd, struct Header *msgHeader){
  *  and the request is valid, sends back the RETURN_READ_ONLY_FILE header and file
  * Returns DISCONNECT in every case
  */
-int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request) {
-
+int handle_file_request(int sockfd, struct Header *msgHeader,
+                        char is_checkout_request) {
     struct stat sb;
     char *token;
     char buffer[FILENAME_FIELD_LENGTH * 2];
@@ -387,7 +485,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
 
     memcpy(buffer, msgHeader->filename, FILENAME_FIELD_LENGTH);
 
-
     token = strtok(buffer, "/");
     if (token == NULL){
         fprintf(stderr, "malformed file name\n" );
@@ -395,8 +492,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
         return DISCONNECT;
     }
     token = strtok(NULL, "");
-
-
 
     sendHeader(message_id, NULL, NULL, token, sb.st_size, sockfd);
     if (write_file(sockfd, msgHeader->filename))
@@ -435,7 +530,6 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
         }
     }
 
-
     fprintf(stderr, "the type of message incoming is %d\n", msgHeader->id);
     fprintf(stderr, "the username incoming is %s\n", msgHeader->source);
     fprintf(stderr, "the password incoming is %s\n", msgHeader->password);
@@ -463,14 +557,18 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
             //verify creds, verify file exists, send back file
         case UPDATE_FILE:
             fprintf(stderr, "updating file\n");
-            return update_file(sockfd, msgHeader, handler);
+            return server_update_file(sockfd, msgHeader, handler);
+            //verify creds from SQL database, verify file doesn't exist, read, write file to Disk, send ACK
+            //TODO in future: add in permision cases
+        case FILE_LIST:
+            return file_list(sockfd, msgHeader);
         case CHECKOUT_FILE:
                 fprintf(stderr, "checking out file\n" );
                 return handle_file_request(sockfd, msgHeader, 1);
         case DELETE_FILE:
-            return delete_file(sockfd, msgHeader);
-        case FILE_LIST:
-            return file_list(sockfd, msgHeader);
+            return server_delete_file(sockfd, msgHeader);
+        case SYNC_FILE:
+            return handle_sync_file(sockfd, msgHeader, handler);
         default:
             return DISCONNECT;
     }
@@ -516,6 +614,28 @@ int create_client(int sockfd, struct Header *msgHeader,
     mkdir(username, S_IRWXU);
 
     sendHeader(CREATE_CLIENT_ACK, NULL, NULL, NULL, 0, sockfd);
+    return DISCONNECT;
+}
+
+int file_list(int sockfd, struct Header *msgHeader) {
+    struct dirent *ent;
+    DIR *dir;
+    char files[10000]; // TODO: create array resize
+    int loc = 0;
+
+    bzero(files, 10000);
+    dir = opendir(msgHeader->filename);
+    ent = readdir(dir);
+    ent = readdir(dir); /* get rid of . and .. files */
+    ent = readdir(dir); /* first actual file */
+    while (ent != NULL) {
+        memcpy(&files[loc], ent->d_name, strlen(ent->d_name));
+        loc += strlen(ent->d_name) + 1;
+    }
+
+    sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, loc, sockfd);
+    write_message(sockfd, files, loc);
+
     return DISCONNECT;
 }
 

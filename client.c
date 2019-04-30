@@ -13,6 +13,7 @@
 #include "database/db.h"
 #include "database/cspairs.h"
 #include "partial_message_handler.h"
+#include "database/filetable.h"
 
 #define NEW_CLIENT_ARG_COUNT 4
 #define UPLOAD_FILE_ARG_COUNT 5
@@ -60,7 +61,6 @@ void read_update_file_reply(struct Header *message_header);
 void read_request_file_reply(int sockfd, struct Header *message_header);
 void read_user_list_reply(int sockfd, struct Header *message_header);
 void read_file_list_reply(int sockfd, struct Header *message_header);
-char *make_full_fname(char* owner, char *fname);
 
 int main(int argc, char **argv) {
     int sockfd;
@@ -92,6 +92,8 @@ int main(int argc, char **argv) {
         free(operator);
         if (sockfd == -1) {
             return 1;
+        } else if (sockfd == 0) {
+            return 0;
         }
         process_reply(sockfd, message_id, argv, db);
 
@@ -107,9 +109,9 @@ struct Server *get_operator_address(char **argv, db_t db) {
     operator = get_server_from_client_wrapper(db, OPERATOR_SOURCE,
                                               "get_operator_address()");
     if (operator == NULL) {
-        fprintf(stderr, "operator not in the client/server pairs \
-                table, please run\n\t%s init [OPERATOR-FQDN] \
-                [OPERATOR-PORT]\n", argv[0]);
+        fprintf(stderr, "operator not in the client/server pairs "
+                "table, please run\n\t%s init [OPERATOR-FQDN] "
+                "[OPERATOR-PORT]\n", argv[0]);
         exit(0);
     }
 
@@ -123,39 +125,44 @@ int check_input_get_msg_id(int argc, char **argv) {
                     argv[0]);
             exit(0);
         }
-
         return NEW_CLIENT;
+
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "upload_file") == 0) {
         if (argc != UPLOAD_FILE_ARG_COUNT) {
-            fprintf(stderr, "usage: %s upload_file [username] [password] \
-                    [filename]\n", argv[0]);
+            fprintf(stderr, "usage: %s upload_file [username] [password] "
+                    "[filename]\n", argv[0]);
             exit(0);
         }
-
         return UPLOAD_FILE;
+
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "add_file") == 0) {
+        if (argc != UPLOAD_FILE_ARG_COUNT) {
+            fprintf(stderr, "usage: %s add_file [username] [password] "
+                    "[filename]\n", argv[0]);
+            exit(0);
+        }
+        return ADD_FILE;
+
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "file") == 0) {
         if (argc != REQUEST_FILE_ARG_COUNT) {
-            fprintf(stderr, "usage: %s request_file [username] [password] \
-                    [owner-username] [filename]\n", argv[0]);
+            fprintf(stderr, "usage: %s request_file [username] [password] "
+                    "[owner-username] [filename]\n", argv[0]);
             exit(0);
         }
-
         return REQUEST_FILE;
-
 
     }  else if (strcmp(argv[REQUEST_TYPE_ARG], "checkout_file") == 0) {
         if (argc != REQUEST_FILE_ARG_COUNT) {
-            fprintf(stderr, "usage: %s checkout_file [username] [password] \
-                    [owner-username] [filename]\n", argv[0]);
+            fprintf(stderr, "usage: %s checkout_file [username] [password] "
+                    "[owner-username] [filename]\n", argv[0]);
             exit(0);
         }
-
         return CHECKOUT_FILE;
 
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "update_file") == 0) {
         if (argc != UPDATE_FILE_ARG_COUNT) {
-            fprintf(stderr, "usage: %s update_file [username] [password] \
-                    [owner-username] [filename]\n", argv[0]);
+            fprintf(stderr, "usage: %s update_file [username] [password] "
+                    "[owner-username] [filename]\n", argv[0]);
             exit(0);
         }
         return UPDATE_FILE;
@@ -171,14 +178,23 @@ int check_input_get_msg_id(int argc, char **argv) {
         return FILE_LIST;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "delete_file") == 0) {
         if (argc != UPDATE_FILE_ARG_COUNT) {
-            fprintf(stderr, "usage: %s update_file [username] [password] \
-                    [owner-username] [filename]\n", argv[0]);
+            fprintf(stderr, "usage: %s update_file [username] [password] "
+                    "[owner-username] [filename]\n", argv[0]);
             exit(0);
         }
-
         return DELETE_FILE;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "user_list") == 0) {
         return USER_LIST;
+
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "remove_file") == 0) {
+        if (argc != UPLOAD_FILE_ARG_COUNT) {
+            fprintf(stderr, "usage: %s remove_file [username] [password] "
+                    "[filename]\n", argv[0]);
+            exit(0);
+        }
+        return REMOVE_FILE;
+    // } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_user_list") == 0) {
+    //     return REQUEST_USER_LIST;
     } else {
         fprintf(stderr, "unknown message type received: %s\n",
                 argv[REQUEST_TYPE_ARG]);
@@ -205,6 +221,8 @@ int check_input_get_msg_id(int argc, char **argv) {
 int parse_and_send_request(const enum message_type message_id, char **argv,
                            struct Server *operator, db_t db) {
     int sockfd;
+    struct file_info file;
+    enum DB_STATUS dbs;
 
     switch (message_id) {
         case NEW_CLIENT:
@@ -212,6 +230,12 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             break;
         case UPLOAD_FILE:
             sockfd = send_upload_file_request(argv, operator, db);
+            break;
+        case ADD_FILE:
+            strcpy(file.owner, argv[2]);
+            strcpy(file.name, argv[4]);
+            add_file(db, argv[2], argv[3], file);
+            sockfd = 0;
             break;
         case REQUEST_FILE:
             sockfd = send_file_request(argv, operator, db);
@@ -230,6 +254,13 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             break;
         case DELETE_FILE:
             sockfd = send_delete_file_request(argv, operator, db);
+            break;
+        case REMOVE_FILE:
+            dbs = delete_file(db, argv[2], argv[3], argv[4]);
+            if (dbs != SUCCESS && dbs != ELEMENT_NOT_FOUND)
+                sockfd = -1;
+            else
+                sockfd = 0;
             break;
         default:
             fprintf(stderr, "bad message type %d >:O\n", message_id);
@@ -274,8 +305,8 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t db) {
                                             argv[PASSWORD_ARG],
                                             argv[USERNAME_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
-            fprintf(stderr, "Server for user %s could not be resolved, \
-                    exiting\n", argv[USERNAME_ARG]);
+            fprintf(stderr, "Server for user %s could not be resolved, "
+                    "exiting\n", argv[USERNAME_ARG]);
             exit(1);
         }
         add_cspair_wrapper(db, argv[USERNAME_ARG], server->domain_name,
@@ -853,20 +884,4 @@ void read_file_list_reply(int sockfd, struct Header *message_header) {
         m += strlen(list_buffer);
     }
 
-}
-
-/* Purpose: creates a filename in format "file-owner/filename" so as to be
- * interpretable by the server
- * Takes the owner name and fname as cstrings as arguments
- * Returns the malloced full filename
- */
-char *make_full_fname(char* owner, char *fname) {
-    int len_owner = strlen(owner);
-    int len_fname = strlen(fname);
-    //2 extra bytes for the "/" and the "\0"
-    char *full_fname = calloc(len_owner + len_fname + 2, 1);
-    memcpy(full_fname, owner, len_owner);
-    full_fname[len_owner] = '/';
-    memcpy((&full_fname[len_owner + 1]), fname, len_fname);
-    return full_fname;
 }
