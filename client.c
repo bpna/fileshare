@@ -223,6 +223,7 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
     int sockfd;
     struct file_info file;
     enum DB_STATUS dbs;
+    char filename[42];
 
     switch (message_id) {
         case NEW_CLIENT:
@@ -232,9 +233,9 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             sockfd = send_upload_file_request(argv, operator, db);
             break;
         case ADD_FILE:
-            strcpy(file.owner, argv[2]);
-            strcpy(file.name, argv[4]);
-            add_file(db, argv[2], argv[3], file);
+            sprintf(filename, "%s/%s",
+                    argv[USERNAME_ARG], argv[UPLOAD_FNAME_ARG]);
+            add_file(db, filename);
             sockfd = 0;
             break;
         case REQUEST_FILE:
@@ -256,7 +257,9 @@ int parse_and_send_request(const enum message_type message_id, char **argv,
             sockfd = send_delete_file_request(argv, operator, db);
             break;
         case REMOVE_FILE:
-            dbs = delete_file(db, argv[2], argv[3], argv[4]);
+            sprintf(filename, "%s/%s",
+                    argv[USERNAME_ARG], argv[UPLOAD_FNAME_ARG]);
+            dbs = delete_file_from_table(db, filename);
             if (dbs != SUCCESS && dbs != ELEMENT_NOT_FOUND)
                 sockfd = -1;
             else

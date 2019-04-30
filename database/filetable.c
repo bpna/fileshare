@@ -17,8 +17,7 @@ enum DB_STATUS create_file_table(db_t db, char drop_existing) {
                                       drop_existing);
 }
 
-enum DB_STATUS add_file(db_t db,
-                        char* filename) {
+enum DB_STATUS add_file(db_t db, char* filename) {
     if (check_connection(db))
         return CORRUPTED;
     // if (!valid_authentication(db, client, pass))

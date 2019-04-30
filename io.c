@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <strings.h>
+#include <string.h>
 #include <netdb.h>
 
 #define FILE_BUFFER_MAX_LEN 10000

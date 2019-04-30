@@ -236,7 +236,7 @@ char valid_fname(char *fname) {
 //returns DISCONNECT on succesfull read OR Error, returns 0 on partial read
 char upload_file(int sockfd, struct Header *msgHeader,
                  struct PartialMessageHandler* handler) {
-  
+
     //TODO: on every unsuccesful disconnect, delete file from table
 
     uint32_t bytesToRead = FILE_BUFFER_MAX_LEN;
@@ -337,7 +337,7 @@ char server_update_file(int sockfd, struct Header *msgHeader,
                    msgHeader->filename, 0, sockfd);
         return DISCONNECT;
     }
-  
+
     if (!is_file_editor_wrapper(msgHeader->source, msgHeader->filename)){
         fprintf(stderr, "tried to update file without checking it out \n");
         sendHeader(ERROR_BAD_PERMISSIONS, NULL, NULL,
@@ -588,7 +588,7 @@ int create_client(int sockfd, struct Header *msgHeader,
     bzero(username, SOURCE_FIELD_LENGTH);
     bzero(password, PASSWORD_FIELD_LENGTH);
 
-    
+
 
     n = read(sockfd, buffer, msgHeader->length);
     if (n < 1)
@@ -744,4 +744,3 @@ int file_list(int sockfd, struct Header *msgHeader) {
 
     return DISCONNECT;
 }
-
