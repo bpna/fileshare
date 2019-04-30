@@ -183,7 +183,7 @@ void sync_with_backup(char *client_name) {
 
     len = (long) dbr.result;
     while (i < len) {
-        sync_file(client_name, file_list[i]);
+        sync_file(client_name, &(file_list[i]));
         i += strlen(file_list) + 1;
         file_list += i;
     }

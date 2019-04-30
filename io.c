@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <netdb.h>
+#include <strings.h>
 
 #define FILE_BUFFER_MAX_LEN 10000
 
