@@ -114,3 +114,49 @@ struct db_return is_file_editor(db_t db, char *filename, char *editor);
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED
  */
 enum DB_STATUS de_checkout_file(db_t db, char *filename);
+
+/*
+ *
+ * file_exists
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *filename: name of file in "owner/name" format
+ * Returns:
+ *     db_return struct with status and bool representing whether or not the
+ *     file exists
+ *
+ *     SUCCESS, CORRUPTED, COMMAND_FAILED
+ */
+struct db_return file_exists(db_t db, char *filename);
+
+/*
+ *
+ * ready_for_checkout
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *filename: name of file in "owner/name" format
+ * Returns:
+ *     db_return struct with status and bool representing whether or not the
+ *     file is ready for checkout
+ *
+ *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
+ */
+struct db_return ready_for_checkout(db_t db, char *filename);
+
+/*
+ *
+ * get_files
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *client: client whose files are desired
+ *     char **list: pointer to char * that will point to allocated file list
+ * Returns:
+ *     db_return struct with status and long representing the length of the
+ *     string of file names
+ *
+ *     SUCCESS, CORRUPTED
+ */
+struct db_return get_files(db_t db, char *client, char **list);

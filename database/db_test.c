@@ -119,8 +119,29 @@ void filetable_test_suite(db_t db) {
         error("ERROR checking file editor");
 
     sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    dbr = ready_for_checkout(db, file_name);
+    if (dbr.status || dbr.result)
+        error("ERROR validating file existance");
+
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
     if (de_checkout_file(db, file_name))
         error("ERROR de-checking out file");
+
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    dbr = file_exists(db, file_name);
+    if (dbr.status || !dbr.result)
+        error("ERROR validating file existance");
+
+    sprintf(file_name, "%s/%s", TEST_CLIENT, file.name);
+    dbr = ready_for_checkout(db, file_name);
+    if (dbr.status || !dbr.result)
+        error("ERROR validating file existance");
+
+    char *list;
+    if ((long) get_files(db, TEST_CLIENT, &list).result !=
+        strlen(file.name) + 1)
+        error("ERROR getting files");
+    free(list);
 
     return;
 }
