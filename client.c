@@ -45,7 +45,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
                                   char *file_owner);
 void process_reply(int sockfd, const enum message_type message_id, char **argv,
                    db_t db);
-void read_new_client_reply(int sockfd, char **argv, 
+void read_new_client_reply(int sockfd, char **argv,
                            struct Header *message_header, db_t db);
 void read_new_client_ack_payload(int sockfd, struct Header *message_header,
                                  char *client, db_t db);
@@ -163,7 +163,7 @@ int check_input_get_msg_id(int argc, char **argv) {
                     [owner-username]\n", argv[0]);
             exit(0);
         }
-        
+
         return FILE_LIST;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "delete_file") == 0) {
         if (argc != UPDATE_FILE_ARG_COUNT) {
@@ -665,12 +665,12 @@ void process_reply(int sockfd, const enum message_type message_id, char **argv,
     }
 }
 
-void read_new_client_reply(int sockfd, char **argv, 
+void read_new_client_reply(int sockfd, char **argv,
                            struct Header *message_header, db_t db) {
     char *clientbuf;
 
     if (message_header->id == NEW_CLIENT_ACK) {
-        read_new_client_ack_payload(sockfd, message_header, 
+        read_new_client_ack_payload(sockfd, message_header,
                                     argv[USERNAME_ARG], db);
         printf("Client %s successfully added\n", argv[USERNAME_ARG]);
     } else if (message_header->id == ERROR_CLIENT_EXISTS) {
@@ -784,7 +784,7 @@ void read_request_file_reply(int sockfd, struct Header *message_header) {
                 fprintf(stderr, "server closed connection prematurely\n");
                 exit(1);
             }
-        } while(save_buffer(message_header->filename, file_buffer, n, 
+        } while(save_buffer(message_header->filename, file_buffer, n,
                             message_header->length) == 0);
     }
     else
@@ -807,7 +807,7 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
                 fprintf(stderr, "server closed connection prematurely\n");
                 exit(1);
             }
-        } while (add_partial(p, list_buffer, sockfd, 
+        } while (add_partial(p, list_buffer, sockfd,
                              message_header->length, 0) == 0);
     } else
         fprintf(stderr, "Bad response type %d received from operator",
@@ -836,7 +836,7 @@ void read_file_list_reply(int sockfd, struct Header *message_header) {
                 fprintf(stderr, "server closed connection prematurely\n");
                 exit(1);
             }
-        } while (add_partial(p, list_buffer, sockfd, 
+        } while (add_partial(p, list_buffer, sockfd,
                              message_header->length, 0) == 0);
     }  else
         fprintf(stderr, "Bad response type %d received from server",
