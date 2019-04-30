@@ -43,7 +43,8 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
 int handle_request(int sockfd, struct PartialMessageHandler *handler,
                    int personal);
 void connect_to_operator(char *ip_address, int operator_portno,
-                         int server_portno, char* servername, int personal);
+                         int server_portno, char *server_address,
+                         char *servername, int personal);
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler *handler);
 int create_client_err(int sockfd, struct Header *msgHeader,
@@ -58,18 +59,19 @@ char handle_sync_file(int sockfd, struct Header *msgHeader,
 
 //ARGV arguments
 //      port number to run on
+//      IP of server
 //      name of server (or server owner, if personal server)
 //      IP of operator
 //      port number of operator
 //      bool of personal server
 int main(int argc, char *argv[]) {
-    if (argc < 6) {
+    if (argc < 7) {
         fprintf(stderr,"ERROR, not enough arguments\n");
         exit(1);
     }
 
     int lSock = open_and_bind_socket(atoi(argv[1]));
-    int personal = atoi(argv[5]);
+    int personal = atoi(argv[6]);
     struct sockaddr_in cli_addr;
     time_t curr_time, last_updated;
     socklen_t clilen;
@@ -85,9 +87,8 @@ int main(int argc, char *argv[]) {
         time(&last_updated);
 
     /* : Talk with the operator to say that you've come online */
-    connect_to_operator(argv[3], atoi(argv[4]),
-                        atoi(argv[1]), argv[2], personal);
-
+    connect_to_operator(argv[4], atoi(argv[5]),
+                        atoi(argv[1]), argv[2], argv[3], personal);
 
     create_file_table_wrapper();
     int maxSock, rv, newSock = -1;
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]) {
             time(&curr_time);
             if (curr_time - last_updated >= 5) {
                 time(&last_updated);
-                sync_with_backup(argv[2]);
+                sync_with_backup(argv[3]);
             }
         }
 
@@ -643,7 +644,8 @@ int create_client_err(int sockfd, struct Header *msgHeader,
 //connects to operator, recieves ack, and returns socked number of connection with operator
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
 void connect_to_operator(char *ip_address, int operator_portno,
-                         int server_portno, char *servername, int personal) {
+                         int server_portno, char *server_address,
+                         char *servername, int personal) {
     char buffer[512];
     bzero(buffer, 512);
     int operator_sock = connect_to_server(ip_address, operator_portno);
@@ -655,7 +657,7 @@ void connect_to_operator(char *ip_address, int operator_portno,
     else
         type = NEW_SERVER;
     /* send message*/
-    sprintf(buffer, "%s:%d", "localhost", server_portno);
+    sprintf(buffer, "%s:%d", server_address, server_portno);
     sendHeader(type, servername, NULL, NULL, strlen(buffer), operator_sock);
     write_message(operator_sock, buffer, strlen(buffer));
 
@@ -722,7 +724,8 @@ int file_list(int sockfd, struct Header *msgHeader) {
 
     sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, length, sockfd);
     write_message(sockfd, list, length);
-    free(list);
+    if (length)
+        free(list);
 
     return DISCONNECT;
 }

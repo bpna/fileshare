@@ -39,17 +39,15 @@ int connect_to_server(char *ip, int portno) {
     struct sockaddr_in serv_addr;
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
+    if (sockfd < 0)
         error("ERROR opening socket");
-    }
 
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     serv_addr.sin_addr.s_addr = inet_addr(ip);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+    if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
         error("ERROR connecting");
-    }
 
     return sockfd;
 }

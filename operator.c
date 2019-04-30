@@ -203,7 +203,7 @@ int new_client(struct Header *h, int sockfd) {
         return send_client_exists_ack(sockfd, h->source);
     }
 
-    fprintf(stderr, "about to connect to server in new_client\n" );
+    fprintf(stderr, "about to connect to server in new_client: %s\n", server->ip_address);
     server_sock = connect_to_server(server->ip_address, server->port);
 
     outgoing_message.id = CREATE_CLIENT;

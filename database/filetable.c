@@ -182,13 +182,14 @@ struct db_return get_files(db_t db, char *client, char **list) {
 
     char *stm = calloc(70, sizeof (char));
     sprintf(stm, "SELECT filename FROM files WHERE owner='%s'", client);
+    printf("%s\n", stm);
     PGresult *res = PQexec(db, stm);
     free(stm);
 
     int tuples = PQntuples(res);
     if (tuples == 0) {
         PQclear(res);
-        return generate_dbr(SUCCESS, NULL);
+        return generate_dbr(SUCCESS, 0);
     } else {
         long list_len = 0, name_len;
         char *name;
