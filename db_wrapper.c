@@ -389,7 +389,7 @@ int get_user_list_wrapper(char **user_list) {
         db = connect_to_db(DB_OWNER, DB_NAME);
         dbr = get_user_list(db, user_list);
         check_db_status(dbr.status, "get_user_list()");
-        current_size = *(int *)dbr.result;
+        current_size = (long) dbr.result;
     } else {
         buffer = open_file_return_string(CSPAIRS_FNAME);
         if (buffer == NULL){

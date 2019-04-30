@@ -325,6 +325,7 @@ int new_server(struct Header *h, int sockfd, int personal) {
     struct Server server;
     int n;
     struct Header outgoing_message;
+    bzero(&outgoing_message, HEADER_LENGTH);
     char  *token;
     char buffer[512];
     bzero(buffer, 512);

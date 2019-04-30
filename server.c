@@ -722,7 +722,7 @@ int file_list(int sockfd, struct Header *msgHeader) {
         return DISCONNECT;
     length = (long) dbr.result;
 
-    sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, length, sockfd);
+    sendHeader(FILE_LIST_ACK, NULL, NULL, msgHeader->filename, length, sockfd);
     write_message(sockfd, list, length);
     if (length)
         free(list);
