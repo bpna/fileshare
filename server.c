@@ -456,7 +456,7 @@ int create_client(int sockfd, struct Header *msgHeader,
     bzero(username, SOURCE_FIELD_LENGTH);
     bzero(password, PASSWORD_FIELD_LENGTH);
 
-    db = connect_to_db(DB_OWNER, DB_NAME);
+    db = connect_to_db(DB_OWNER, DB_NAME, DB_ADDR);
 
     n = read(sockfd, buffer, msgHeader->length);
     if (n < 1)

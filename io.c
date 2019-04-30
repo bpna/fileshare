@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <strings.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 
 #define FILE_BUFFER_MAX_LEN 10000
 
@@ -42,19 +43,20 @@ int connect_to_server(char *fqdn, int portno) {
         error("ERROR opening socket");
     }
 
-    printf("server arg is %s\n", fqdn);
+/*    printf("server arg is %s\n", fqdn);
     server = gethostbyname(fqdn);
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
-
+*/
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr_list[0],
-         (char *)&serv_addr.sin_addr.s_addr,
-         server->h_length);
     serv_addr.sin_port = htons(portno);
+    serv_addr.sin_addr.s_addr = inet_addr(fqdn);
+/*    bcopy((char *)server->h_addr_list[0],
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length); */
     if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         error("ERROR connecting");
     }
