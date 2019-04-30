@@ -67,10 +67,6 @@ int main(int argc, char **argv) {
     enum message_type message_id;
     struct Server *operator;
     db_t db = connect_to_db_wrapper();
-    enum DB_STATUS dbs = create_cspairs_table(db, 1);
-    if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
-        error("ERROR creating file table");
-
     if (argc < 2) {
        fprintf(stderr, "usage: %s [request-IP] [request-params...]\n", argv[0]);
        exit(0);
@@ -81,6 +77,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "usage: %s init [router-IP] [router-portno]", argv[0]);
             exit(0);
         }
+        enum DB_STATUS dbs = create_cspairs_table(db, 1);
+        if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
+            error("ERROR creating file table");
+
         add_cspair_wrapper(db, OPERATOR_SOURCE, argv[OPERATOR_IP_ARG],
                            atoi(argv[OPERATOR_PORT_ARG]), "main()", 0);
     } else {
