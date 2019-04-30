@@ -19,7 +19,7 @@
 struct Server {
     char name[20];
     short port;
-    char domain_name[64];
+    char ip_address[64];
 };
 
 enum DB_STATUS {

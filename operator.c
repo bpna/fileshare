@@ -204,7 +204,7 @@ int new_client(struct Header *h, int sockfd) {
     }
 
     fprintf(stderr, "about to connect to server in new_client\n" );
-    server_sock = connect_to_server(server->domain_name, server->port);
+    server_sock = connect_to_server(server->ip_address, server->port);
 
     outgoing_message.id = CREATE_CLIENT;
     strcpy(outgoing_message.source, OPERATOR_SOURCE);
@@ -249,7 +249,7 @@ int send_new_client_ack(int sockfd, struct Server *server) {
     char payload[275];
     bzero(payload, 275);
 
-    sprintf(payload, "%s:%d", server->domain_name, server->port);
+    sprintf(payload, "%s:%d", server->ip_address, server->port);
     free(server);
 
     outgoing_message.id = NEW_CLIENT_ACK;
@@ -298,7 +298,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
     } else if (dbr.status == SUCCESS) {
         outgoing_message.id = USER_ACK;
         server = (struct Server *) dbr.result;
-        sprintf(buffer, "%s:%d", server->domain_name, server->port);
+        sprintf(buffer, "%s:%d", server->ip_address, server->port);
         fprintf(stderr, "in request_user, buffer is  %s\n", buffer);
         len = strlen(buffer);
         outgoing_message.length = htonl(len);
@@ -336,12 +336,12 @@ int new_server(struct Header *h, int sockfd, int personal) {
     if (n < (int) h->length)
         return 1;
     token = strtok(buffer, ":");
-    strcpy(server.domain_name, token);
+    strcpy(server.ip_address, token);
     token = strtok(NULL, "");
     server.port = atoi(token);
 
     fprintf(stderr, "fqdn of new_server is %s\nportno of new_server is %d\n",
-            server.domain_name, server.port);
+            server.ip_address, server.port);
 
     dbs = add_server(db, &server, personal);
     if (dbs == ELEMENT_ALREADY_EXISTS) {

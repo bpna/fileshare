@@ -59,7 +59,7 @@ void cspairs_test_suite(db_t db) {
     struct Server addr = {
         .name = "test",
         .port = 9010,
-        .domain_name = "nathan@allenhub.com"
+        .ip_address = "nathan@allenhub.com"
     };
     if (add_cspair(db, TEST_CLIENT, &addr, 0))
         error("ERROR adding cspair");
@@ -67,7 +67,7 @@ void cspairs_test_suite(db_t db) {
     struct db_return result = get_server_from_client(db, TEST_CLIENT);
     struct Server *stored_addr = (struct Server *) result.result;
     if (addr.port != stored_addr->port ||
-        strcmp(addr.domain_name, stored_addr->domain_name)) {
+        strcmp(addr.ip_address, stored_addr->ip_address)) {
         error("ERROR retrieving stored server info");
     }
     free(stored_addr);
@@ -156,7 +156,7 @@ void servertable_test_suite(db_t db) {
     struct Server addr = {
         .name = "test",
         .port = 9010,
-        .domain_name = "nathan@allenhub.com"
+        .ip_address = "nathan@allenhub.com"
     };
     if (add_server(db, &addr, 0))
         error("ERROR adding server");
@@ -184,7 +184,7 @@ void personal_server_test_suite(db_t db) {
     struct Server addr = {
         .name = "nathan",
         .port = 9010,
-        .domain_name = "nathan@allenhub.com"
+        .ip_address = "nathan@allenhub.com"
     };
     if (add_server(db, &addr, 1))
         error("ERROR adding personal server");

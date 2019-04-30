@@ -89,7 +89,7 @@ void add_cspair_wrapper(db_t db, char *client, char *fqdn, unsigned port,
 
     if (USE_DB) {
         bzero((char *) &server, sizeof(server));
-        strcpy(server.domain_name, fqdn);
+        strcpy(server.ip_address, fqdn);
         server.port = port;
 
         db_status = add_cspair(db, client, &server, increment_client);
@@ -150,7 +150,7 @@ struct Server *get_server_from_client_wrapper(db_t db, char *client,
                         CSPAIRS_FNAME);
                 exit(1);
             }
-            strcpy(server->domain_name, token);
+            strcpy(server->ip_address, token);
             token = strtok(NULL, ":\n");
             if (token == NULL) {
                 fprintf(stderr, "CSPAIRS file %s badly formed\n",

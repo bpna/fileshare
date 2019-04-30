@@ -42,7 +42,7 @@ char server_update_file(int sockfd, struct Header *msgHeader,
 int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_request);
 int handle_request(int sockfd, struct PartialMessageHandler *handler,
                    int personal);
-void connect_to_operator(char *domainName, int operator_portno,
+void connect_to_operator(char *ip_address, int operator_portno,
                          int server_portno, char* servername, int personal);
 int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler *handler);
@@ -59,7 +59,7 @@ char handle_sync_file(int sockfd, struct Header *msgHeader,
 //ARGV arguments
 //      port number to run on
 //      name of server (or server owner, if personal server)
-//      FQDN of operator
+//      IP of operator
 //      port number of operator
 //      bool of personal server
 int main(int argc, char *argv[]) {
@@ -206,7 +206,7 @@ void sync_file(char *client_name, char *file_name) {
         return;
     server = dbr.result;
 
-    sockfd = connect_to_server(server->domain_name, server->port);
+    sockfd = connect_to_server(server->ip_address, server->port);
     free(server);
     char *fname = make_full_fname(client_name, file_name);
 
@@ -267,7 +267,7 @@ char upload_file(int sockfd, struct Header *msgHeader,
 
 
     char owns_file = is_file_editor_wrapper(msgHeader->source, msgHeader->filename);
-    // if not the file ownder
+    // if not the file owner
     if (owns_file == 0){
         fprintf(stderr, "person does not own file %s, dropping connection\n", msgHeader->filename);
         return DISCONNECT;
@@ -642,11 +642,11 @@ int create_client_err(int sockfd, struct Header *msgHeader,
 
 //connects to operator, recieves ack, and returns socked number of connection with operator
 //TODO: put the first half of this in a "connectToServer" function, possibly in a different file
-void connect_to_operator(char *domainName, int operator_portno,
+void connect_to_operator(char *ip_address, int operator_portno,
                          int server_portno, char *servername, int personal) {
     char buffer[512];
     bzero(buffer, 512);
-    int operator_sock = connect_to_server(domainName, operator_portno);
+    int operator_sock = connect_to_server(ip_address, operator_portno);
     int n;
     enum message_type type;
 
