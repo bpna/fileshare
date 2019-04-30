@@ -126,7 +126,7 @@ enum DB_STATUS de_checkout_file(db_t db, char *filename);
  *     db_return struct with status and bool representing whether or not the
  *     file exists
  *
- *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
+ *     SUCCESS, CORRUPTED, COMMAND_FAILED
  */
 struct db_return file_exists(db_t db, char *filename);
 
@@ -144,3 +144,19 @@ struct db_return file_exists(db_t db, char *filename);
  *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
  */
 struct db_return ready_for_checkout(db_t db, char *filename);
+
+/*
+ *
+ * get_files
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *client: client whose files are desired
+ *     char **list: pointer to char * that will point to allocated file list
+ * Returns:
+ *     db_return struct with status and long representing the length of the
+ *     string of file names
+ *
+ *     SUCCESS, CORRUPTED
+ */
+struct db_return get_files(db_t db, char *client, char **list);

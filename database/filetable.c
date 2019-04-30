@@ -10,7 +10,7 @@
 #include "cppairs.h"
 
 enum DB_STATUS create_file_table(db_t db, char drop_existing) {
-    return create_table(db, "files", "Filename VARCHAR(100), Owner VARCHAR(20), "
+    return create_table(db, "files", "Filename VARCHAR(20), Owner VARCHAR(20), "
                                      "Size INT, Checked_Out_By VARCHAR(20)",
                                       drop_existing);
 }
@@ -150,4 +150,34 @@ struct db_return file_exists(db_t db, char *filename) {
 
 struct db_return ready_for_checkout(db_t db, char *filename) {
     return is_file_editor(db, filename, "");
+}
+
+struct db_return get_files(db_t db, char *client, char **list) {
+    if (check_connection(db))
+        return generate_dbr(CORRUPTED, NULL);
+
+    char *stm = calloc(70, sizeof (char));
+    sprintf(stm, "SELECT filename FROM files WHERE owner='%s'", client);
+    PGresult *res = PQexec(db, stm);
+    free(stm);
+
+    int tuples = PQntuples(res);
+    if (tuples == 0) {
+        PQclear(res);
+        return generate_dbr(SUCCESS, NULL);
+    } else {
+        long list_len = 0, name_len;
+        char *name;
+        *list = calloc(1, sizeof (char));
+        for (int i = 0; i < tuples; i++) {
+            name = PQgetvalue(res, i, 0);
+            name_len = strlen(name) + 1;
+            *list = realloc(*list, list_len + name_len);
+            strcpy(*list + list_len, name);
+            list_len += name_len;
+        }
+        PQclear(res);
+
+        return generate_dbr(SUCCESS, (void *) list_len);
+    }
 }
