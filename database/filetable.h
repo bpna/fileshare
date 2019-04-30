@@ -20,19 +20,97 @@ struct file_info {
 };
 #endif
 
+/*
+ * create_file_table
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char drop_existing: bool representing whether or not to drop the table if
+ *                         it already exists
+ * Returns:
+ *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED
+ */
 enum DB_STATUS create_file_table(db_t db, char drop_existing);
 
+/*
+ * add_file
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *client: file owner
+ *     char *pass: client password
+ *     struct file_info file: struct containing file info
+ * Returns:
+ *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
+ *                     INVALID_AUTHENTICATION
+ */
 enum DB_STATUS add_file(db_t db, char *client, char *pass,
                         struct file_info file);
 
+/*
+ * delete_file
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *client: file owner
+ *     char *pass: client password
+ *     char *filename: name of file to delete
+ * Returns:
+ *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
+ *                     INVALID_AUTHENTICATION
+ */
 enum DB_STATUS delete_file(db_t db, char *client,
                            char *pass, char *filename);
 
+/*
+ * update_file
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *client: file owner
+ *     char *pass: client password
+ *     struct file_info file: struct containing file info
+ * Returns:
+ *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
+ *                     INVALID_AUTHENTICATION
+ */
 enum DB_STATUS update_file(db_t db, char *client, char *pass,
                            struct file_info file);
 
+/*
+ * checkout_file
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *filename: name of file in "owner/name" format
+ *     char *requester: name of client requesting checkout
+ * Returns:
+ *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED
+ */
 enum DB_STATUS checkout_file(db_t db, char *filename, char *requester);
 
+/*
+ * is_file_editor
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *filename: name of file in "owner/name" format
+ *     char *editor: name of potential editing client
+ * Returns:
+ *     db_return struct with status and bool representing whether or not the
+ *     named client has checked the file out
+ *
+ *     SUCCESS, CORRUPTED, ELEMENT_NOT_FOUND
+ */
 struct db_return is_file_editor(db_t db, char *filename, char *editor);
 
+/*
+ * de_checkout_file
+ *
+ * Arguments:
+ *     db_t db: database connection variable
+ *     char *filename: name of file in "owner/name" format
+ * Returns:
+ *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED
+ */
 enum DB_STATUS de_checkout_file(db_t db, char *filename);

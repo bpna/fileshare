@@ -74,6 +74,9 @@ enum DB_STATUS create_table(db_t db, char *tablename, char *columns,
 }
 
 enum DB_STATUS drop_table(db_t db, char *tablename) {
+    if (check_connection(db))
+        return CORRUPTED;
+
     char *stm = calloc(22 + strlen(tablename), sizeof (char));
     sprintf(stm, "DROP TABLE IF EXISTS %s", tablename);
 
