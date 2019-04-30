@@ -258,7 +258,7 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
         if(db_r.status == SUCCESS){
             if (db_r.result){
                 return 1;
-            } 
+            }
             return 0;
         }
         else{
@@ -308,7 +308,7 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
 void add_file_wrapper(char *filename){
 
     //TODO: don't add if already exists?
-    
+
     if (USE_DB){
         db_t db = connect_to_db(DB_OWNER, DB_NAME);
         add_file(db, filename);
@@ -344,7 +344,7 @@ void de_checkout_file_wrapper(char *desired_filename){
         de_checkout_file(db, desired_filename);
         close_db_connection(db);
         return;
-        
+
 
     }
     else{
@@ -437,30 +437,3 @@ void create_file_table_wrapper(){
     create_file_table(db, 1);
     close_db_connection(db);
 }
-
-int get_file_list_wrapper(db_t db, char *client, char **list) {
-    if (USE_DB) {
-        struct db_return dbr = get_files(db, client, list);
-        return *(int *)dbr.result;
-    } else {
-        struct dirent *ent;
-        DIR *dir;
-        *list = malloc(10000);
-        if (list == NULL)
-            error("ERROR allocation failure");
-        int loc = 0;
-
-        bzero(*list, 10000);
-        dir = opendir(client);
-        ent = readdir(dir);
-        ent = readdir(dir); /* get rid of . and .. files */
-        ent = readdir(dir); /* first actual file */
-        while (ent != NULL) {
-            memcpy(&list[loc], ent->d_name, strlen(ent->d_name));
-            loc += strlen(ent->d_name) + 1;
-        }
-        
-        return loc;
-    }
-}
-

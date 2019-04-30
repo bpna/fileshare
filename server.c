@@ -174,20 +174,19 @@ void sync_with_backup(char *client_name) {
     db_t db;
     struct db_return dbr;
     char *file_list;
-    int len, i = 0;
+    long len, i = 0;
 
-    // db = connect_to_db(DB_OWNER, DB_NAME);
-    // dbr = get_file_list(db, client_name, &file_list);
-    // if (dbr.status) {
-    //     fprintf(stderr, "ERROR getting file list for sync");
-    // }
+    db = connect_to_db(DB_OWNER, DB_NAME);
+    dbr = get_files(db, client_name, &file_list);
+    if (dbr.status)
+        fprintf(stderr, "ERROR getting file list for sync");
 
-    // len = dbr.result;
-    // while (i < len) {
-    //     sync_file(client_name, file_list[i]);
-    //     i += strlen(file_list) + 1;
-    //     file_list += i;
-    // }
+    len = (long) dbr.result;
+    while (i < len) {
+        sync_file(client_name, file_list[i]);
+        i += strlen(file_list) + 1;
+        file_list += i;
+    }
     return;
 }
 
@@ -614,28 +613,6 @@ int create_client(int sockfd, struct Header *msgHeader,
     return DISCONNECT;
 }
 
-int file_list(int sockfd, struct Header *msgHeader) {
-    struct dirent *ent;
-    DIR *dir;
-    char files[10000]; // TODO: create array resize
-    int loc = 0;
-
-    bzero(files, 10000);
-    dir = opendir(msgHeader->filename);
-    ent = readdir(dir);
-    ent = readdir(dir); /* get rid of . and .. files */
-    ent = readdir(dir); /* first actual file */
-    while (ent != NULL) {
-        memcpy(&files[loc], ent->d_name, strlen(ent->d_name));
-        loc += strlen(ent->d_name) + 1;
-    }
-
-    sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, loc, sockfd);
-    write_message(sockfd, files, loc);
-
-    return DISCONNECT;
-}
-
 int create_client_err(int sockfd, struct Header *msgHeader,
                       struct PartialMessageHandler *handler) {
     char buffer[512];
@@ -734,10 +711,18 @@ char has_permissions(enum message_type message_id, struct Header *h){
 
 int file_list(int sockfd, struct Header *msgHeader) {
     db_t db = connect_to_db_wrapper();
-    char **list = NULL;
-    int length = get_file_list_wrapper(db, msgHeader->filename, list);
+    char *list;
+    struct db_return dbr;
+    long length;
+
+    dbr = get_files(db, msgHeader->filename, &list);
+    if (dbr.status)
+        return DISCONNECT;
+    length = (long) dbr.result;
+
     sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, length, sockfd);
-    write_message(sockfd, *list, length);
+    write_message(sockfd, list, length);
+    free(list);
 
     return DISCONNECT;
 }
