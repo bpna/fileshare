@@ -79,7 +79,7 @@ int client_exists(db_t db, char *client);
  *
  * Arguments:
  *     db_t db: database connection variable
- *     char **list: pointer to char * that will point to allocated list
+ *     char **list: pointer to char * that will point to allocated client list
  * Returns:
  *     db_return struct with status and long representing the length of the
  *     string created
