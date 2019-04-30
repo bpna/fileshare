@@ -8,6 +8,7 @@
 #include "database/cspairs.h"
 #include "database/servertable.h"
 #include "io.h"
+#include "database/filetable.h"
 
 #define USER_LIST_INIT_BUF_SIZE 100
 #define USE_DB 1
@@ -171,18 +172,27 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
     char *file;
     char *file_editor;
 
-    // if (USE_DB){
-    //      db_t db = connect_to_db(DB_OWNER, DB_NAME);
-    //     //TODO: database stuff
-    //TODO: if file is already checked out, need to convey that
-            // enum DB_STATUS status = 
-            // if (checkout_file_from_table(db, desired_filename, requester) == SUCCESS)
-            //     return 1;
-            // else
-            //     return -1;
+    if (USE_DB){
+        db_t db = connect_to_db(DB_OWNER, DB_NAME);
+        if (is_file_editor(db, desired_filename, requester).result){
+            close_db_connection(db);
+            return 0;
+        }
+        struct db_return checkout_status= ready_for_checkout(db, desired_filename);
+        if (checkout_status.status == SUCCESS &&  checkout_status.result){
+            if (checkout_file_from_table(db, desired_filename, requester) == SUCCESS){
+                close_db_connection(db);
+                return 0;
+            }
+            fprintf(stderr, "error using checkout_File_From_table\n" );
+        }
 
-    // }
-    //{
+        close_db_connection(db);
+        return -1;
+
+
+    }
+    else {
         FILE *fp = fopen(CHECKOUT_FILE, "r+");
         if (fp == NULL){
                 fprintf(stderr, "error in checkout_file_db_wrapper\n" );
@@ -203,7 +213,7 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
                     fclose(fp);
                     file_editor = strtok(file_editor, "~");
                     if (strcmp(file_editor, requester) == 0)
-                        return 1;
+                        return 0;
                     return -1;
                 }
                 else{
@@ -223,6 +233,7 @@ char checkout_file_db_wrapper(char *requester, char * desired_filename){
         }
         fclose(fp);
         return -1;
+    }
 
 
 
@@ -239,15 +250,21 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
     char *file;
     char *file_editor;
 
-    // if (USE_DB){
-    //     db_t db = connect_to_db(DB_OWNER, DB_NAME);
-    //     //TODO: database stuff
-            //TODO: gotta tell if file even exists
-            // struct db_return = is_file_editor(db, desired_filename, requester);
-            // return db_return->result != NULL
-
-    // }
-    //{
+    if (USE_DB){
+        db_t db = connect_to_db(DB_OWNER, DB_NAME);
+        struct db_return db_r= is_file_editor(db, desired_filename, requester);
+        close_db_connection(db);
+        if(db_r.status == SUCCESS){
+            if (db_r.result){
+                return 1;
+            } 
+            return 0;
+        }
+        else{
+            return -1;
+        }
+    }
+    else {
         FILE *fp = fopen(CHECKOUT_FILE, "r+");
         if (fp == NULL){
                 fprintf(stderr, "error in is_file_editor\n" );
@@ -281,6 +298,8 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
         }
         fclose(fp);
         return -1;
+    }
+    return -1;
 
 
 }
@@ -289,31 +308,28 @@ char is_file_editor_wrapper(char *requester, char *desired_filename){
 void add_file_wrapper(char *filename){
 
     //TODO: don't add if already exists?
-    /*
+    
     if (USE_DB){
         db_t db = connect_to_db(DB_OWNER, DB_NAME);
-
-        if (add_file(args i don't get )== SUCCESS)
-            return 0;
-        else{
-            return -1
-        }
-    }
-
-    */
-    char buffer[SOURCE_FIELD_LENGTH];
-    memset(buffer, '~', SOURCE_FIELD_LENGTH);
-
-    FILE *fp = fopen(CHECKOUT_FILE, "a");
-    if (fp == NULL){
-        fprintf(stderr, "error in add_file_wrapper\n" );
+        add_file(db, filename);
+        close_db_connection(db);
         return;
     }
-    fwrite(filename, 1, strlen(filename), fp);
-    fwrite(" ", 1, 1, fp);
-    fwrite(buffer, 1, SOURCE_FIELD_LENGTH, fp);
-    fwrite("\n", 1, 1, fp);
-    fclose(fp);
+    else{
+        char buffer[SOURCE_FIELD_LENGTH];
+        memset(buffer, '~', SOURCE_FIELD_LENGTH);
+
+        FILE *fp = fopen(CHECKOUT_FILE, "a");
+        if (fp == NULL){
+            fprintf(stderr, "error in add_file_wrapper\n" );
+            return;
+        }
+        fwrite(filename, 1, strlen(filename), fp);
+        fwrite(" ", 1, 1, fp);
+        fwrite(buffer, 1, SOURCE_FIELD_LENGTH, fp);
+        fwrite("\n", 1, 1, fp);
+        fclose(fp);
+    }
 }
 
 void de_checkout_file_wrapper(char *desired_filename){
@@ -323,14 +339,15 @@ void de_checkout_file_wrapper(char *desired_filename){
     bzero(buffer, buflen);
     char *file;
 
-    // if (USE_DB){
-    //          db_t db = connect_to_db(DB_OWNER, DB_NAME);
-    //     //TODO: database stuff
-           // if (de_checkout_file(db, filename) == SUCCESS)
-           //   return;
+    if (USE_DB){
+        db_t db = connect_to_db(DB_OWNER, DB_NAME);
+        de_checkout_file(db, desired_filename);
+        close_db_connection(db);
+        return;
+        
 
-    // }
-    //{
+    }
+    else{
         FILE *fp = fopen(CHECKOUT_FILE, "r+");
         if (fp == NULL){
                 fprintf(stderr, "error in checkout_file_db_wrapper\n" );
@@ -353,6 +370,7 @@ void de_checkout_file_wrapper(char *desired_filename){
 
         }
         fclose(fp);
+    }
 
 
 
@@ -404,12 +422,18 @@ int get_user_list_wrapper(char **user_list) {
 
 
 void delete_file_from_table_wrapper(char *filename){
-    // if (USE_DB){
-    //     db_t db = connect_to_db(DB_OWNER, DB_NAME);
-    //     delete_file_from_table_wrapper(db, filename);
-    //     close_db_connection(db);
-    // }
-    // else{
-        de_checkout_file_wrapper(filename);
-    // }
+    if (USE_DB){
+        db_t db = connect_to_db(DB_OWNER, DB_NAME);
+        delete_file_from_table(db, filename);
+        close_db_connection(db);
+    }
+    else{
+       de_checkout_file_wrapper(filename);
+    }
+}
+
+void create_file_table_wrapper(){
+    db_t db = connect_to_db_wrapper();
+    create_file_table(db, 1);
+    close_db_connection(db);
 }

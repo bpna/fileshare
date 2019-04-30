@@ -71,6 +71,8 @@ int main(int argc, char *argv[]) {
     connect_to_operator(argv[3], atoi(argv[4]),
                         atoi(argv[1]), argv[2], personal);
 
+
+    create_file_table_wrapper();
     int maxSock, rv, newSock = -1;
     struct timeval tv;
     tv.tv_sec=1;
@@ -171,7 +173,6 @@ char upload_file(int sockfd, struct Header *msgHeader,
     int n = 0;
 
     int bytesRead = get_bytes_read(handler, sockfd);
-
 
 
     //if file already exists, send ERROR_CODE and disconnect
@@ -377,7 +378,6 @@ int handle_file_request(int sockfd, struct Header *msgHeader, char is_checkout_r
         }
 
 
-        //TODO: if (is_file_editor(db, msgHeader->filename, "") && checcheckout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1)
         if (checkout_file_db_wrapper(msgHeader->source, msgHeader->filename) != -1){
             fprintf(stderr, "in server.c, he got permission to check out file\n" );
             message_id = RETURN_CHECKEDOUT_FILE;

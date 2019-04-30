@@ -15,16 +15,19 @@ enum DB_STATUS create_file_table(db_t db, char drop_existing) {
                                       drop_existing);
 }
 
-enum DB_STATUS add_file(db_t db, char *client, char *pass,
-                        struct file_info file) {
+enum DB_STATUS add_file(db_t db,
+                        char* filename) {
     if (check_connection(db))
         return CORRUPTED;
-    if (!valid_authentication(db, client, pass))
-        return INVALID_AUTHENTICATION;
+    // if (!valid_authentication(db, client, pass))
+    //     return INVALID_AUTHENTICATION;
+    char safe_filename[40];
+    strcpy(safe_filename, filename);
+    char *owner = strtok(safe_filename, "/");
 
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "INSERT INTO files VALUES('%s', '%s', %d)",
-            file.name, client, file.len);
+            strtok(NULL, ""), owner, 0);
 
     PGresult *res = PQexec(db, stm);
     free(stm);
@@ -48,12 +51,12 @@ enum DB_STATUS delete_file_from_table(db_t db, char *filename) {
     return exec_command(db, stm);
 }
 
-enum DB_STATUS update_file(db_t db, char *client, char *pass,
+enum DB_STATUS update_file_on_table(db_t db, char *client, char *pass,
                            struct file_info file) {
     if (check_connection(db))
         return CORRUPTED;
-    else if (!valid_authentication(db, client, pass))
-        return INVALID_AUTHENTICATION;
+    // else if (!valid_authentication(db, client, pass))
+    //     return INVALID_AUTHENTICATION;
 
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "UPDATE files SET size=%d WHERE filename='%s'",
@@ -66,8 +69,12 @@ enum DB_STATUS checkout_file_from_table(db_t db, char *filename, char *requester
     if (check_connection(db))
         return CORRUPTED;
 
+    char safe_filename[40];
+    strcpy(safe_filename, filename);
+
+
     char file[20], owner[20];
-    strcpy(owner, strtok(filename, "/"));
+    strcpy(owner, strtok(safe_filename, "/"));
     strcpy(file, strtok(NULL, ""));
 
     char *stm = calloc(150, sizeof (char));
@@ -81,9 +88,11 @@ enum DB_STATUS checkout_file_from_table(db_t db, char *filename, char *requester
 struct db_return is_file_editor(db_t db, char *filename, char *editor) {
     if (check_connection(db))
         return generate_dbr(CORRUPTED, NULL);
+    char safe_filename[40];
+    strcpy(safe_filename, filename);
 
     char file[20], owner[20];
-    strcpy(owner, strtok(filename, "/"));
+    strcpy(owner, strtok(safe_filename, "/"));
     strcpy(file, strtok(NULL, ""));
 
     char *stm = calloc(100, sizeof (char));
@@ -108,9 +117,12 @@ struct db_return is_file_editor(db_t db, char *filename, char *editor) {
 enum DB_STATUS de_checkout_file(db_t db, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
+    char safe_filename[40];
+    strcpy(safe_filename, filename);
+
 
     char file[20], owner[20];
-    strcpy(owner, strtok(filename, "/"));
+    strcpy(owner, strtok(safe_filename, "/"));
     strcpy(file, strtok(NULL, ""));
 
     char *stm = calloc(100, sizeof (char));
@@ -124,8 +136,12 @@ struct db_return file_exists(db_t db, char *filename) {
     if (check_connection(db))
         return generate_dbr(CORRUPTED, 0);
 
+    char safe_filename[40];
+    strcpy(safe_filename, filename);
+
+
     char file[20], owner[20];
-    strcpy(owner, strtok(filename, "/"));
+    strcpy(owner, strtok(safe_filename, "/"));
     strcpy(file, strtok(NULL, ""));
 
     char *stm = calloc(100, sizeof (char));

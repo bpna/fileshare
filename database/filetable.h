@@ -44,10 +44,8 @@ enum DB_STATUS create_file_table(db_t db, char drop_existing);
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
  *                     INVALID_AUTHENTICATION
  */
-enum DB_STATUS add_file(db_t db, char *client, char *pass,
-                        struct file_info file);
+enum DB_STATUS add_file(db_t db, char* filename);
 
-enum DB_STATUS delete_file_from_table(db_t db, char *filename);
 /*
  * delete_file
  *
@@ -59,6 +57,10 @@ enum DB_STATUS delete_file_from_table(db_t db, char *filename);
  * Returns:
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
  *                     INVALID_AUTHENTICATION
+ */
+
+ enum DB_STATUS delete_file_from_table(db_t db, char *filename);
+
 
 /*
  * update_file
@@ -72,7 +74,7 @@ enum DB_STATUS delete_file_from_table(db_t db, char *filename);
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
  *                     INVALID_AUTHENTICATION
  */
-enum DB_STATUS update_file(db_t db, char *client, char *pass,
+enum DB_STATUS update_file_on_table(db_t db, char *client, char *pass,
                            struct file_info file);
 
 /*

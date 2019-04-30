@@ -36,3 +36,5 @@ char is_file_editor_wrapper(char *requester, char *desired_filename);
 void de_checkout_file_wrapper(char *desired_filename);
 
 void delete_file_from_table_wrapper(char *filename);
+
+void create_file_table_wrapper();
