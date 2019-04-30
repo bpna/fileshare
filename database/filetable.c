@@ -10,11 +10,8 @@
 #include "cppairs.h"
 
 enum DB_STATUS create_file_table(db_t db, char drop_existing) {
-    return create_table(db, "files", "Filename VARCHAR(20) PRIMARY KEY, "
-                                     "Owner VARCHAR(20) "
+    return create_table(db, "files", "Filename VARCHAR(20), Owner VARCHAR(20), "
                                      "Checked_Out_By VARCHAR(20)",
-
-                                      drop_existing);
 }
 
 enum DB_STATUS add_file(db_t db, char* filename) {
@@ -25,10 +22,13 @@ enum DB_STATUS add_file(db_t db, char* filename) {
     char safe_filename[40];
     strcpy(safe_filename, filename);
     char *owner = strtok(safe_filename, "/");
+    char *real_fname = strtok(NULL, "");
+
+
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "INSERT INTO files VALUES('%s', '%s', %d)",
-            strtok(NULL, ""), owner, 0);
+    sprintf(stm, "INSERT INTO files VALUES('%s', '%s')",
+            real_fname, owner);
 
     PGresult *res = PQexec(db, stm);
     free(stm);
@@ -44,27 +44,33 @@ enum DB_STATUS add_file(db_t db, char* filename) {
 enum DB_STATUS delete_file_from_table(db_t db, char *filename) {
     if (check_connection(db))
         return CORRUPTED;
-    // else if (!valid_authentication(db, client, pass))
-    //     return INVALID_AUTHENTICATION;
+
+   // else if (valid_authentication(db, client, pass))
+   //     return INVALID_AUTHENTICATION;
+    char safe_filename[40];
+    strcpy(safe_filename, filename);
+    char *token = strtok(safe_filename, "/");
+    token = strtok(NULL, "");
+
 
     char *stm = calloc(150, sizeof (char));
-    sprintf(stm, "DELETE FROM files WHERE filename='%s'", filename);
+    sprintf(stm, "DELETE FROM files WHERE filename='%s'", token);
     return exec_command(db, stm);
 }
 
-enum DB_STATUS update_file_on_table(db_t db, char *client, char *pass,
-                           struct file_info file) {
-    if (check_connection(db))
-        return CORRUPTED;
-    // else if (!valid_authentication(db, client, pass))
-    //     return INVALID_AUTHENTICATION;
+// enum DB_STATUS update_file_on_table(db_t db, char *client, char *pass,
+//                            struct file_info file) {
+//     if (check_connection(db))
+//         return CORRUPTED;
+//     // else if (!valid_authentication(db, client, pass))
+//     //     return INVALID_AUTHENTICATION;
 
-    char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "UPDATE files SET size=%d WHERE filename='%s'",
-            file.len, file.name);
+//     char *stm = calloc(100, sizeof (char));
+//     sprintf(stm, "UPDATE files SET size=%d WHERE filename='%s'",
+//             file.len, file.name);
 
-    return exec_command(db, stm);
-}
+//     return exec_command(db, stm);
+// }
 
 enum DB_STATUS checkout_file_from_table(db_t db, char *filename, char *requester) {
     if (check_connection(db))
@@ -77,6 +83,7 @@ enum DB_STATUS checkout_file_from_table(db_t db, char *filename, char *requester
     char file[20], owner[20];
     strcpy(owner, strtok(safe_filename, "/"));
     strcpy(file, strtok(NULL, ""));
+    fprintf(stderr, "requester is %s\n", requester);;
 
     char *stm = calloc(150, sizeof (char));
     sprintf(stm, "UPDATE files SET checked_out_by='%s' WHERE filename='%s' AND "
