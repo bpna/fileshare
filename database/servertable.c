@@ -57,8 +57,8 @@ struct db_return least_populated_server(db_t db) {
         return generate_dbr(CORRUPTED, NULL);
 
     char *stm = calloc(100, sizeof (char));
-    sprintf(stm, "SELECT port, domain, clients FROM servers ORDER BY 2 ASC "
-                 "WHERE personal_server=0");
+    sprintf(stm, "SELECT port, domain, clients FROM servers WHERE "
+                 "personal_server=0ORDER BY 2 ASC ");
 
     PGresult *res = PQexec(db, stm);
 
