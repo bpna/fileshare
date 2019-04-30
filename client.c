@@ -68,7 +68,6 @@ int main(int argc, char **argv) {
     struct Server *operator;
     db_t db = connect_to_db_wrapper();
     enum DB_STATUS dbs = create_cspairs_table(db, 1);
-    close_db_connection(db);
     if (dbs != SUCCESS && dbs != ELEMENT_ALREADY_EXISTS)
         error("ERROR creating file table");
 
