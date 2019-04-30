@@ -37,28 +37,24 @@ enum DB_STATUS create_file_table(db_t db, char drop_existing);
  *
  * Arguments:
  *     db_t db: database connection variable
- *     char *client: file owner
- *     char *pass: client password
- *     struct file_info file: struct containing file info
+ *     char *filename: name of file
  * Returns:
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
  *                     INVALID_AUTHENTICATION
  */
-enum DB_STATUS add_file(db_t db, char* filename);
+enum DB_STATUS add_file(db_t db, char *filename);
 
 /*
  * delete_file
  *
  * Arguments:
  *     db_t db: database connection variable
- *     char *client: file owner
- *     char *pass: client password
- *     char *filename: name of file to delete
+ *     db_t db: database connection variable
+ *     char *filename: name of file
  * Returns:
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
  *                     INVALID_AUTHENTICATION
  */
-
  enum DB_STATUS delete_file_from_table(db_t db, char *filename);
 
 
