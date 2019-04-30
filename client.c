@@ -221,7 +221,6 @@ int check_input_get_msg_id(int argc, char **argv) {
 int parse_and_send_request(const enum message_type message_id, char **argv,
                            struct Server *operator, db_t db) {
     int sockfd;
-    struct file_info file;
     enum DB_STATUS dbs;
     char filename[42];
 

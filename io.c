@@ -36,7 +36,6 @@ int open_and_bind_socket(int portno) {
 }
 
 int connect_to_server(char *ip, int portno) {
-    struct hostent *server;
     struct sockaddr_in serv_addr;
 
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
