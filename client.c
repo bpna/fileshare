@@ -21,7 +21,7 @@
 #define UPDATE_FILE_ARG_COUNT 6
 #define FILE_LIST_ARG_COUNT 5
 #define REQUEST_TYPE_ARG 1
-#define OPERATOR_FQDN_ARG 2
+#define OPERATOR_IP_ARG 2
 #define OPERATOR_PORT_ARG 3
 #define USERNAME_ARG 2
 #define PASSWORD_ARG 3
@@ -69,16 +69,16 @@ int main(int argc, char **argv) {
     db_t db = connect_to_db_wrapper();
 
     if (argc < 2) {
-       fprintf(stderr, "usage: %s [request-type] [request-params...]\n", argv[0]);
+       fprintf(stderr, "usage: %s [request-IP] [request-params...]\n", argv[0]);
        exit(0);
     }
 
     if (strcmp(argv[REQUEST_TYPE_ARG], "init") == 0) {
         if (argc != 4) {
-            fprintf(stderr, "usage: %s init [router-FQDN] [router-portno]", argv[0]);
+            fprintf(stderr, "usage: %s init [router-IP] [router-portno]", argv[0]);
             exit(0);
         }
-        add_cspair_wrapper(db, OPERATOR_SOURCE, argv[OPERATOR_FQDN_ARG],
+        add_cspair_wrapper(db, OPERATOR_SOURCE, argv[OPERATOR_IP_ARG],
                            atoi(argv[OPERATOR_PORT_ARG]), "main()", 0);
     } else {
         operator = get_operator_address(argv, db);
@@ -110,7 +110,7 @@ struct Server *get_operator_address(char **argv, db_t db) {
                                               "get_operator_address()");
     if (operator == NULL) {
         fprintf(stderr, "operator not in the client/server pairs "
-                "table, please run\n\t%s init [OPERATOR-FQDN] "
+                "table, please run\n\t%s init [OPERATOR-IP] "
                 "[OPERATOR-PORT]\n", argv[0]);
         exit(0);
     }
@@ -273,7 +273,7 @@ int send_new_client_request(char **argv, struct Server *operator) {
     int sockfd;
     struct Header message_header;
 
-    sockfd = connect_to_server(operator->domain_name, operator->port);
+    sockfd = connect_to_server(operator->ip_address, operator->port);
 
     bzero(&message_header, sizeof(message_header));
     message_header.id = NEW_CLIENT;
@@ -299,7 +299,7 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t db) {
     server = get_server_from_client_wrapper(db, argv[USERNAME_ARG],
                                             "send_upload_file_request()");
     if (server == NULL) { /* no client/server pairing on client */
-        sockfd = connect_to_server(operator->domain_name, operator->port);
+        sockfd = connect_to_server(operator->ip_address, operator->port);
         /* get server for self from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG],
@@ -309,13 +309,13 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t db) {
                     "exiting\n", argv[USERNAME_ARG]);
             exit(1);
         }
-        add_cspair_wrapper(db, argv[USERNAME_ARG], server->domain_name,
+        add_cspair_wrapper(db, argv[USERNAME_ARG], server->ip_address,
                            server->port, "send_upload_file_request()", 0);
         close(sockfd);
     }
 
     /* upload the file */
-    sockfd = connect_to_server(server->domain_name, server->port);
+    sockfd = connect_to_server(server->ip_address, server->port);
     bzero(&message_header, sizeof(message_header));
     message_header.id = UPLOAD_FILE;
     strcpy(message_header.source, argv[USERNAME_ARG]);
@@ -340,7 +340,7 @@ int send_checkout_file_request(char **argv, struct Server *operator, db_t db) {
     server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
                                             "send_checkout_file_request()");
     if (server == NULL) { /* no client/server pairing on client */
-        sockfd = connect_to_server(operator->domain_name, operator->port);
+        sockfd = connect_to_server(operator->ip_address, operator->port);
         /* get server for file owner from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG],
@@ -350,14 +350,14 @@ int send_checkout_file_request(char **argv, struct Server *operator, db_t db) {
                     exiting\n", argv[OWNER_ARG]);
             exit(1);
         }
-        add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+        add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
                            server->port,
                            "send_checkout_file_request()", 0);
         close(sockfd);
     }
 
     /* request the file */
-    sockfd = connect_to_server(server->domain_name, server->port);
+    sockfd = connect_to_server(server->ip_address, server->port);
     bzero(&message_header, sizeof(message_header));
     message_header.id = CHECKOUT_FILE;
     strcpy(message_header.source, argv[USERNAME_ARG]);
@@ -382,7 +382,7 @@ int send_file_request(char **argv, struct Server *operator, db_t db) {
     server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
                                             "send_request_file_request()");
     if (server == NULL) { /* no client/server pairing on client */
-        sockfd = connect_to_server(operator->domain_name, operator->port);
+        sockfd = connect_to_server(operator->ip_address, operator->port);
         /* get server for file owner from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG],
@@ -392,14 +392,14 @@ int send_file_request(char **argv, struct Server *operator, db_t db) {
                     exiting\n", argv[OWNER_ARG]);
             exit(1);
         }
-        add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+        add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
                            server->port,
                            "send_request_file_request()", 0);
         close(sockfd);
     }
 
     /* request the file */
-    sockfd = connect_to_server(server->domain_name, server->port);
+    sockfd = connect_to_server(server->ip_address, server->port);
     bzero(&message_header, sizeof(message_header));
     message_header.id = REQUEST_FILE;
     strcpy(message_header.source, argv[USERNAME_ARG]);
@@ -428,7 +428,7 @@ int send_update_file_request(char **argv, struct Server *operator, db_t db) {
     server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
                                             "send_update_file_request()");
     if (server == NULL) { /* no client/server pairing on client */
-        sockfd = connect_to_server(operator->domain_name, operator->port);
+        sockfd = connect_to_server(operator->ip_address, operator->port);
         /* get server for owner from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG],
@@ -438,13 +438,13 @@ int send_update_file_request(char **argv, struct Server *operator, db_t db) {
                     exiting\n", argv[USERNAME_ARG]);
             exit(1);
         }
-        add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+        add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
                            server->port, "send_update_file_request()", 0);
         close(sockfd);
     }
 
     /* upload the file */
-    sockfd = connect_to_server(server->domain_name, server->port);
+    sockfd = connect_to_server(server->ip_address, server->port);
     bzero(&message_header, sizeof(message_header));
     message_header.id = UPDATE_FILE;
     strcpy(message_header.source, argv[USERNAME_ARG]);
@@ -465,7 +465,7 @@ int send_user_list_request(struct Server *operator) {
     int sockfd;
     struct Header message_header;
 
-    sockfd = connect_to_server(operator->domain_name, operator->port);
+    sockfd = connect_to_server(operator->ip_address, operator->port);
     bzero(&message_header, sizeof(message_header));
     message_header.id = USER_LIST;
     write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
@@ -482,7 +482,7 @@ int send_delete_file_request(char **argv, struct Server *operator, db_t db) {
     server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
                                             "send_update_file_request()");
     if (server == NULL) { /* no client/server pairing on client */
-        sockfd = connect_to_server(operator->domain_name, operator->port);
+        sockfd = connect_to_server(operator->ip_address, operator->port);
         /* get server for owner from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG],
@@ -492,13 +492,13 @@ int send_delete_file_request(char **argv, struct Server *operator, db_t db) {
                     exiting\n", argv[USERNAME_ARG]);
             exit(1);
         }
-        add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+        add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
                            server->port, "send_update_file_request()", 0);
         close(sockfd);
     }
 
     /* upload the file */
-    sockfd = connect_to_server(server->domain_name, server->port);
+    sockfd = connect_to_server(server->ip_address, server->port);
     bzero(&message_header, sizeof(message_header));
     message_header.id = DELETE_FILE;
     strcpy(message_header.source, argv[USERNAME_ARG]);
@@ -522,7 +522,7 @@ int send_file_list_request(char **argv, struct Server *operator, db_t db) {
    server = get_server_from_client_wrapper(db, argv[OWNER_ARG],
                                            "send_file_list_request()");
    if (server == NULL) { /* no client/server pairing on client */
-        sockfd = connect_to_server(operator->domain_name, operator->port);
+        sockfd = connect_to_server(operator->ip_address, operator->port);
         /* get server for owner from operator */
         server = send_recv_user_req(sockfd, argv[USERNAME_ARG],
                                             argv[PASSWORD_ARG],
@@ -532,13 +532,13 @@ int send_file_list_request(char **argv, struct Server *operator, db_t db) {
                     exiting\n", argv[USERNAME_ARG]);
             exit(1);
         }
-        add_cspair_wrapper(db, argv[OWNER_ARG], server->domain_name,
+        add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
                            server->port, "send_update_file_request()", 0);
         close(sockfd);
     }
 
    /* send file list request */
-   sockfd = connect_to_server(server->domain_name, server->port);
+   sockfd = connect_to_server(server->ip_address, server->port);
    bzero(&message_header, sizeof(message_header));
    message_header.id = FILE_LIST;
    strcpy(message_header.source, argv[USERNAME_ARG]);
@@ -553,14 +553,14 @@ int send_file_list_request(char **argv, struct Server *operator, db_t db) {
  * send_recv_user_req() sends a request for the server associated with
  * user file_owner to the operator, which is represented by open socket sockfd.
  *
- * returns a malloc'd Server struct containing the fqdn and port of the
+ * returns a malloc'd Server struct containing the ip and port of the
  * file owner that the caller is responsible for freeing
  */
 struct Server *send_recv_user_req(int sockfd, char *user, char *password,
                                   char *file_owner) {
     int n, m, length;
     struct Header header;
-    char buffer[FQDN_PORT_MAX_LENGTH];
+    char buffer[IP_PORT_MAX_LENGTH];
     char *token;
     struct Server *server = malloc(sizeof(struct Server));
     if (server == NULL) {
@@ -575,7 +575,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
 
     write_message(sockfd, (char *) &header, HEADER_LENGTH);
 
-    bzero(buffer, FQDN_PORT_MAX_LENGTH);
+    bzero(buffer, IP_PORT_MAX_LENGTH);
     n = 0;
     while (n < HEADER_LENGTH) {
         m = read(sockfd, &buffer[n], HEADER_LENGTH - n);
@@ -589,11 +589,11 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
     if (header.id == USER_ACK) {
         length = ntohl(header.length);
         n = 0;
-        if (length > FQDN_PORT_MAX_LENGTH){
+        if (length > IP_PORT_MAX_LENGTH){
             fprintf(stderr, "payload %d was too large\n", length );
             error("ERROR payload too large");
         }
-        bzero(buffer, FQDN_PORT_MAX_LENGTH);
+        bzero(buffer, IP_PORT_MAX_LENGTH);
         while (n < length) {
             m = read(sockfd, &buffer[n], length - n);
             if (m < 0) {
@@ -608,7 +608,7 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
                              operator, exiting\n");
             exit(1);
         }
-        strcpy(server->domain_name, token);
+        strcpy(server->ip_address, token);
         token = strtok(NULL, "");
         if (token == NULL) {
             fprintf(stderr, "malformed payload in REQUEST_USER_ACK from \
@@ -723,7 +723,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
     int length = message_header->length;
     int n, m;
     char *buffer = malloc(length + 1);
-    char *fqdn, *port;
+    char *ip, *port;
     if (buffer == NULL) {
         error("Allocation failure");
     }
@@ -738,13 +738,13 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
     }
     buffer[length] = '\0';
 
-    fqdn = strtok(buffer, ":");
-    if (fqdn == NULL) {
+    ip = strtok(buffer, ":");
+    if (ip == NULL) {
         fprintf(stderr, "new_client_ack_payload empty, exiting\n");
         exit(1);
     }
-    if (strlen(fqdn) > SERVER_NAME_MAX_LENGTH) {
-        fprintf(stderr, "server name %s too long, exiting\n", fqdn);
+    if (strlen(ip) > SERVER_NAME_MAX_LENGTH) {
+        fprintf(stderr, "server name %s too long, exiting\n", ip);
         exit(1);
     }
     port = strtok(NULL, "");
@@ -752,7 +752,7 @@ void read_new_client_ack_payload(int sockfd, struct Header *message_header,
         fprintf(stderr, "new_client_ack_payload, no port number in payload\n");
         exit(1);
     }
-    add_cspair_wrapper(db, client, fqdn, atoi(port),
+    add_cspair_wrapper(db, client, ip, atoi(port),
                        "read_new_client_ack_payload()", 0);
     free(buffer);
 }

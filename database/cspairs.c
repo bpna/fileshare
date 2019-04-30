@@ -35,7 +35,7 @@ struct db_return get_server_from_client(db_t db, char *client) {
         (struct Server *) malloc(sizeof (struct Server));
 
     addr->port = atoi(PQgetvalue(res, 0, 0));
-    strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
+    strcpy(addr->ip_address, PQgetvalue(res, 0, 1));
 
     PQclear(res);
 
@@ -60,7 +60,7 @@ struct db_return get_backup_server_from_client(db_t db, char *client) {
         (struct Server *) malloc(sizeof (struct Server));
 
     addr->port = atoi(PQgetvalue(res, 0, 0));
-    strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
+    strcpy(addr->ip_address, PQgetvalue(res, 0, 1));
 
     PQclear(res);
 
@@ -74,7 +74,7 @@ enum DB_STATUS add_cspair(db_t db, char *client, struct Server *server,
 
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "INSERT INTO cspairs VALUES('%s', %d, '%s')",
-            client, server->port, server->domain_name);
+            client, server->port, server->ip_address);
 
     enum DB_STATUS status = exec_command(db, stm);
     if (status || !increment_client)
@@ -91,7 +91,7 @@ enum DB_STATUS add_backup_cspair(db_t db, char *client,
 
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "UPDATE cspairs SET backup_port=%d, backup_domain='%s' WHERE \
-                  name='%s'", server->port, server->domain_name, client);
+                  name='%s'", server->port, server->ip_address, client);
 
     return exec_command(db, stm);
 }

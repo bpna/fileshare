@@ -24,7 +24,7 @@ enum DB_STATUS add_server(db_t db, struct Server *addr, char personal) {
 
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "INSERT INTO servers VALUES('%s', %d, '%s', 0, 0, %d)",
-            addr->name, addr->port, addr->domain_name, personal);
+            addr->name, addr->port, addr->ip_address, personal);
 
     return exec_command(db, stm);
 }
@@ -35,7 +35,7 @@ struct db_return clients_served_by(db_t db, struct Server *addr) {
 
     char *stm = calloc(100, sizeof (char));
     sprintf(stm, "SELECT clients FROM servers WHERE port=%d AND domain='%s'",
-            addr->port, addr->domain_name);
+            addr->port, addr->ip_address);
 
     PGresult *res = PQexec(db, stm);
 
@@ -71,7 +71,7 @@ struct db_return least_populated_server(db_t db) {
         (struct Server *) malloc(sizeof (struct Server));
 
     addr->port = atoi(PQgetvalue(res, 0, 0));
-    strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
+    strcpy(addr->ip_address, PQgetvalue(res, 0, 1));
 
     free(stm);
     PQclear(res);
@@ -85,7 +85,7 @@ enum DB_STATUS increment_clients(db_t db, struct Server *addr) {
 
     char *stm = calloc(350, sizeof (char));
     sprintf(stm, "SELECT clients FROM servers WHERE port=%d AND domain='%s'",
-            addr->port, addr->domain_name);
+            addr->port, addr->ip_address);
 
     PGresult *res = PQexec(db, stm);
 
@@ -100,7 +100,7 @@ enum DB_STATUS increment_clients(db_t db, struct Server *addr) {
     clients++;
 
     sprintf(stm, "UPDATE servers SET clients=%d WHERE port=%d AND domain='%s'",
-            clients, addr->port, addr->domain_name);
+            clients, addr->port, addr->ip_address);
 
     res = PQexec(db, stm);
     free(stm);
@@ -122,7 +122,7 @@ enum DB_STATUS get_server_name(db_t db, struct Server *addr) {
 
     stm = calloc(350, sizeof (char));
     sprintf(stm, "SELECT name FROM servers WHERE port=%d AND domain='%s'",
-            addr->port, addr->domain_name);
+            addr->port, addr->ip_address);
     res = PQexec(db, stm);
     free(stm);
 
@@ -153,7 +153,7 @@ struct db_return get_server_from_name(db_t db, char *server) {
     addr = calloc(sizeof (struct Server), 1);
     strcpy(addr->name, server);
     addr->port = atoi(PQgetvalue(res, 0, 0));
-    strcpy(addr->domain_name, PQgetvalue(res, 0, 1));
+    strcpy(addr->ip_address, PQgetvalue(res, 0, 1));
 
     return generate_dbr(SUCCESS, addr);
 }
