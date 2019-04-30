@@ -74,8 +74,8 @@ enum DB_STATUS add_file(db_t db, char* filename);
  *     command status: SUCCESS, CORRUPTED, COMMAND_FAILED,
  *                     INVALID_AUTHENTICATION
  */
-enum DB_STATUS update_file_on_table(db_t db, char *client, char *pass,
-                           struct file_info file);
+// enum DB_STATUS update_file_on_table(db_t db, char *client, char *pass,
+//                            struct file_info file);
 
 /*
  * checkout_file
