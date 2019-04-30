@@ -46,6 +46,7 @@ int create_client(int sockfd, struct Header *msgHeader,
                   struct PartialMessageHandler *handler);
 int create_client_err(int sockfd, struct Header *msgHeader,
                       struct PartialMessageHandler *handler);
+int file_list(int sockfd, struct Header *msgHeader);
 char has_permissions(enum message_type message_id, struct Header *h);
 char delete_file(int sockfd, struct Header *msgHeader);
 
@@ -468,6 +469,8 @@ int handle_request(int sockfd, struct PartialMessageHandler *handler,
                 return handle_file_request(sockfd, msgHeader, 1);
         case DELETE_FILE:
             return delete_file(sockfd, msgHeader);
+        case FILE_LIST:
+            return file_list(sockfd, msgHeader);
         default:
             return DISCONNECT;
     }
@@ -611,3 +614,14 @@ char has_permissions(enum message_type message_id, struct Header *h){
     //if the file owner the person uploading the file?
     return (strcmp(file_owner, h->source) == 0)?  1 : 0;
 }
+
+int file_list(int sockfd, struct Header *msgHeader) {
+    db_t db = connect_to_db_wrapper();
+    char **list = NULL;
+    int length = get_file_list_wrapper(db, msgHeader->filename, list);
+    sendHeader(FILE_LIST_ACK, NULL, NULL, NULL, length, sockfd);
+    write_message(sockfd, *list, length);
+
+    return DISCONNECT;
+}
+

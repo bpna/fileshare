@@ -3,6 +3,7 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include "db_wrapper.h"
 #include "database/db.h"
 #include "database/cspairs.h"
@@ -437,3 +438,30 @@ void create_file_table_wrapper(){
     create_file_table(db, 1);
     close_db_connection(db);
 }
+
+int get_file_list_wrapper(db_t db, char *client, char **list) {
+    if (USE_DB) {
+        struct db_return dbr = get_files(db, client, list);
+        return *(int *)dbr.result;
+    } else {
+        struct dirent *ent;
+        DIR *dir;
+        *list = malloc(10000);
+        if (list == NULL)
+            error("ERROR allocation failure");
+        int loc = 0;
+
+        bzero(*list, 10000);
+        dir = opendir(client);
+        ent = readdir(dir);
+        ent = readdir(dir); /* get rid of . and .. files */
+        ent = readdir(dir); /* first actual file */
+        while (ent != NULL) {
+            memcpy(&list[loc], ent->d_name, strlen(ent->d_name));
+            loc += strlen(ent->d_name) + 1;
+        }
+        
+        return loc;
+    }
+}
+
