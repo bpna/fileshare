@@ -93,6 +93,10 @@ int main(int argc, char **argv) {
         message_id = check_input_get_msg_id(argc, argv);
         sockfd = parse_and_send_request(message_id, argv, operator, db);
         free(operator);
+        if (sockfd < 0) {
+            close_db_connection(db);
+            return 0;
+        }
         if (sockfd == -1) {
             return 1;
         } else if (sockfd == 0) {
@@ -146,7 +150,7 @@ int check_input_get_msg_id(int argc, char **argv) {
         }
         return ADD_FILE;
 
-    } else if (strcmp(argv[REQUEST_TYPE_ARG], "file") == 0) {
+    } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_file") == 0) {
         if (argc != REQUEST_FILE_ARG_COUNT) {
             fprintf(stderr, "usage: %s request_file [username] [password] "
                     "[owner-username] [filename]\n", argv[0]);
@@ -285,7 +289,8 @@ int send_new_client_request(char **argv, struct Server *operator) {
     strcpy(message_header.source, argv[USERNAME_ARG]);
     strcpy(message_header.password, argv[PASSWORD_ARG]);
 
-    write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
+    if (write_message(sockfd, (char *) &message_header, HEADER_LENGTH) < 0)
+        return -1;
     return sockfd;
 }
 
@@ -310,8 +315,8 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t db) {
                                             argv[PASSWORD_ARG],
                                             argv[USERNAME_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
-            fprintf(stderr, "Server for user %s could not be resolved, "
-                    "exiting\n", argv[USERNAME_ARG]);
+            fprintf(stderr, "Server for user %s could ", argv[USERNAME_ARG]);
+            fprintf(stderr, "not be resolved, exiting\n");
             exit(1);
         }
         add_cspair_wrapper(db, argv[USERNAME_ARG], server->ip_address,
@@ -329,10 +334,10 @@ int send_upload_file_request(char **argv, struct Server *operator, db_t db) {
     strcpy(message_header.filename, full_filename);
     message_header.length = htonl(sb.st_size);
     write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-    write_file(sockfd, argv[UPLOAD_FNAME_ARG]);
-
     free(server);
     free(full_filename);
+    if (write_file(sockfd, argv[UPLOAD_FNAME_ARG]) < 0)
+        return -1;
     return sockfd;
 }
 
@@ -351,8 +356,8 @@ int send_checkout_file_request(char **argv, struct Server *operator, db_t db) {
                                             argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
-            fprintf(stderr, "Server for user %s could not be resolved, \
-                    exiting\n", argv[OWNER_ARG]);
+            fprintf(stderr, "Server for user %s could not ", argv[OWNER_ARG]);
+            fprintf(stderr, "be resolved, exiting\n");
             exit(1);
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
@@ -393,8 +398,8 @@ int send_file_request(char **argv, struct Server *operator, db_t db) {
                                             argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
-            fprintf(stderr, "Server for user %s could not be resolved, \
-                    exiting\n", argv[OWNER_ARG]);
+            fprintf(stderr, "Server for user %s could not ", argv[OWNER_ARG]);
+            fprintf(stderr, "be resolved, exiting\n");
             exit(1);
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
@@ -439,8 +444,8 @@ int send_update_file_request(char **argv, struct Server *operator, db_t db) {
                                             argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
-            fprintf(stderr, "Server for user %s could not be resolved, \
-                    exiting\n", argv[USERNAME_ARG]);
+            fprintf(stderr, "Server for user %s could not ", argv[OWNER_ARG]);
+            fprintf(stderr, "be resolved, exiting\n");
             exit(1);
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
@@ -459,10 +464,10 @@ int send_update_file_request(char **argv, struct Server *operator, db_t db) {
     strcpy(message_header.filename, full_filename);
     message_header.length = htonl(sb.st_size);
     write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
-    write_file(sockfd, argv[UPDATE_FNAME_ARG]);
-
     free(server);
     free(full_filename);
+    if (write_file(sockfd, argv[UPDATE_FNAME_ARG]) < 0)
+        return -1;
     return sockfd;
 }
 
@@ -493,8 +498,8 @@ int send_delete_file_request(char **argv, struct Server *operator, db_t db) {
                                             argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
-            fprintf(stderr, "Server for user %s could not be resolved, \
-                    exiting\n", argv[USERNAME_ARG]);
+            fprintf(stderr, "Server for user %s could not ", argv[OWNER_ARG]);
+            fprintf(stderr, "be resolved, exiting\n");
             exit(1);
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
@@ -533,8 +538,8 @@ int send_file_list_request(char **argv, struct Server *operator, db_t db) {
                                             argv[PASSWORD_ARG],
                                             argv[OWNER_ARG]);
         if (server == NULL) { /* no client/server pairing on operator */
-            fprintf(stderr, "Server for user %s could not be resolved, \
-                    exiting\n", argv[USERNAME_ARG]);
+            fprintf(stderr, "Server for user %s could not ", argv[OWNER_ARG]);
+            fprintf(stderr, "be resolved, exiting\n");
             exit(1);
         }
         add_cspair_wrapper(db, argv[OWNER_ARG], server->ip_address,
@@ -702,6 +707,7 @@ void process_reply(int sockfd, const enum message_type message_id, char **argv,
             read_file_list_reply(sockfd, &message_header);
             break;
         default:
+            fprintf(stderr, "received an unknown message type from the sender\n");
             break;
     }
 }
@@ -857,7 +863,7 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
     m = 0;
     printf("Users in the system:\n");
     while (m < message_header->length) {
-        printf("%s\n", list_buffer);
+        printf("%s\n", &(list_buffer[m]));
         m += strlen(list_buffer) + 1;
     }
 }
@@ -886,8 +892,7 @@ void read_file_list_reply(int sockfd, struct Header *message_header) {
     m = 0;
     printf("Files for user %s:\n", message_header->filename);
     while (m < message_header->length) {
-        printf("%s\n", list_buffer);
+        printf("%s\n", &(list_buffer[m]));
         m += strlen(list_buffer) + 1;
     }
-
 }

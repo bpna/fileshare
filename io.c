@@ -53,13 +53,15 @@ int connect_to_server(char *ip, int portno) {
 }
 
 int write_message(int csock, char *data, int length) {
+    int m = 0;
     int n = 0;
 
-    while (n < length) {
-        n += write(csock, &data[n], length - n);
+    while (m < length) {
+        n = write(csock, &data[n], length - m);
         if (n < 0) {
-            error("ERROR writing to socket");
+            return -1;
         }
+        m += n;
     }
 
     return 0;
@@ -82,7 +84,8 @@ int write_file(int csock, char *filename) {
             to_write = FILE_BUFFER_MAX_LEN;
         }
         fread(bytes, 1, to_write, fp);
-        write_message(csock, bytes, to_write);
+        if (write_message(csock, bytes, to_write) < 0)
+            return -1;
         bytes_written += to_write;
     }
 
