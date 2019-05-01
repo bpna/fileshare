@@ -189,8 +189,6 @@ int check_input_get_msg_id(int argc, char **argv) {
             exit(0);
         }
         return DELETE_FILE;
-    } else if (strcmp(argv[REQUEST_TYPE_ARG], "user_list") == 0) {
-        return USER_LIST;
 
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "remove_file") == 0) {
         if (argc != UPLOAD_FILE_ARG_COUNT) {
@@ -199,8 +197,6 @@ int check_input_get_msg_id(int argc, char **argv) {
             exit(0);
         }
         return REMOVE_FILE;
-    // } else if (strcmp(argv[REQUEST_TYPE_ARG], "request_user_list") == 0) {
-    //     return REQUEST_USER_LIST;
     } else {
         fprintf(stderr, "unknown message type received: %s\n",
                 argv[REQUEST_TYPE_ARG]);
