@@ -855,10 +855,10 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
                 message_header->id);
 
     m = 0;
-    printf("Users in the system:\n\n");
+    printf("Users in the system:\n");
     while (m < message_header->length) {
         printf("%s\n", list_buffer);
-        m += strlen(list_buffer);
+        m += strlen(list_buffer) + 1;
     }
 }
 
@@ -884,10 +884,10 @@ void read_file_list_reply(int sockfd, struct Header *message_header) {
                 message_header->id);
 
     m = 0;
-    printf("Files for user %s:\n\n", message_header->filename);
+    printf("Files for user %s:\n", message_header->filename);
     while (m < message_header->length) {
         printf("%s\n", list_buffer);
-        m += strlen(list_buffer);
+        m += strlen(list_buffer) + 1;
     }
 
 }
