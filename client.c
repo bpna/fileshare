@@ -835,21 +835,21 @@ void read_request_file_reply(int sockfd, struct Header *message_header) {
 
 void read_user_list_reply(int sockfd, struct Header *message_header) {
     int n;
-    unsigned m;
+    unsigned m = 0;
     char list_buffer[FILE_BUFFER_MAX_LEN];
-    struct PartialMessageHandler *p = init_partials();
 
+    bzero(list_buffer, FILE_BUFFER_MAX_LEN);
     if (message_header->id == USER_LIST_ACK) {
-        do {
-            n = read(sockfd, list_buffer, FILE_BUFFER_MAX_LEN);
+        while (m < message_header->length) {
+            n = read(sockfd, &list_buffer[m], FILE_BUFFER_MAX_LEN);
             if (n < 0)
                 error("ERROR reading from socket");
             else if (n == 0) {
                 fprintf(stderr, "server closed connection prematurely\n");
                 exit(1);
             }
-        } while (add_partial(p, list_buffer, sockfd,
-                             message_header->length, 0) == 0);
+            m += n;
+        }
     } else
         fprintf(stderr, "Bad response type %d received from operator",
                 message_header->id);
@@ -864,22 +864,22 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
 
 void read_file_list_reply(int sockfd, struct Header *message_header) {
     int n;
-    unsigned m;
+    unsigned m = 0;
     char list_buffer[FILE_BUFFER_MAX_LEN];
-    struct PartialMessageHandler *p = init_partials();
 
+    bzero(list_buffer, FILE_BUFFER_MAX_LEN);
     if (message_header->id == FILE_LIST_ACK) {
-        do {
-            n = read(sockfd, list_buffer, FILE_BUFFER_MAX_LEN);
+        while (m < message_header->length) {
+            n = read(sockfd, &list_buffer[m], FILE_BUFFER_MAX_LEN);
             if (n < 0)
                 error("ERROR reading from socket");
             else if (n == 0) {
                 fprintf(stderr, "server closed connection prematurely\n");
                 exit(1);
             }
-        } while (add_partial(p, list_buffer, sockfd,
-                             message_header->length, 0) == 0);
-    }  else
+            m += n;
+        } 
+    } else
         fprintf(stderr, "Bad response type %d received from server",
                 message_header->id);
 
