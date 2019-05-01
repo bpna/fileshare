@@ -36,22 +36,23 @@ echo "../client checkout_file fahad topsecretpassword fahad final_exam.tex"
 
 read -n1 ans
 
+echo "original size"
 echo "ls -lh"
 ls -lh
 
 read -n1 ans
 
-echo "diff final_exam.tex ../final_exam.tex"
-diff final_exam.tex ../final_exam.tex
+dd if=/dev/urandom of=./final_exam.tex count=653 bs=1024 2> /dev/null
+
+echo "Fahad changes the file"
+echo "ls -lh"
+ls -lh
 
 read -n1 ans
 
-dd if=/dev/urandom of=./final_exam.tex count 653 bs=1024
-
-echo "../client upload_file fahad topsecretpassword final_exam.tex"
-../client upload_file fahad topsecretpassword final_exam.tex
+echo "../client update_file fahad topsecretpassword fahad final_exam.tex"
+../client update_file fahad topsecretpassword fahad final_exam.tex
 
 read -n1 ans
 
-cd ..
-rm -rf requested_files
+
