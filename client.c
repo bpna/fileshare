@@ -185,7 +185,7 @@ int check_input_get_msg_id(int argc, char **argv) {
         return FILE_LIST;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "delete_file") == 0) {
         if (argc != UPDATE_FILE_ARG_COUNT) {
-            fprintf(stderr, "usage: %s update_file [username] [password] "
+            fprintf(stderr, "usage: %s delete_file [username] [password] "
                     "[owner-username] [filename]\n", argv[0]);
             exit(0);
         }
@@ -884,7 +884,7 @@ void read_file_list_reply(int sockfd, struct Header *message_header) {
                 exit(1);
             }
             m += n;
-        } 
+        }
     } else
         fprintf(stderr, "Bad response type %d received from server",
                 message_header->id);
