@@ -39,25 +39,38 @@ pwd
 echo "../client request_file jonah 1337hacker fahad TCPfaststart.docx"
 ../client request_file jonah 1337hacker fahad TCPfaststart.docx
 
-echo "ls -lh"
-ls -lh
-
-read -n1 ans
-
-echo "../client request_file jonah 1337hacker fahad final_exam.tex"
-../client request_file jonah 1337hacker fahad final_exam.tex
-
-read -n1 ans
-
-echo "../client request_file jonah 1337hacker fahad final_exam.tex"
-../client request_file jonah 1337hacker fahad final_exam.tex
-
 read -n1 ans
 
 echo "ls -lh"
 ls -lh
 
+echo "diff TCPfaststart.docx ../../demo1/TCPfaststart.docx"
+diff TCPfaststart.docx ../../demo1/TCPfaststart.docx
+
 read -n1 ans
 
-cd ..
-rm -rf requested_files
+echo "../client checkout_file jonah 1337hacker fahad final_exam.tex"
+../client checkout_file jonah 1337hacker fahad final_exam.tex
+
+read -n1 ans
+
+echo "../client checkout_file jonah 1337hacker fahad final_exam.tex"
+../client checkout_file jonah 1337hacker fahad final_exam.tex
+
+read -n1 ans
+
+echo "Jonah changes the file"
+dd if=/dev/urandom of=./final_exam.tex count=719 bs=1024 2> /dev/null
+
+echo "ls -lh"
+ls -lh
+
+read -n1 ans
+
+echo "../client update_file jonah 1337hacker fahad final_exam.tex"
+../client update_file jonah 1337hacker fahad final_exam.tex
+
+read -n1 ans
+
+cd ../test
+./sendfiles.sh jonah 1337hacker
