@@ -59,6 +59,7 @@ int write_message(int csock, char *data, int length) {
     while (m < length) {
         n = write(csock, &data[n], length - m);
         if (n < 0) {
+            fprintf(stderr, "socket closed\n");
             return -1;
         }
         m += n;

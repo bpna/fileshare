@@ -837,6 +837,7 @@ void read_request_file_reply(int sockfd, struct Header *message_header) {
     else
         fprintf(stderr, "Bad response type %d received from router",
                 message_header->id);
+    printf("File %s successfully downloaded\n", message_header->filename);
 }
 
 void read_user_list_reply(int sockfd, struct Header *message_header) {
@@ -864,7 +865,7 @@ void read_user_list_reply(int sockfd, struct Header *message_header) {
     printf("Users in the system:\n");
     while (m < message_header->length) {
         printf("%s\n", &(list_buffer[m]));
-        m += strlen(list_buffer) + 1;
+        m += strlen(&(list_buffer[m])) + 1;
     }
 }
 
@@ -893,6 +894,6 @@ void read_file_list_reply(int sockfd, struct Header *message_header) {
     printf("Files for user %s:\n", message_header->filename);
     while (m < message_header->length) {
         printf("%s\n", &(list_buffer[m]));
-        m += strlen(list_buffer) + 1;
+        m += strlen(&(list_buffer[m])) + 1;
     }
 }
