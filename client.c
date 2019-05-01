@@ -86,8 +86,7 @@ int main(int argc, char **argv) {
     } else {
         operator = get_operator_address(argv, db);
         if (operator == NULL) {
-            fprintf(stderr, "ERROR retreiving operator address from \
-                    cspairs\n");
+            fprintf(stderr, "ERROR retreiving operator address from cspairs\n");
             exit(1);
         }
         message_id = check_input_get_msg_id(argc, argv);
@@ -177,8 +176,8 @@ int check_input_get_msg_id(int argc, char **argv) {
         return USER_LIST;
     } else if (strcmp(argv[REQUEST_TYPE_ARG], "file_list") == 0) {
         if (argc != FILE_LIST_ARG_COUNT) {
-            fprintf(stderr, "usage %s file_list [username] [password] \
-                    [owner-username]\n", argv[0]);
+            fprintf(stderr, "usage %s file_list [username] [password] "
+                    "[owner-username]\n", argv[0]);
             exit(0);
         }
 
@@ -205,9 +204,9 @@ int check_input_get_msg_id(int argc, char **argv) {
     } else {
         fprintf(stderr, "unknown message type received: %s\n",
                 argv[REQUEST_TYPE_ARG]);
-        fprintf(stderr, "accepted message types are:\ninit\nnew_client\n\
-                upload_file\nrequest_file\nupdate_file\nuser_list\n\
-                file_list\n");
+        fprintf(stderr, "accepted message types are:\ninit\nnew_client\n"
+                "upload_file\nrequest_file\nupdate_file\nuser_list\n"
+                "file_list\n");
         exit(0);
     }
 }
@@ -615,23 +614,23 @@ struct Server *send_recv_user_req(int sockfd, char *user, char *password,
 
         token = strtok(buffer, ":");
         if (token == NULL) {
-            fprintf(stderr, "malformed payload in REQUEST_USER_ACK from \
-                             operator, exiting\n");
+            fprintf(stderr, "malformed payload in REQUEST_USER_ACK from "
+                            "operator, exiting\n");
             exit(1);
         }
         strcpy(server->ip_address, token);
         token = strtok(NULL, "");
         if (token == NULL) {
-            fprintf(stderr, "malformed payload in REQUEST_USER_ACK from \
-                             operator, exiting\n");
+            fprintf(stderr, "malformed payload in REQUEST_USER_ACK from "
+                            "operator, exiting\n");
             exit(1);
         }
         server->port = atoi(token);
 
         return server;
     } else if (header.id != ERROR_USER_DOES_NOT_EXIST) {
-        fprintf(stderr, "bad response %d received from operator when \
-                         requesting user, exiting\n", header.id);
+        fprintf(stderr, "bad response %d received from operator when "
+                        "requesting user, exiting\n", header.id);
         exit(1);
     } else {
         return NULL;
@@ -692,9 +691,9 @@ void process_reply(int sockfd, const enum message_type message_id, char **argv,
                     fprintf(stderr, "successfully checked out file\n" );
                     break;
                 } else if (message_header.id == RETURN_READ_ONLY_FILE)
-                    fprintf(stderr, "someone has already checked out this \
-                                     file, you are downloading a read-only \
-                                     copy\n");
+                    fprintf(stderr, "someone has already checked out this "
+                                    "file, you are downloading a read-only "
+                                    "copy\n");
 
                 //NATHAN ALLEN DO NOT PUT A BREAK STATEMENT HERE
         case REQUEST_FILE:
