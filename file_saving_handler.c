@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <stdint.h>
 #include "file_saving_handler.h"
@@ -37,7 +38,6 @@ int save_buffer(char *fname, char* buffer, unsigned int buf_len, unsigned long f
 
     fwrite(buffer, 1, buf_len, fp);
     fclose(fp);
-
     if (current_filelen + buf_len == filelen){
         remove(fname);
         rename(temp_fname, fname);
@@ -61,4 +61,20 @@ int delete_temp_file(char *fname){
     temp_fname[strlen(fname) + 1] = '\0';
 
     return remove(temp_fname);
+}
+
+
+/*
+ * Purose: tells the program if an upload/update file on a given filename is already happening
+ * if an upload is happening, returns 1. Else, returns 0
+ */
+
+char conflicting_upload(char *fname){
+    char temp_fname[strlen(fname) + 2];
+    bzero(temp_fname, strlen(fname) + 2);
+
+    sprintf(temp_fname, "%s~", fname);
+
+    return (access( temp_fname, F_OK ) != -1);
+
 }
