@@ -548,6 +548,7 @@ int send_file_list_request(char **argv, struct Server *operator, db_t db) {
    message_header.id = FILE_LIST;
    strcpy(message_header.source, argv[USERNAME_ARG]);
    strcpy(message_header.password, argv[PASSWORD_ARG]);
+   strcpy(message_header.filename, argv[OWNER_ARG]);
    write_message(sockfd, (char *) &message_header, HEADER_LENGTH);
 
    free(server);
