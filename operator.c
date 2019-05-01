@@ -295,6 +295,7 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
     if (dbr.status == ELEMENT_NOT_FOUND) {
         outgoing_message.id = ERROR_USER_DOES_NOT_EXIST;
         outgoing_message.length = 0;
+        len = 0;
     } else if (dbr.status == SUCCESS) {
         outgoing_message.id = USER_ACK;
         server = (struct Server *) dbr.result;
@@ -303,7 +304,8 @@ int request_user(struct Header *h, int sockfd, struct PartialMessageHandler *pm)
         len = strlen(buffer);
         outgoing_message.length = htonl(len);
     } else {
-        fprintf(stderr, "Error accessing database in function request_user\n" );
+        fprintf(stderr, "Error accessing database in function request_user\n");
+        len = 0;
     }
 
     fprintf(stderr, "in request_user, length is %d\n", len);
@@ -374,11 +376,14 @@ int user_list(int sockfd) {
     bzero(&reply_header, HEADER_LENGTH);
     reply_header.id = USER_LIST_ACK;
     strcpy(reply_header.source, OPERATOR_SOURCE);
-    reply_header.length = length;
+    reply_header.length = htonl(length);
 
     write_message(sockfd, (char *) &reply_header, HEADER_LENGTH);
-    if (length != 0)
+    printf("user list len: %d\n", length);
+    if (length != 0) {
         write_message(sockfd, user_list, length);
+        free(user_list);
+    }
 
     return DISCONNECTED;
 }
